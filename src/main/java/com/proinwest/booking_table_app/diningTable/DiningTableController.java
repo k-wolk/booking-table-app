@@ -1,7 +1,6 @@
 package com.proinwest.booking_table_app.diningTable;
 
 import com.proinwest.booking_table_app.reservation.Reservation;
-import com.proinwest.booking_table_app.reservation.ReservationRepository;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -38,7 +37,6 @@ public class DiningTableController {
     @PostMapping()
     public ResponseEntity<DiningTable> addDiningTable(@Valid @RequestBody DiningTable diningTable) {
         DiningTable savedDiningTable = diningTableService.addDiningTable(diningTable);
-
         return ResponseEntity.created(diningTableService.location(savedDiningTable))
                 .body(savedDiningTable);
     }

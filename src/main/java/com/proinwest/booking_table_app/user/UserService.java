@@ -76,7 +76,7 @@ public class UserService {
         return userDTOMapper.apply(user);
     }
 
-    public boolean existsUserById(Long id) {
+    public boolean existsById(Long id) {
         return userRepository.existsById(id);
     }
     public void deleteUser(Long id) {userRepository.deleteById(id);}

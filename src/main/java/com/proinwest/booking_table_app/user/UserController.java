@@ -35,8 +35,8 @@ public class UserController {
 
     @PostMapping()
     public ResponseEntity<UserDTO> addUser(@Valid @RequestBody User user) {
-        UserDTO savedUser = userService.addUser(user);
-        return ResponseEntity.created(userService.location(user)).body(savedUser);
+            UserDTO savedUser = userService.addUser(user);
+            return ResponseEntity.created(userService.location(user)).body(savedUser);
     }
 
     @PutMapping("{id}")
@@ -55,7 +55,7 @@ public class UserController {
 
     @DeleteMapping("{id}")
     ResponseEntity<Void> deleteUser(@PathVariable Long id) {
-        if (!userService.existsUserById(id)) {
+        if (!userService.existsById(id)) {
             return ResponseEntity.notFound().build();
         }
         userService.deleteUser(id);
@@ -66,32 +66,32 @@ public class UserController {
     @GetMapping("/search/login/{login}")
     public
     ResponseEntity<List<UserDTO>> findAllUsersByLogin(@PathVariable String login) {
-        List<UserDTO> allUserByLogin = userService.findAllByLogin(login);
-        return ResponseEntity.ok(allUserByLogin);
+        List<UserDTO> allUsersByLogin = userService.findAllByLogin(login);
+        return ResponseEntity.ok(allUsersByLogin);
     }
 
     @GetMapping("/search/firstname/{firstName}")
     public ResponseEntity<List<UserDTO>> findAllUsersByFirstName(@PathVariable String firstName) {
-        List<UserDTO> allUserByName = userService.findAllByFirstName(firstName);
-        return ResponseEntity.ok(allUserByName);
+        List<UserDTO> allUsersByName = userService.findAllByFirstName(firstName);
+        return ResponseEntity.ok(allUsersByName);
     }
 
     @GetMapping("/search/lastname/{lastName}")
     public ResponseEntity<List<UserDTO>> findAllUsersByLastname(@PathVariable String lastName) {
-        List<UserDTO> allUserByLastName = userService.findAllByLastName(lastName);
-        return ResponseEntity.ok(allUserByLastName);
+        List<UserDTO> allUsersByLastName = userService.findAllByLastName(lastName);
+        return ResponseEntity.ok(allUsersByLastName);
     }
 
     @GetMapping("/search/email/{email}")
     public ResponseEntity<List<UserDTO>> findAllUsersByEmail(@PathVariable String email) {
-        List<UserDTO> allUserByEmail = userService.findAllByEmail(email);
-        return ResponseEntity.ok(allUserByEmail);
+        List<UserDTO> allUsersByEmail = userService.findAllByEmail(email);
+        return ResponseEntity.ok(allUsersByEmail);
     }
 
     @GetMapping("/search/phone/{phoneNumber}")
     public ResponseEntity<List<UserDTO>> findAllUsersByPhoneNumber(@PathVariable String phoneNumber) {
-        List<UserDTO> allUserByPhoneNumber = userService.findAllByPhoneNumber(phoneNumber);
-        return ResponseEntity.ok(allUserByPhoneNumber);
+        List<UserDTO> allUsersByPhoneNumber = userService.findAllByPhoneNumber(phoneNumber);
+        return ResponseEntity.ok(allUsersByPhoneNumber);
     }
 
     @GetMapping("/search/{name}")

@@ -13,20 +13,21 @@ public class User {
     @Id
     @GeneratedValue (strategy = GenerationType.IDENTITY)
     private Long id;
-    @NotEmpty (message = "Login is required and should have at least 3 characters!")
-    @Size (min = 3, message = "Login should have at least 3 characters!")
+    @Column (unique = true)
+    @NotEmpty (message = "Login is required and should contain at least 3 characters!")
+    @Size (min = 3, message = "Login should contain at least 3 characters!")
     private String login;
-    @NotEmpty (message = "Password is required and should have at least 12 characters!")
-    @Size (min = 12, message = "Password should have at least 12 characters!")
+    @NotEmpty (message = "Password is required and should contain at least 12 characters!")
+    @Size (min = 12, message = "Password should contain at least 12 characters!")
     private String password;
-    @NotEmpty (message = "First firstName is required!")
+    @NotEmpty (message = "First name is required!")
     private String firstName;
-    @NotEmpty (message = "Last firstName is required!")
+    @NotEmpty (message = "Last name is required!")
     private String lastName;
+    @Column (unique = true)
     @NotEmpty (message = "Email address is required!")
     @Email (message = "Wrong email address!")
-    @Size (max = 255, message = "Email address should have max 255 characters!")
-    @Column (unique = true)
+    @Size (max = 255, message = "Email address should contain max 255 characters!")
     private String email;
     @NotEmpty (message = "Phone number is required!")
     private String phoneNumber;
