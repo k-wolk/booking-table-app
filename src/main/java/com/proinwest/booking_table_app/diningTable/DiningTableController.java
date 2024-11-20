@@ -1,14 +1,12 @@
 package com.proinwest.booking_table_app.diningTable;
 
+import com.proinwest.booking_table_app.exceptions.InvalidInputException;
+import com.proinwest.booking_table_app.exceptions.NotFoundException;
 import com.proinwest.booking_table_app.reservation.Reservation;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.FieldError;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.List;
 
 @RestController
@@ -22,16 +20,14 @@ public class DiningTableController {
     }
 
     @GetMapping()
-    public ResponseEntity<Iterable<DiningTable>> getAllDiningTables() {
-        Iterable<DiningTable> allDiningTables = diningTableService.getAllDiningTables();
+    public ResponseEntity<List<DiningTable>> getAllDiningTables() {
+        List<DiningTable> allDiningTables = diningTableService.getAllDiningTables();
         return ResponseEntity.ok(allDiningTables);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<DiningTable> getDiningTable(@PathVariable Integer id) {
-        return diningTableService.getDiningTable(id)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        return ResponseEntity.ok(diningTableService.getDiningTable(id));
     }
 
     @PostMapping()
@@ -42,45 +38,30 @@ public class DiningTableController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<DiningTable> updateDiningTable(@Valid @PathVariable Integer id, @RequestBody DiningTable diningTable) {
+    public ResponseEntity<DiningTable> updateDiningTable(@PathVariable Integer id, @Valid @RequestBody DiningTable diningTable) {
         return diningTableService.updateDiningTable(id, diningTable)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @PatchMapping("/{id}")
-    public ResponseEntity<DiningTable> partiallyUpdateDiningTable(@Valid @PathVariable Integer id, @RequestBody DiningTable diningTable) {
-        return diningTableService.partiallyUpdateDiningTable(id, diningTable)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+    public ResponseEntity<DiningTable> partiallyUpdateDiningTable(@PathVariable Integer id, @RequestBody DiningTable diningTable) {
+        DiningTable table = diningTableService.partiallyUpdateDiningTable(id, diningTable);
+        return ResponseEntity.ok(table);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteDiningTable(@PathVariable Integer id) {
-        if (diningTableService.deleteDiningTable(id)) {
-            return ResponseEntity.noContent().build();
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+        diningTableService.deleteDiningTable(id);
+        return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/availabletables")
-    public ResponseEntity<List<DiningTable>> availableDiningTables(@RequestBody Reservation reservation) {
-        List<DiningTable> availableDiningTables =  diningTableService.availableDiningTables(reservation);
-        return ResponseEntity.ok(availableDiningTables);
+    @GetMapping("/freetables")
+    public ResponseEntity<List<DiningTable>> freeTables(@RequestBody Reservation reservation) {
+        List<DiningTable> freeTables =  diningTableService.freeTables(reservation);
+        return ResponseEntity.ok(freeTables);
     }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<?> handleMethodArgumentNotValidException(MethodArgumentNotValidException exception) {
-        var errors = new HashMap<String, String>();
-        exception.getBindingResult().getAllErrors()
-                .forEach(error -> {
-                    var fieldName = ((FieldError) error).getField();
-                    var errorMessage = error.getDefaultMessage();
-                    errors.put(fieldName, errorMessage);
-                });
-        return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
-    }
 }
 
 

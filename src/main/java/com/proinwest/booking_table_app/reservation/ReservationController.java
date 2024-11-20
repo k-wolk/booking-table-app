@@ -1,15 +1,12 @@
 package com.proinwest.booking_table_app.reservation;
 
+import com.proinwest.booking_table_app.exceptions.NotFoundException;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.FieldError;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.HashMap;
 import java.util.List;
 
 @RestController
@@ -29,10 +26,7 @@ public class ReservationController {
 
     @GetMapping("{id}")
     public ResponseEntity<ReservationDTO> getReservation(@PathVariable Long id) {
-        return reservationService.getReservation(id)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
-
+        return ResponseEntity.ok(reservationService.getReservation(id));
     }
 
     @PostMapping()
@@ -43,25 +37,19 @@ public class ReservationController {
     }
 
     @PutMapping("{id}")
-    public ResponseEntity<ReservationDTO> updateReservation(@PathVariable Long id, @RequestBody Reservation reservation) {
-        return reservationService.updateReservation(id, reservation)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+    public ResponseEntity<ReservationDTO> updateReservation(@PathVariable Long id, @Valid @RequestBody Reservation reservation) {
+        ReservationDTO updatedReservation = reservationService.updateReservation(id, reservation);
+        return ResponseEntity.ok(updatedReservation);
     }
 
     @PatchMapping("{id}")
     public ResponseEntity<ReservationDTO> partiallyUpdateReservation(@PathVariable Long id, @RequestBody Reservation reservation) {
-        return reservationService.partiallyUpdateReservation(id, reservation)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        ReservationDTO partiallyUpdateReservation = reservationService.partiallyUpdateReservation(id, reservation);
+        return ResponseEntity.ok(partiallyUpdateReservation);
     }
 
     @DeleteMapping("{id}")
     public ResponseEntity<Void> deleteReservation(@PathVariable Long id) {
-        if (!reservationService.existsById(id)) {
-            return ResponseEntity.notFound().build();
-        }
-
         reservationService.deleteReservation(id);
         return ResponseEntity.noContent().build();
     }
@@ -85,8 +73,8 @@ public class ReservationController {
     }
 
     @GetMapping("/search/firstName/{firstName}")
-    public ResponseEntity<List<ReservationDTO>> findAllByUserName(@PathVariable String firstName) {
-        List<ReservationDTO> allByUserName = reservationService.findAllByUserName(firstName);
+    public ResponseEntity<List<ReservationDTO>> findAllByUserFirstName(@PathVariable String firstName) {
+        List<ReservationDTO> allByUserName = reservationService.findAllByUserFirstName(firstName);
         return ResponseEntity.ok(allByUserName);
     }
 
@@ -109,7 +97,7 @@ public class ReservationController {
     }
 
     @GetMapping("/search/table/{id}")
-    public ResponseEntity<List<ReservationDTO>> findAllByTableId(@PathVariable Long id) {
+    public ResponseEntity<List<ReservationDTO>> findAllByTableId(@PathVariable Integer id) {
         List<ReservationDTO> allByTableId = reservationService.findAllByTableId(id);
         return ResponseEntity.ok(allByTableId);
     }
@@ -120,22 +108,9 @@ public class ReservationController {
         return ResponseEntity.ok(allByDateAndId);
     }
 
-    @GetMapping("/szukaj/date/{date}/time/{time}")
+    @GetMapping("/search/date/{date}/time/{time}")
     public ResponseEntity<List<ReservationDTO>> findAllByDateAndTime(@PathVariable LocalDate date, @PathVariable LocalTime time) {
-        List<ReservationDTO> allByDate = reservationService.findAllByDateAndTime(date, time);
-        return ResponseEntity.ok(allByDate);
+        List<ReservationDTO> allByDateAndTime = reservationService.findAllByDateAndTime(date, time);
+        return ResponseEntity.ok(allByDateAndTime);
     }
-
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<?> handleMethodArgumentNotValidException(MethodArgumentNotValidException exception) {
-        var errors = new HashMap<String, String>();
-        exception.getBindingResult().getAllErrors()
-                .forEach(error -> {
-                    var fieldName = ((FieldError) error).getField();
-                    var errorMessage = error.getDefaultMessage();
-                    errors.put(fieldName, errorMessage);
-                });
-        return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
-    }
-
 }

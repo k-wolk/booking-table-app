@@ -10,7 +10,7 @@ import java.util.List;
 public interface ReservationRepository extends JpaRepository<Reservation, Long>, JpaSpecificationExecutor<Reservation> {
 
     List<Reservation> findAllByReservationDate(LocalDate date);
-    List<Reservation> findAllByDiningTableId(Long id);
+    List<Reservation> findAllByDiningTableId(Integer id);
     List<Reservation> findAllByUserId(Long id);
     List<Reservation> findAllByUserLoginContainingIgnoreCase(String login);
     List<Reservation> findAllByUserFirstNameContainingIgnoreCase(String firstName);
