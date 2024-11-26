@@ -1,7 +1,5 @@
 package com.proinwest.booking_table_app.diningTable;
 
-import com.proinwest.booking_table_app.exceptions.InvalidInputException;
-import com.proinwest.booking_table_app.exceptions.NotFoundException;
 import com.proinwest.booking_table_app.reservation.Reservation;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -39,15 +37,14 @@ public class DiningTableController {
 
     @PutMapping("/{id}")
     public ResponseEntity<DiningTable> updateDiningTable(@PathVariable Integer id, @Valid @RequestBody DiningTable diningTable) {
-        return diningTableService.updateDiningTable(id, diningTable)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        DiningTable updatedDiningTable = diningTableService.updateDiningTable(id, diningTable);
+        return ResponseEntity.ok(updatedDiningTable);
     }
 
     @PatchMapping("/{id}")
     public ResponseEntity<DiningTable> partiallyUpdateDiningTable(@PathVariable Integer id, @RequestBody DiningTable diningTable) {
-        DiningTable table = diningTableService.partiallyUpdateDiningTable(id, diningTable);
-        return ResponseEntity.ok(table);
+        DiningTable updatedDiningTable = diningTableService.partiallyUpdateDiningTable(id, diningTable);
+        return ResponseEntity.ok(updatedDiningTable);
     }
 
     @DeleteMapping("/{id}")

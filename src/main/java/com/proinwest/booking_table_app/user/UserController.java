@@ -29,7 +29,9 @@ public class UserController {
 
     @PostMapping()
     public ResponseEntity<UserDTO> addUser(@Valid @RequestBody User user) {
-        return ResponseEntity.ok(userService.addUser(user));
+        UserDTO savedUser = userService.addUser(user);
+        return ResponseEntity.created(userService.location(user))
+                .body(savedUser);
     }
 
     @PutMapping("{id}")

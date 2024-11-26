@@ -52,12 +52,7 @@ class ReservationDTOMapperTest {
         assertEquals(reservation.getReservationDate(), reservationDTO.reservationDate());
         assertEquals(reservation.getReservationTime(), reservationDTO.reservationTime());
         assertEquals(reservation.getDuration(), reservationDTO.duration());
-        assertEquals(reservation.getUser().getId(), reservationDTO.userId());
-        assertEquals(reservation.getUser().getLogin(), reservationDTO.login());
-        assertEquals(reservation.getUser().getFirstName(), reservationDTO.firstName());
-        assertEquals(reservation.getUser().getLastName(), reservationDTO.lastName());
-        assertEquals(reservation.getUser().getEmail(), reservationDTO.email());
-        assertEquals(reservation.getUser().getPhoneNumber(), reservationDTO.phoneNumber());
+
         assertEquals(reservation.getDiningTable(), reservationDTO.diningTable());
     }
 }

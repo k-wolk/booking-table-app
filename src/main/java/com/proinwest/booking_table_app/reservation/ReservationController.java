@@ -1,5 +1,6 @@
 package com.proinwest.booking_table_app.reservation;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.proinwest.booking_table_app.exceptions.NotFoundException;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +13,7 @@ import java.util.List;
 @RestController
 @RequestMapping("reservations")
 public class ReservationController {
+    @JsonManagedReference
     private final ReservationService reservationService;
 
     public ReservationController(ReservationService reservationService) {
@@ -63,6 +65,7 @@ public class ReservationController {
     @GetMapping("/search/user/{id}")
     public ResponseEntity<List<ReservationDTO>> findAllByUserId(@PathVariable Long id) {
         List<ReservationDTO> allByUserId = reservationService.findAllByUserId(id);
+        if (allByUserId.isEmpty()) throw new NotFoundException("There is no reservation with user's id " + id + ".");
         return ResponseEntity.ok(allByUserId);
     }
 

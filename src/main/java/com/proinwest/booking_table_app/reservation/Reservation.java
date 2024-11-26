@@ -3,85 +3,48 @@ package com.proinwest.booking_table_app.reservation;
 import com.proinwest.booking_table_app.diningTable.DiningTable;
 import com.proinwest.booking_table_app.user.User;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.FutureOrPresent;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
 
 @Entity
+@Getter
+@Setter
+@NoArgsConstructor
 public class Reservation {
+    private static final String FIELD_REQUIRED = ReservationService.FIELD_REQUIRED;
+    private static final String DATE_MESSAGE = ReservationService.DATE_MESSAGE;
+    private static final int MIN_DURATION = ReservationService.MIN_DURATION;
+    private static final int MAX_DURATION = ReservationService.MAX_DURATION;
+    private static final String DURATION_MESSAGE = ReservationService.DURATION_MESSAGE;
     @Id
-    @GeneratedValue (strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @FutureOrPresent (message = "Reservation date should be present or future.")
+    @NotNull(message = FIELD_REQUIRED + DATE_MESSAGE)
+    @FutureOrPresent(message = DATE_MESSAGE)
     private LocalDate reservationDate;
 
+    @NotNull(message = FIELD_REQUIRED)
     private LocalTime reservationTime;
-    @NotNull (message = "Duration time should be between 1 and 6 hours.")
-    @DecimalMin(value = "1", message = "Duration time should be between 1 and 6 hours.")
-    @DecimalMax(value = "6", message = "Duration time should be between 1 and 6 hours.")
+    @NotNull(message = FIELD_REQUIRED + DURATION_MESSAGE)
+    @Min(value = MIN_DURATION, message = DURATION_MESSAGE)
+    @Max(value = MAX_DURATION, message = DURATION_MESSAGE)
     private Integer duration;
 
     @ManyToOne
-    @JoinColumn (name = "user_id")
-    @NotNull(message = "User is required.")
+    @JoinColumn(name = "user_id")
+    @NotNull(message = FIELD_REQUIRED)
     private User user;
 
     @ManyToOne
-    @JoinColumn (name = "table_id")
-    @NotNull(message = "Table is required.")
+    @JoinColumn(name = "table_id")
+    @NotNull(message = FIELD_REQUIRED)
     private DiningTable diningTable;
-
-    public Reservation() {
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-
-    public LocalDate getReservationDate() {
-        return reservationDate;
-    }
-
-    public void setReservationDate(LocalDate reservationDate) {
-        this.reservationDate = reservationDate;
-    }
-
-    public LocalTime getReservationTime() {
-        return reservationTime;
-    }
-
-    public void setReservationTime(LocalTime reservationTime) {
-        this.reservationTime = reservationTime;
-    }
-
-    public Integer getDuration() {
-        return duration;
-    }
-
-    public void setDuration(Integer duration) {
-        this.duration = duration;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
-    }
-
-    public DiningTable getDiningTable() {
-        return diningTable;
-    }
-
-    public void setDiningTable(DiningTable diningTable) {
-        this.diningTable = diningTable;
-    }
-
 }
