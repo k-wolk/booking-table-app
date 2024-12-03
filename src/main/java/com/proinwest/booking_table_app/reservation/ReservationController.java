@@ -2,7 +2,6 @@ package com.proinwest.booking_table_app.reservation;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.proinwest.booking_table_app.exceptions.NotFoundException;
-import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,14 +31,14 @@ public class ReservationController {
     }
 
     @PostMapping()
-    public ResponseEntity<ReservationDTO> addReservation(@Valid @RequestBody Reservation reservation) {
+    public ResponseEntity<ReservationDTO> addReservation(@RequestBody Reservation reservation) {
         ReservationDTO savedReservation = reservationService.addReservation(reservation);
         return ResponseEntity.created(reservationService.location(reservation))
                 .body(savedReservation);
     }
 
     @PutMapping("{id}")
-    public ResponseEntity<ReservationDTO> updateReservation(@PathVariable Long id, @Valid @RequestBody Reservation reservation) {
+    public ResponseEntity<ReservationDTO> updateReservation(@PathVariable Long id, @RequestBody Reservation reservation) {
         ReservationDTO updatedReservation = reservationService.updateReservation(id, reservation);
         return ResponseEntity.ok(updatedReservation);
     }

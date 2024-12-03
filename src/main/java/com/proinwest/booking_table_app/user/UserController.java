@@ -47,7 +47,7 @@ public class UserController {
     }
 
     @DeleteMapping("{id}")
-    ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }
@@ -76,7 +76,6 @@ public class UserController {
         return ResponseEntity.ok(allUsersByEmail);
     }
 
-    // przepisać wyjątki do service
     @GetMapping("/search/phone/{phoneNumber}")
     public ResponseEntity<List<UserDTO>> findAllUsersByPhoneNumber(@PathVariable String phoneNumber) {
         List<UserDTO> allUsersByPhoneNumber = userService.findAllByPhoneNumber(phoneNumber);

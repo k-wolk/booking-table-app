@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -30,13 +31,6 @@ public class GlobalExceptionHandler {
 
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     String now = LocalDateTime.now().format(formatter);
-
-    @ExceptionHandler(AlreadyExistsException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ExceptionResponse handleTableExistsException(AlreadyExistsException exception) {
-        return new ExceptionResponse(HttpStatus.BAD_REQUEST.value(),
-                exception.getMessage(), now);
-    }
 
     @ExceptionHandler(NotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
@@ -57,5 +51,12 @@ public class GlobalExceptionHandler {
     public ExceptionResponse handleInvalidInputException(InvalidInputException exception) {
         return new ExceptionResponse(HttpStatus.BAD_REQUEST.value(),
                 exception.getMessage(), now);
+    }
+
+    @ExceptionHandler(ValidationException.class)
+    public ResponseEntity<Map<String, String>> handleValidationException(ValidationException exception) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(exception.getErrors());
     }
 }

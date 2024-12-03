@@ -1,8 +1,8 @@
 package com.proinwest.booking_table_app.user;
 
-import com.proinwest.booking_table_app.exceptions.AlreadyExistsException;
 import com.proinwest.booking_table_app.exceptions.InvalidInputException;
 import com.proinwest.booking_table_app.exceptions.NotFoundException;
+import com.proinwest.booking_table_app.exceptions.ValidationException;
 import com.proinwest.booking_table_app.reservation.ReservationService;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
@@ -11,7 +11,6 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 import java.util.stream.StreamSupport;
 
 @Service
@@ -24,7 +23,7 @@ public class UserService {
     public static final int EMAIL_MAX_LENGTH = 70;
     public static final String EMAIL_REGEX = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$";
     public static final String EMAIL_MESSAGE = "Email address should contain max " + EMAIL_MAX_LENGTH + " characters.";
-    public static final String WRONG_EMAIL = "Wrong email address.";
+    public static final String WRONG_EMAIL = "Wrong email address format.";
     public static final int PHONE_NUMBER_MIN_LENGTH = 7;
     public static final String PHONE_NUMBER_REGEX = "^\\+?[1-9][0-9]{0,2}([- ]?[0-9]{2,4}){2,3}$";
     public static final String PHONE_MESSAGE = "Phone number should contain at least " + PHONE_NUMBER_MIN_LENGTH + " digits. ";
@@ -35,14 +34,16 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserDTOMapper userDTOMapper;
     private final ReservationService reservationService;
+    private final UserValidator userValidator;
 
-    public UserService(UserRepository userRepository, UserDTOMapper userDTOMapper, @Lazy ReservationService reservationService) {
+    public UserService(UserRepository userRepository, UserDTOMapper userDTOMapper, @Lazy ReservationService reservationService, UserValidator userValidator) {
         this.userRepository = userRepository;
         this.userDTOMapper = userDTOMapper;
         this.reservationService = reservationService;
+        this.userValidator = userValidator;
     }
 
-    public List<UserDTO> getAllUsers() {
+    List<UserDTO> getAllUsers() {
         final Iterable<User> allUsers = userRepository.findAll();
         final List<UserDTO> allUsersList = StreamSupport.stream(allUsers.spliterator(), false)
                 .map(userDTOMapper)
@@ -53,78 +54,56 @@ public class UserService {
         return allUsersList;
     }
 
-    public UserDTO getUser(Long id) {
+    UserDTO getUser(Long id) {
         return userRepository.findById(id)
                 .map(userDTOMapper)
                 .orElseThrow(() -> new NotFoundException("User with id " + id + " was not found."));
     }
 
-    public UserDTO addUser(User user) {
-        if (userRepository.existsByLogin(user.getLogin()))
-            throw new AlreadyExistsException("Login " + user.getLogin() + " already exists. It should be unique.");
+    UserDTO addUser(User user) {
+        validateUser(user);
 
         final User savedUser = userRepository.save(user);
         return userDTOMapper.apply(savedUser);
     }
 
-    public URI location(User user) {
+    URI location(User user) {
         return ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
                 .buildAndExpand(user.getId())
                 .toUri();
     }
 
-    public UserDTO updateUser(Long id, User user) {
+    UserDTO updateUser(Long id, User user) {
         final User userToUpdate = userRepository.findById(id)
                 .map(updatingUser -> updateUser(user, updatingUser))
                 .orElseThrow(() -> new NotFoundException("User with id " + id + " was not found."));
 
-        isPhoneNumberValid(userToUpdate.getPhoneNumber());
-        isLoginValid(userToUpdate.getLogin(), id);
+        validateUser(userToUpdate, id);
 
         final User savedUser = userRepository.save(userToUpdate);
         return userDTOMapper.apply(savedUser);
     }
 
-    public UserDTO partiallyUpdateUser(Long id, User user) {
+    UserDTO partiallyUpdateUser(Long id, User user) {
         final User userToUpdate = userRepository.findById(id)
                 .map(updatingUser -> partiallyUpdateUser(user, updatingUser))
                 .orElseThrow(() -> new NotFoundException("User with id " + id + " was not found."));
 
-
-        // todo extract Validation.class
-        Map<String, String> validationMessages = validateUser(user);
-
-        List<ValidationError> errors = validate(user);
-
-        isLoginValid(userToUpdate.getLogin(), id);
-        isPasswordValid(userToUpdate.getPassword());
-        isFirstNameValid(userToUpdate.getFirstName());
-        isLastNameValid(userToUpdate.getLastName());
-        isEmailValid(userToUpdate.getEmail(), id);
-        isPhoneNumberValid(userToUpdate.getPhoneNumber());
+        validateUser(userToUpdate, id);
 
         final User savedUser = userRepository.save(userToUpdate);
         return userDTOMapper.apply(savedUser);
     }
 
-    private List<ValidationError> validate(User user) {
-        return null;
-    }
-
-    private Map<String, String> validateUser(User user) {
-
-        return Map.of();
-    }
-
-    public void deleteUser(Long id) {
+    void deleteUser(Long id) {
         existsById(id);
         if (!reservationService.findAllByUserId(id).isEmpty())
             throw new InvalidInputException("User with id " + id + " can not be deleted because it has reservation assigned.");
         userRepository.deleteById(id);
     }
 
-    public List<UserDTO> findAllByLogin(String loginFragment) {
+    List<UserDTO> findAllByLogin(String loginFragment) {
         if (loginFragment == null) throw new InvalidInputException(INPUT_IS_MISSING);
 
         final List<UserDTO> allByLogin = userRepository.findAllByLoginContainingIgnoreCase(loginFragment)
@@ -137,7 +116,7 @@ public class UserService {
         return allByLogin;
     }
 
-    public List<UserDTO> findAllByFirstName(String firstNameFragment) {
+    List<UserDTO> findAllByFirstName(String firstNameFragment) {
         if (firstNameFragment == null) throw new InvalidInputException(INPUT_IS_MISSING);
 
         final List<UserDTO> allByFirstName = userRepository.findAllByFirstNameContainingIgnoreCase(firstNameFragment)
@@ -150,7 +129,7 @@ public class UserService {
         return allByFirstName;
     }
 
-    public List<UserDTO> findAllByLastName(String lastNameFragment) {
+    List<UserDTO> findAllByLastName(String lastNameFragment) {
         if (lastNameFragment == null) throw new NotFoundException(INPUT_IS_MISSING);
 
         final List<UserDTO> allByLastName = userRepository.findAllByLastNameContainingIgnoreCase(lastNameFragment)
@@ -163,7 +142,7 @@ public class UserService {
         return allByLastName;
     }
 
-    public List<UserDTO> findAllByEmail(String emailFragment) {
+    List<UserDTO> findAllByEmail(String emailFragment) {
         if (emailFragment == null) throw new InvalidInputException(INPUT_IS_MISSING);
 
         final List<UserDTO> allByEmail = userRepository.findAllByEmailContainingIgnoreCase(emailFragment)
@@ -176,7 +155,7 @@ public class UserService {
         return allByEmail;
     }
 
-    public List<UserDTO> findAllByPhoneNumber(String phoneNumberFragment) {
+    List<UserDTO> findAllByPhoneNumber(String phoneNumberFragment) {
         if (phoneNumberFragment.isBlank()) throw new InvalidInputException(INPUT_IS_MISSING);
 
         final List<UserDTO> allByPhoneNumber = userRepository.findAllByPhoneNumberContaining(phoneNumberFragment)
@@ -189,7 +168,7 @@ public class UserService {
         return allByPhoneNumber;
     }
 
-    public List<UserDTO> findAllByAnyString(String nameFragment) {
+    List<UserDTO> findAllByAnyString(String nameFragment) {
         if (nameFragment == null) throw new InvalidInputException(INPUT_IS_MISSING);
 
         final List<UserDTO> allByAnyString = userRepository
@@ -203,51 +182,34 @@ public class UserService {
         return allByAnyString;
     }
 
-    public void existsById(Long id) {
-        if (!userRepository.existsById(id)) throw new NotFoundException("User with id " + id + " was not found!");
+    String findLoginById(Long id) {
+        return userRepository.findLoginById(id);
     }
 
-    public void isLoginValid(String login, Long id) {
-        if (login.isBlank()) throw new InvalidInputException(FIELD_REQUIRED + LOGIN_MESSAGE);
-        if (login.length() < LOGIN_MIN_LENGTH) throw new InvalidInputException(LOGIN_MESSAGE);
-
-        if (!userRepository.findLoginById(id).equals(login)) {
-            if (userRepository.existsByLogin(login)) {
-                throw new InvalidInputException("Login " + login + " already exists. It should be unique.");
-            }
-        }
+    String findEmailById(Long id) {
+        return userRepository.findEmailById(id);
     }
 
-    public void isPasswordValid(String password) {
-        if (password.isBlank()) throw new InvalidInputException(FIELD_REQUIRED + PASSWORD_MESSAGE);
-        if (password.length() < PASSWORD_MIN_LENGTH) throw new InvalidInputException(PASSWORD_MESSAGE);
+    public boolean existsById(Long id) {
+        return userRepository.existsById(id);
     }
 
-    public void isFirstNameValid(String firstName) {
-        if (firstName.isBlank()) throw new InvalidInputException(FIELD_REQUIRED);
+    boolean existsByLogin(String login) {
+        return userRepository.existsByLogin(login);
     }
 
-    public void isLastNameValid(String lastName) {
-        if (lastName.isBlank()) throw new InvalidInputException(FIELD_REQUIRED);
+    boolean existsByEmail(String email) {
+        return userRepository.existsByEmail(email);
     }
 
-    public void isEmailValid(String email, Long id) {
-        if (email.isBlank()) throw new InvalidInputException(FIELD_REQUIRED + EMAIL_MESSAGE);
-
-        if (!userRepository.findEmailById(id).equals(email)) {
-            if (userRepository.existsByEmail(email)) {
-                throw new InvalidInputException("Email address " + email + " already exists. It should be unique.");
-            }
-        }
-        if (email.length() > EMAIL_MAX_LENGTH) throw new InvalidInputException(EMAIL_MESSAGE);
-        if (!Pattern.matches(UserService.EMAIL_REGEX, email)) throw new InvalidInputException(WRONG_EMAIL);
+    private void validateUser(User userToUpdate, Long id) {
+        Map<String, String> validationMessages = userValidator.validateUser(userToUpdate, id);
+        if (!validationMessages.isEmpty()) throw new ValidationException(validationMessages);
     }
 
-    private void isPhoneNumberValid(String phoneNumber) {
-        if (phoneNumber == null) throw new InvalidInputException(FIELD_REQUIRED + PHONE_MESSAGE);
-        if (phoneNumber.length() < PHONE_NUMBER_MIN_LENGTH) throw new InvalidInputException(PHONE_MESSAGE);
-        if (!Pattern.matches(PHONE_NUMBER_REGEX, phoneNumber))
-            throw new InvalidInputException(PHONE_MESSAGE + VALID_PHONE_NUMBER);
+    private void validateUser(User userToUpdate) {
+        Map<String, String> validationMessages = userValidator.validateUser(userToUpdate);
+        if (!validationMessages.isEmpty()) throw new ValidationException(validationMessages);
     }
 
     private static User updateUser(User user, User updatingUser) {

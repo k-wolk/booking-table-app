@@ -4,7 +4,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
@@ -22,5 +21,5 @@ public interface UserRepository extends JpaRepository<User, Long> {
     String findLoginById(Long id);
 
     @Query(value = "SELECT u.email FROM user u WHERE u.id = :id", nativeQuery = true)
-    Object findEmailById(Long id);
+    String findEmailById(Long id);
 }

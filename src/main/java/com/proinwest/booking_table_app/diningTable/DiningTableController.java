@@ -1,7 +1,6 @@
 package com.proinwest.booking_table_app.diningTable;
 
 import com.proinwest.booking_table_app.reservation.Reservation;
-import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,14 +28,14 @@ public class DiningTableController {
     }
 
     @PostMapping()
-    public ResponseEntity<DiningTable> addDiningTable(@Valid @RequestBody DiningTable diningTable) {
+    public ResponseEntity<DiningTable> addDiningTable(@RequestBody DiningTable diningTable) {
         DiningTable savedDiningTable = diningTableService.addDiningTable(diningTable);
         return ResponseEntity.created(diningTableService.location(savedDiningTable))
                 .body(savedDiningTable);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<DiningTable> updateDiningTable(@PathVariable Integer id, @Valid @RequestBody DiningTable diningTable) {
+    public ResponseEntity<DiningTable> updateDiningTable(@PathVariable Integer id, @RequestBody DiningTable diningTable) {
         DiningTable updatedDiningTable = diningTableService.updateDiningTable(id, diningTable);
         return ResponseEntity.ok(updatedDiningTable);
     }

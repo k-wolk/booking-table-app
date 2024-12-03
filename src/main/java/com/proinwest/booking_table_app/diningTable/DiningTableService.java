@@ -1,8 +1,8 @@
 package com.proinwest.booking_table_app.diningTable;
 
-import com.proinwest.booking_table_app.exceptions.AlreadyExistsException;
 import com.proinwest.booking_table_app.exceptions.InvalidInputException;
 import com.proinwest.booking_table_app.exceptions.NotFoundException;
+import com.proinwest.booking_table_app.exceptions.ValidationException;
 import com.proinwest.booking_table_app.reservation.Reservation;
 import com.proinwest.booking_table_app.reservation.ReservationService;
 import org.springframework.context.annotation.Lazy;
@@ -25,72 +25,82 @@ public class DiningTableService {
     public static final String SEATS_MESSAGE = "Number of seats should be between " + MIN_SEATS + " and " + MAX_SEATS + ".";
     private final DiningTableRepository diningTableRepository;
     private final ReservationService reservationService;
+    private final DiningTableValidator diningTableValidator;
 
     public DiningTableService(DiningTableRepository diningTableRepository,
-                              @Lazy ReservationService reservationService)
+                              @Lazy ReservationService reservationService, DiningTableValidator diningTableValidator)
     {
         this.diningTableRepository = diningTableRepository;
         this.reservationService = reservationService;
+        this.diningTableValidator = diningTableValidator;
     }
 
-    public List<DiningTable> getAllDiningTables() {
+    List<DiningTable> getAllDiningTables() {
         final List<DiningTable> allDiningTables = diningTableRepository.findAll();
         if (allDiningTables.isEmpty()) throw new NotFoundException("There are no dining tables in database.");
+
         return allDiningTables;
     }
 
-    public DiningTable getDiningTable(Integer id) {
+    DiningTable getDiningTable(Integer id) {
         return diningTableRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Table with id " + id + " was not found!"));
     }
 
-    public DiningTable addDiningTable(DiningTable diningTable) {
-        existsByNumber(diningTable.getNumber(), diningTable.getId());
+    List<DiningTable> getAllDiningTablesWithMinSeats(Integer seats) {
+        final List<DiningTable> allDiningTablesWithMinSeats = diningTableRepository.allDiningTablesWithMinSeats(seats);
+        if (allDiningTablesWithMinSeats.isEmpty()) throw new NotFoundException("There are no tables with the required number of seats = " + seats + ".");
+
+        return allDiningTablesWithMinSeats;
+    }
+
+    DiningTable addDiningTable(DiningTable diningTable) {
+        validateDiningTable(diningTable.getId(), diningTable);
+
         return diningTableRepository.save(diningTable);
     }
 
-    public URI location (DiningTable diningTable) {
+    URI location (DiningTable diningTable) {
         return ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
                 .buildAndExpand(diningTable.getId())
                 .toUri();
     }
 
-    public DiningTable updateDiningTable(Integer id, DiningTable diningTable) {
-        existsByNumber(diningTable.getNumber(), id);
-
+    DiningTable updateDiningTable(Integer id, DiningTable diningTable) {
         DiningTable diningTableToUpdate = diningTableRepository.findById(id)
                 .map(updatingDiningTable -> updateDiningTable(diningTable, updatingDiningTable))
                 .orElseThrow(() -> new NotFoundException("Dining table with id " + id + " was not found."));
 
+        validateDiningTable(id, diningTableToUpdate);
+
         return diningTableRepository.save(diningTableToUpdate);
     }
 
-    public DiningTable partiallyUpdateDiningTable(Integer id, DiningTable diningTable) {
-        isNumberValid(diningTable.getNumber(), id);
-        isSeatsValid(diningTable.getSeats());
+    DiningTable partiallyUpdateDiningTable(Integer id, DiningTable diningTable) {
 
         final DiningTable diningTableToUpdate = diningTableRepository.findById(id)
                 .map(updatingTable -> partiallyUpdateDiningTable(diningTable, updatingTable))
                 .orElseThrow(() -> new NotFoundException("Dining table with id " + id + " was not found."));
 
+        validateDiningTable(id, diningTableToUpdate);
+
         return diningTableRepository.save(diningTableToUpdate);
     }
 
-    public void deleteDiningTable(Integer id) {
+    void deleteDiningTable(Integer id) {
         existsById(id);
+
         if (!reservationService.findAllByDiningTableId(id).isEmpty())
             throw new InvalidInputException("Dining table with " + id + " can not be deleted because it has reservations assigned.");
+
         diningTableRepository.deleteById(id);
     }
 
-    // todo: add checking table size
-    public List<DiningTable> freeTables(Reservation reservation) {
-        reservationService.isDateValid(reservation.getReservationDate());
-        reservationService.isTimeValid(reservation.getReservationTime(), reservation.getReservationDate(), reservation.getDuration());
-        reservationService.isDurationValid(reservation.getDuration());
+    List<DiningTable> freeTables(Reservation reservation) {
+        reservationService.validateDateTimeDurationAndSeats(reservation);
 
-        final Iterable<DiningTable> allDiningTables = getAllDiningTables();
+        final Iterable<DiningTable> allDiningTables = getAllDiningTablesWithMinSeats(reservation.getDiningTable().getSeats());
         final List<DiningTable> bookedDiningTables = bookedDiningTables(
                 reservation.getReservationDate(),
                 reservation.getReservationTime(),
@@ -109,36 +119,27 @@ public class DiningTableService {
 
         return availableTables;
     }
-    public List<DiningTable> bookedDiningTables(LocalDate date, LocalTime time, int duration) {
+
+    private List<DiningTable> bookedDiningTables(LocalDate date, LocalTime time, int duration) {
         return diningTableRepository.BookedTablesByDateTimeAndDuration(date, time, duration);
     }
 
-    public void isNumberValid(Integer number, Integer id) {
-        if (number != null) {
-            if (number < MIN_NUMBER || number > MAX_NUMBER) {
-                throw new InvalidInputException(NUMBER_MESSAGE);
-            }
-            if (diningTableRepository.findNumberById(id) != number) existsByNumber(number, id);
-        }
+    Integer findNumberById(Integer id) {
+        if (id == null) return 0;
+        return diningTableRepository.findNumberById(id);
     }
 
-    public void isSeatsValid(Integer seats){
-        if (seats != null) {
-            if (seats < MIN_SEATS || seats > MAX_SEATS)
-                throw new InvalidInputException(SEATS_MESSAGE);
-        }
+    public boolean existsById(int id) {
+        return diningTableRepository.existsById(id);
     }
 
-    public void existsById(int id) {
-        if (!diningTableRepository.existsById(id))
-            throw new NotFoundException("Dining table with id " + id + " was not found.");
+    boolean existsByNumber(int tableNumber) {
+        return diningTableRepository.existsByNumber(tableNumber);
     }
 
-    public void existsByNumber(int tableNumber, int id) {
-        if (diningTableRepository.findById(id).get().getNumber() != tableNumber) {
-            if (diningTableRepository.existsByNumber(tableNumber))
-                throw new AlreadyExistsException("Table number " + tableNumber + " already exists. It should be unique.");
-        }
+    private void validateDiningTable(Integer id, DiningTable diningTable) {
+        Map<String, String> validationMessages = diningTableValidator.validateDiningTable(diningTable, id);
+        if (!validationMessages.isEmpty()) throw new ValidationException(validationMessages);
     }
 
     private static DiningTable updateDiningTable(DiningTable diningTable, DiningTable updatingDiningTable) {
