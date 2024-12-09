@@ -35,7 +35,7 @@ public class DiningTableService {
         this.diningTableValidator = diningTableValidator;
     }
 
-    List<DiningTable> getAllDiningTables() {
+    public List<DiningTable> getAllDiningTables() {
         final List<DiningTable> allDiningTables = diningTableRepository.findAll();
         if (allDiningTables.isEmpty()) throw new NotFoundException("There are no dining tables in database.");
 
@@ -45,13 +45,6 @@ public class DiningTableService {
     DiningTable getDiningTable(Integer id) {
         return diningTableRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Table with id " + id + " was not found!"));
-    }
-
-    List<DiningTable> getAllDiningTablesWithMinSeats(Integer seats) {
-        final List<DiningTable> allDiningTablesWithMinSeats = diningTableRepository.allDiningTablesWithMinSeats(seats);
-        if (allDiningTablesWithMinSeats.isEmpty()) throw new NotFoundException("There are no tables with the required number of seats = " + seats + ".");
-
-        return allDiningTablesWithMinSeats;
     }
 
     DiningTable addDiningTable(DiningTable diningTable) {
@@ -80,7 +73,7 @@ public class DiningTableService {
     DiningTable partiallyUpdateDiningTable(Integer id, DiningTable diningTable) {
 
         final DiningTable diningTableToUpdate = diningTableRepository.findById(id)
-                .map(updatingTable -> partiallyUpdateDiningTable(diningTable, updatingTable))
+                .map(updatingDiningTable -> partiallyUpdateDiningTable(diningTable, updatingDiningTable))
                 .orElseThrow(() -> new NotFoundException("Dining table with id " + id + " was not found."));
 
         validateDiningTable(id, diningTableToUpdate);
@@ -89,25 +82,26 @@ public class DiningTableService {
     }
 
     void deleteDiningTable(Integer id) {
-        existsById(id);
+        if (!existsById(id))
+            throw new NotFoundException("Dining table with " + id + " was not found.");
 
         if (!reservationService.findAllByDiningTableId(id).isEmpty())
-            throw new InvalidInputException("Dining table with " + id + " can not be deleted because it has reservations assigned.");
+            throw new InvalidInputException("Dining table with " + id + " can not be deleted because it has at least one reservation assigned.");
 
         diningTableRepository.deleteById(id);
     }
 
-    List<DiningTable> freeTables(Reservation reservation) {
+    List<DiningTable> getFreeTables(Reservation reservation) {
         reservationService.validateDateTimeDurationAndSeats(reservation);
 
-        final Iterable<DiningTable> allDiningTables = getAllDiningTablesWithMinSeats(reservation.getDiningTable().getSeats());
-        final List<DiningTable> bookedDiningTables = bookedDiningTables(
+        final Iterable<DiningTable> allDiningTablesWithMinSeats = getAllDiningTablesWithMinSeats(reservation.getDiningTable().getSeats());
+        final List<DiningTable> bookedDiningTables = getBookedDiningTables(
                 reservation.getReservationDate(),
                 reservation.getReservationTime(),
                 reservation.getDuration()
         );
 
-        final Set<DiningTable> freeTables = new HashSet<>((Collection) allDiningTables);
+        final Set<DiningTable> freeTables = new HashSet<>((Collection) allDiningTablesWithMinSeats);
         bookedDiningTables.forEach(freeTables::remove);
 
         final List<DiningTable> availableTables = freeTables
@@ -120,7 +114,14 @@ public class DiningTableService {
         return availableTables;
     }
 
-    private List<DiningTable> bookedDiningTables(LocalDate date, LocalTime time, int duration) {
+    List<DiningTable> getAllDiningTablesWithMinSeats(Integer seats) {
+        final List<DiningTable> allDiningTablesWithMinSeats = diningTableRepository.allDiningTablesWithMinSeats(seats);
+        if (allDiningTablesWithMinSeats.isEmpty()) throw new NotFoundException("There are no tables with the required number of seats = " + seats + ".");
+
+        return allDiningTablesWithMinSeats;
+    }
+
+    List<DiningTable> getBookedDiningTables(LocalDate date, LocalTime time, int duration) {
         return diningTableRepository.BookedTablesByDateTimeAndDuration(date, time, duration);
     }
 
@@ -137,19 +138,19 @@ public class DiningTableService {
         return diningTableRepository.existsByNumber(tableNumber);
     }
 
-    private void validateDiningTable(Integer id, DiningTable diningTable) {
-        Map<String, String> validationMessages = diningTableValidator.validateDiningTable(diningTable, id);
+    void validateDiningTable(Integer id, DiningTable diningTable) {
+        Map<String, String> validationMessages = diningTableValidator.validateDiningTable(id, diningTable);
         if (!validationMessages.isEmpty()) throw new ValidationException(validationMessages);
     }
 
-    private static DiningTable updateDiningTable(DiningTable diningTable, DiningTable updatingDiningTable) {
+    static DiningTable updateDiningTable(DiningTable diningTable, DiningTable updatingDiningTable) {
         updatingDiningTable.setNumber(diningTable.getNumber());
         updatingDiningTable.setSeats(diningTable.getSeats());
 
         return updatingDiningTable;
     }
 
-    private static DiningTable partiallyUpdateDiningTable(DiningTable diningTable, DiningTable updatingTable) {
+    static DiningTable partiallyUpdateDiningTable(DiningTable diningTable, DiningTable updatingTable) {
         if (diningTable.getNumber() != null) updatingTable.setNumber(diningTable.getNumber());
         if (diningTable.getSeats() != null) updatingTable.setSeats(diningTable.getSeats());
 

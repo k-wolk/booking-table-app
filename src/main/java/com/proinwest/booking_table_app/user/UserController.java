@@ -1,6 +1,5 @@
 package com.proinwest.booking_table_app.user;
 
-import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,14 +27,14 @@ public class UserController {
     }
 
     @PostMapping()
-    public ResponseEntity<UserDTO> addUser(@Valid @RequestBody User user) {
+    public ResponseEntity<UserDTO> addUser(@RequestBody User user) {
         UserDTO savedUser = userService.addUser(user);
         return ResponseEntity.created(userService.location(user))
                 .body(savedUser);
     }
 
     @PutMapping("{id}")
-    public ResponseEntity<UserDTO> updateUser(@PathVariable Long id, @Valid @RequestBody User user) {
+    public ResponseEntity<UserDTO> updateUser(@PathVariable Long id, @RequestBody User user) {
         UserDTO updatedUser = userService.updateUser(id, user);
         return ResponseEntity.ok().body(updatedUser);
     }

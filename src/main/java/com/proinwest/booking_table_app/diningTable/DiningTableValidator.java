@@ -10,14 +10,13 @@ import static com.proinwest.booking_table_app.diningTable.DiningTableService.*;
 
 @Component
 public class DiningTableValidator {
-    
     private final DiningTableService diningTableService;
 
     public DiningTableValidator(@Lazy DiningTableService diningTableService) {
         this.diningTableService = diningTableService;
     }
 
-    Map<String, String> validateDiningTable(DiningTable diningTable, Integer id) {
+    Map<String, String> validateDiningTable(Integer id, DiningTable diningTable) {
         final Map<String, String> errors = new HashMap<>();
         
         validateNumber(diningTable.getNumber(), errors, id);

@@ -74,7 +74,6 @@ public class ReservationValidator {
         } else if (!diningTableService.existsById(id)) {
             errors.put("diningTable", "Dining table with id " + id + " was not found.");
         }
-
     }
 
     private void validateDuration(Integer duration, Map<String, String> errors) {

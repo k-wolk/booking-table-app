@@ -98,8 +98,10 @@ public class UserService {
 
     void deleteUser(Long id) {
         existsById(id);
+
         if (!reservationService.findAllByUserId(id).isEmpty())
-            throw new InvalidInputException("User with id " + id + " can not be deleted because it has reservation assigned.");
+            throw new InvalidInputException("User with id " + id + " can not be deleted because he has at least one reservation assigned.");
+
         userRepository.deleteById(id);
     }
 

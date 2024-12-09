@@ -16,7 +16,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByEmail(String email);
     boolean existsByLogin(String login);
 
-
     @Query(value = "SELECT u.login FROM user u WHERE u.id = :id", nativeQuery = true)
     String findLoginById(Long id);
 

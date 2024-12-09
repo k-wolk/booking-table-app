@@ -54,10 +54,9 @@ public class DiningTableController {
 
     @GetMapping("/freetables")
     public ResponseEntity<List<DiningTable>> freeTables(@RequestBody Reservation reservation) {
-        List<DiningTable> freeTables =  diningTableService.freeTables(reservation);
+        List<DiningTable> freeTables =  diningTableService.getFreeTables(reservation);
         return ResponseEntity.ok(freeTables);
     }
-
 }
 
 

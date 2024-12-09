@@ -17,8 +17,8 @@ import java.util.stream.StreamSupport;
 @Service
 public class ReservationService {
     static final String FIELD_REQUIRED = "This field is required. ";
-    static final LocalTime OPENING_TIME = LocalTime.of(11,00);
-    static final LocalTime CLOSING_TIME = LocalTime.of(23,00);
+    static final LocalTime OPENING_TIME = LocalTime.of(11,0);
+    static final LocalTime CLOSING_TIME = LocalTime.of(23,0);
     static final String OPENING_HOURS_MESSAGE = "Our place is open from " + OPENING_TIME + " to " + CLOSING_TIME + ".";
     static final String DATE_MESSAGE = "Reservation date should be present or future.";
     static final String TIME_MESSAGE = "Reservation time should be present of future.";
@@ -84,6 +84,7 @@ public class ReservationService {
         final Reservation savedReservation = reservationRepository.save(reservationToUpdate);
         return reservationDTOMapper.apply(savedReservation);
     }
+
     ReservationDTO partiallyUpdateReservation(final Long id, final Reservation reservation) {
         final Reservation reservationToUpdate = reservationRepository.findById(id)
                 .map(updatingReservation -> partiallyUpdateReservation(reservation, updatingReservation))
@@ -180,7 +181,9 @@ public class ReservationService {
     }
 
     List<ReservationDTO> findAllByTableId(Integer id) {
-        diningTableService.existsById(id);
+        if (!diningTableService.existsById(id))
+            throw new NotFoundException("Dining table with id " + id + " was not found.");
+
         final List<ReservationDTO> allByTableId = reservationRepository.findAllByDiningTableId(id)
                 .stream()
                 .map(reservationDTOMapper)
@@ -192,7 +195,9 @@ public class ReservationService {
     }
 
     List<ReservationDTO> findAllByDateAndTableId(LocalDate date, Integer id) {
-        diningTableService.existsById(id);
+        if (!diningTableService.existsById(id))
+            throw new NotFoundException("Dining table with id " + id + " was not found.");
+
         final List<ReservationDTO> allByDateAndTableId = reservationRepository.findAllByReservationDateAndDiningTableId(date, id)
                 .stream()
                 .map(reservationDTOMapper)
