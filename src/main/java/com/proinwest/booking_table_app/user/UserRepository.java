@@ -12,7 +12,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findAllByLastNameContainingIgnoreCase(String lastName);
     List<User> findAllByEmailContainingIgnoreCase(String email);
     List<User> findAllByPhoneNumberContaining(String phoneNumber);
-    List<User> findAllByLoginContainingOrFirstNameContainingOrLastNameContainingOrEmailContaining(String login, String firstName, String lastName, String email);
+    List<User> findAllByLoginContainingIgnoreCaseOrFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCaseOrEmailContainingIgnoreCase(String login, String firstName, String lastName, String email);
     boolean existsByEmail(String email);
     boolean existsByLogin(String login);
 

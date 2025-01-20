@@ -79,7 +79,7 @@ public class UserService {
                 .map(updatingUser -> updateUser(user, updatingUser))
                 .orElseThrow(() -> new NotFoundException("User with id " + id + " was not found."));
 
-        validateUser(userToUpdate, id);
+        validateUser(user, id);
 
         final User savedUser = userRepository.save(userToUpdate);
         return userDTOMapper.apply(savedUser);
@@ -90,14 +90,14 @@ public class UserService {
                 .map(updatingUser -> partiallyUpdateUser(user, updatingUser))
                 .orElseThrow(() -> new NotFoundException("User with id " + id + " was not found."));
 
-        validateUser(userToUpdate, id);
+        validateUser(user, id);
 
         final User savedUser = userRepository.save(userToUpdate);
         return userDTOMapper.apply(savedUser);
     }
 
     void deleteUser(Long id) {
-        existsById(id);
+        if(!existsById(id)) throw new NotFoundException("User with id " + id + " was not found");
 
         if (!reservationService.findAllByUserId(id).isEmpty())
             throw new InvalidInputException("User with id " + id + " can not be deleted because he has at least one reservation assigned.");
@@ -170,16 +170,16 @@ public class UserService {
         return allByPhoneNumber;
     }
 
-    List<UserDTO> findAllByAnyString(String nameFragment) {
-        if (nameFragment == null) throw new InvalidInputException(INPUT_IS_MISSING);
+    List<UserDTO> findAllByAnyString(String searchPharse) {
+        if (searchPharse == null) throw new InvalidInputException(INPUT_IS_MISSING);
 
         final List<UserDTO> allByAnyString = userRepository
-                .findAllByLoginContainingOrFirstNameContainingOrLastNameContainingOrEmailContaining(nameFragment, nameFragment, nameFragment, nameFragment)
+                .findAllByLoginContainingIgnoreCaseOrFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCaseOrEmailContainingIgnoreCase(searchPharse, searchPharse, searchPharse, searchPharse)
                 .stream()
                 .map(userDTOMapper)
                 .toList();
 
-        if (allByAnyString.isEmpty()) throw new NotFoundException("There are no users containing login, name or email: " + nameFragment);
+        if (allByAnyString.isEmpty()) throw new NotFoundException("There are no users containing login, name or email: " + searchPharse);
 
         return allByAnyString;
     }
@@ -209,12 +209,12 @@ public class UserService {
         if (!validationMessages.isEmpty()) throw new ValidationException(validationMessages);
     }
 
-    private void validateUser(User userToUpdate) {
+    void validateUser(User userToUpdate) {
         Map<String, String> validationMessages = userValidator.validateUser(userToUpdate);
         if (!validationMessages.isEmpty()) throw new ValidationException(validationMessages);
     }
 
-    private static User updateUser(User user, User updatingUser) {
+    static User updateUser(User user, User updatingUser) {
         updatingUser.setLogin(user.getLogin());
         updatingUser.setPassword(user.getPassword());
         updatingUser.setEmail(user.getEmail());
@@ -225,7 +225,7 @@ public class UserService {
         return updatingUser;
     }
 
-    private static User partiallyUpdateUser(User user, User updatingUser) {
+    static User partiallyUpdateUser(User user, User updatingUser) {
         if (user.getLogin() != null) updatingUser.setLogin(user.getLogin());
         if (user.getPassword() != null) updatingUser.setPassword(user.getPassword());
         if (user.getEmail() != null) updatingUser.setEmail(user.getEmail());

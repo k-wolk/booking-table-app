@@ -23,6 +23,8 @@ public class DiningTableService {
     public static final int MIN_SEATS = 1;
     public static final int MAX_SEATS = 50;
     public static final String SEATS_MESSAGE = "Number of seats should be between " + MIN_SEATS + " and " + MAX_SEATS + ".";
+    public static final String NO_TABLES_IN_DATABASE = "There are no dining tables in database.";
+    public static final String NO_FREE_TABLES_WAS_FOUND = "No free tables was found according to your requirements.";
     private final DiningTableRepository diningTableRepository;
     private final ReservationService reservationService;
     private final DiningTableValidator diningTableValidator;
@@ -37,14 +39,14 @@ public class DiningTableService {
 
     public List<DiningTable> getAllDiningTables() {
         final List<DiningTable> allDiningTables = diningTableRepository.findAll();
-        if (allDiningTables.isEmpty()) throw new NotFoundException("There are no dining tables in database.");
+        if (allDiningTables.isEmpty()) throw new NotFoundException(NO_TABLES_IN_DATABASE);
 
         return allDiningTables;
     }
 
     DiningTable getDiningTable(Integer id) {
         return diningTableRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Table with id " + id + " was not found!"));
+                .orElseThrow(() -> new NotFoundException("Dining table with id " + id + " was not found."));
     }
 
     DiningTable addDiningTable(DiningTable diningTable) {
@@ -61,7 +63,7 @@ public class DiningTableService {
     }
 
     DiningTable updateDiningTable(Integer id, DiningTable diningTable) {
-        DiningTable diningTableToUpdate = diningTableRepository.findById(id)
+        final DiningTable diningTableToUpdate = diningTableRepository.findById(id)
                 .map(updatingDiningTable -> updateDiningTable(diningTable, updatingDiningTable))
                 .orElseThrow(() -> new NotFoundException("Dining table with id " + id + " was not found."));
 
@@ -71,7 +73,6 @@ public class DiningTableService {
     }
 
     DiningTable partiallyUpdateDiningTable(Integer id, DiningTable diningTable) {
-
         final DiningTable diningTableToUpdate = diningTableRepository.findById(id)
                 .map(updatingDiningTable -> partiallyUpdateDiningTable(diningTable, updatingDiningTable))
                 .orElseThrow(() -> new NotFoundException("Dining table with id " + id + " was not found."));
@@ -109,7 +110,7 @@ public class DiningTableService {
                 .sorted(Comparator.comparingInt(DiningTable::getId))
                 .toList();
 
-        if (availableTables.isEmpty()) throw new NotFoundException("No free tables was found according to your requirements.");
+        if (availableTables.isEmpty()) throw new NotFoundException(NO_FREE_TABLES_WAS_FOUND);
 
         return availableTables;
     }

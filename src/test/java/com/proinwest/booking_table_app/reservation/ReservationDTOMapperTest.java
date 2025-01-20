@@ -13,12 +13,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class ReservationDTOMapperTest {
 
     @Test
-    public void should_map_reservation_to_reservationDTO() {
+    public void shouldMapReservationToReservationDTO() {
         // given
-        User user = Instancio.create(User.class);
-        DiningTable diningTable = Instancio.create(DiningTable.class);
+        final User user = Instancio.create(User.class);
+        final DiningTable diningTable = Instancio.create(DiningTable.class);
 
-        Reservation reservation = new Reservation();
+        final Reservation reservation = new Reservation();
         reservation.setId(1111L);
         reservation.setReservationDate(LocalDate.now().plusDays(1));
         reservation.setReservationTime(LocalTime.parse("19:30"));
@@ -26,10 +26,10 @@ class ReservationDTOMapperTest {
         reservation.setUser(user);
         reservation.setDiningTable(diningTable);
 
-        ReservationDTOMapper reservationDTOMapper = new ReservationDTOMapper();
+        final ReservationDTOMapper reservationDTOMapper = new ReservationDTOMapper();
 
         // when
-        ReservationDTO reservationDTO = reservationDTOMapper.apply(reservation);
+        final ReservationDTO reservationDTO = reservationDTOMapper.apply(reservation);
 
         // then
         assertEquals(reservation.getId(), reservationDTO.id());

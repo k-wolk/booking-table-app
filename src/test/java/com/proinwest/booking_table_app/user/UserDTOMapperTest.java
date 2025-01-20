@@ -10,12 +10,12 @@ class UserDTOMapperTest {
     private UserDTOMapper userDTOMapper = new UserDTOMapper();
 
     @Test
-    public void should_map_user_to_userDTO() {
+    public void shouldMapUserToUserDTO() {
         // given
-        User user = Instancio.create(User.class);
+        final User user = Instancio.create(User.class);
 
         // when
-        UserDTO userDTO = userDTOMapper.apply(user);
+        final UserDTO userDTO = userDTOMapper.apply(user);
 
         // then
         assertEquals(user.getId(), userDTO.id());

@@ -10,10 +10,12 @@ import lombok.Setter;
 import java.util.List;
 
 @Entity
+@Table(name = "\"user\"")
 @Getter
 @Setter
 @NoArgsConstructor
 public class User {
+
 
     @Id
     @GeneratedValue (strategy = GenerationType.IDENTITY)
@@ -31,5 +33,4 @@ public class User {
     @JsonIgnore
     List<Reservation> reservations;
 }
-
 

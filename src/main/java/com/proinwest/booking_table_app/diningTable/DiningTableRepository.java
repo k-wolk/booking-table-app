@@ -17,7 +17,7 @@ public interface DiningTableRepository extends JpaRepository<DiningTable, Intege
     List<DiningTable> BookedTablesByDateTimeAndDuration(LocalDate date, LocalTime time, int duration);
 
     @Query(value = "SELECT dt.number FROM dining_table dt WHERE dt.id = :id", nativeQuery = true)
-    int findNumberById(Integer id);
+    Integer findNumberById(Integer id);
 
     @Query(value = "SELECT DISTINCT dt.* FROM dining_table dt WHERE dt.seats >= :seats", nativeQuery = true)
     List<DiningTable> allDiningTablesWithMinSeats(Integer seats);

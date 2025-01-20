@@ -19,37 +19,37 @@ class ReservationValidatorTest {
     @Test
     void whenReservationsCollide_shouldThrowException() {
         // given
-        User user = Instancio.create(User.class);
-        DiningTable table = new DiningTable();
-        int tableId = 123;
+        final User user = Instancio.create(User.class);
+        final DiningTable table = new DiningTable();
+        final int tableId = 123;
         table.setId(tableId);
 
-        LocalDate reservationDate = LocalDate.now();
-        Reservation incomingReservation = new Reservation();
+        final LocalDate reservationDate = LocalDate.now();
+        final Reservation incomingReservation = new Reservation();
         incomingReservation.setReservationDate(reservationDate);
         incomingReservation.setReservationTime(LocalTime.now());
         incomingReservation.setDiningTable(table);
         incomingReservation.setDuration(1);
         incomingReservation.setUser(user);
 
-        Reservation existingReservation = new Reservation();
+        final Reservation existingReservation = new Reservation();
         existingReservation.setReservationDate(reservationDate);
         existingReservation.setReservationTime(LocalTime.now());
         existingReservation.setDiningTable(table);
         existingReservation.setDuration(1);
         existingReservation.setUser(user);
 
-        List<Reservation> reservations = new ArrayList<>();
+        final List<Reservation> reservations = new ArrayList<>();
         reservations.add(existingReservation);
 
-        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        final ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
         Mockito.when(
                         reservationRepository.findAllByReservationDateAndDiningTableId(reservationDate, tableId)
                 )
                 .thenReturn(reservations);
-        ReservationValidator reservationValidator = new ReservationValidator(null, null, null, reservationRepository);
+        final ReservationValidator reservationValidator = new ReservationValidator(null, null, null, reservationRepository);
 
-        // when then
+        // when & then
         assertThrows(TableNotAvailableException.class, () -> reservationValidator.isTableAvailable(incomingReservation));
     }
 }
