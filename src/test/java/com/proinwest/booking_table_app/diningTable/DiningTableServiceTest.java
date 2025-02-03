@@ -4,9 +4,7 @@ import com.proinwest.booking_table_app.exceptions.InvalidInputException;
 import com.proinwest.booking_table_app.exceptions.NotFoundException;
 import com.proinwest.booking_table_app.exceptions.ValidationException;
 import com.proinwest.booking_table_app.reservation.*;
-import com.proinwest.booking_table_app.user.User;
 import org.instancio.Instancio;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -27,109 +25,101 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class DiningTableServiceTest {
-
     @Mock
-    private DiningTableRepository diningTableRepository;
+    private DiningTableRepository tableRepository;
     @Mock
-    private DiningTableValidator diningTableValidator;
+    private DiningTableValidator tableValidator;
     @Mock
-    private ReservationRepository reservationRepository;
-    @Mock
-    private ReservationDTOMapper reservationDTOMapper;
+    private ReservationService reservationService;
     @InjectMocks
-    private DiningTableService diningTableService;
-
-    @BeforeEach
-    void setUp() {
-        diningTableService = new DiningTableService(diningTableRepository, null, diningTableValidator);
-    }
+    private DiningTableService tableService;
 
     @Test
-    void shouldReturnAllDiningTables() {
+    void shouldReturnAllTables() {
         // given
-        final DiningTable diningTable = Instancio.create(DiningTable.class);
+        final DiningTable table = Instancio.create(DiningTable.class);
 
-        final List<DiningTable> diningTables = new ArrayList<>();
-        diningTables.add(diningTable);
+        final List<DiningTable> tables = new ArrayList<>();
+        tables.add(table);
 
-        when(diningTableRepository.findAll())
-                .thenReturn(diningTables);
+        when(tableRepository.findAll())
+                .thenReturn(tables);
 
         // when
-        final List<DiningTable> result = diningTableService.getAllDiningTables();
+        final List<DiningTable> result = tableService.getAllTables();
 
         // then
         assertNotNull(result);
-        assertEquals(diningTables, result);
-        verify(diningTableRepository, times(1)).findAll();
+        assertEquals(tables, result);
+        verify(tableRepository, times(1)).findAll();
     }
 
     @Test
-    void whenDiningTableListIsEmpty_shouldThrowException() {
+    void whenTablesListIsEmpty_shouldThrowException() {
         // given
-        when(diningTableRepository.findAll())
+        when(tableRepository.findAll())
                 .thenReturn(Collections.emptyList());
 
         // when & then
-        assertThrows(NotFoundException.class, diningTableService::getAllDiningTables);
+        assertThrows(NotFoundException.class, tableService::getAllTables);
+        verify(tableRepository, times(1)).findAll();
     }
 
     @Test
-    void shouldReturnDiningTableById() {
+    void shouldReturnTableById() {
         // given
-        final DiningTable diningTable = Instancio.create(DiningTable.class);
-        final int tableId = diningTable.getId();
+        final DiningTable table = Instancio.create(DiningTable.class);
+        final int tableId = table.getId();
 
-        when(diningTableRepository.findById(tableId))
-                .thenReturn(Optional.of(diningTable));
+        when(tableRepository.findById(tableId)).thenReturn(Optional.of(table));
 
         // when
-        final DiningTable result = diningTableService.getDiningTable(tableId);
+        final DiningTable result = tableService.getTable(tableId);
 
         // then
         assertNotNull(result);
-        assertEquals(diningTable, result);
-        verify(diningTableRepository, times(1)).findById(tableId);
+        assertEquals(table, result);
+        verify(tableRepository, times(1)).findById(tableId);
     }
 
     @Test
-    void whenDiningTableNotFoundById_shouldThrowException() {
+    void whenTableNotFoundById_shouldThrowException() {
         // given
         final int tableId = 1;
 
-        when(diningTableRepository.findById(tableId))
-                .thenReturn(Optional.empty());
+        when(tableRepository.findById(tableId)).thenReturn(Optional.empty());
 
         // when & then
-        assertThrows(NotFoundException.class, () -> diningTableService.getDiningTable(tableId));
+        assertThrows(NotFoundException.class, () -> tableService.getTable(tableId));
+        verify(tableRepository, times(1)).findById(tableId);
     }
 
     @Test
-    void shouldAddDiningTable() {
+    void shouldAddTable() {
         // given
-        final DiningTable diningTable = new DiningTable();
-        diningTable.setNumber(2);
-        diningTable.setSeats(4);
+        final DiningTable table = new DiningTable();
+        table.setNumber(2);
+        table.setSeats(4);
 
-        final DiningTable savedDiningTable = diningTable;
-        savedDiningTable.setId(1);
+        final DiningTable savedTable = table;
+        savedTable.setId(1);
 
-        when(diningTableRepository.save(diningTable))
-                .thenReturn(savedDiningTable);
+        when(tableRepository.save(table))
+                .thenReturn(savedTable);
 
         // when
-        final DiningTable result = diningTableService.addDiningTable(diningTable);
+        final DiningTable result = tableService.addTable(table);
 
         // then
         assertNotNull(result);
-        assertEquals(savedDiningTable, result);
-        verify(diningTableRepository, times(1)).save(diningTable);
+        assertEquals(savedTable, result);
+        verify(tableRepository, times(1)).save(table);
     }
 
     @Test
     void shouldGenerateCorrectLocationUri() {
         // given
-        final DiningTable table = mock(DiningTable.class);
+        final DiningTable table = Instancio.create(DiningTable.class);
         table.setId(7);
 
         final MockHttpServletRequest request = new MockHttpServletRequest();
@@ -137,195 +127,190 @@ class DiningTableServiceTest {
         request.setRequestURI("/diningtables");
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
 
-        when(table.getId()).thenReturn(7);
+        final URI expected = URI.create("http://localhost/diningtables/7");
 
         // when
-        final URI result = diningTableService.location(table);
+        final URI result = tableService.location(table);
 
         // then
-        final URI expected = URI.create("http://localhost/diningtables/7");
         assertEquals(expected, result);
     }
 
     @Test
-    void shouldUpdateDiningTable() {
+    void shouldUpdateTable() {
         // given
-        final DiningTable diningTable = Instancio.create(DiningTable.class);
-        final int tableId = diningTable.getId();
+        final DiningTable table = Instancio.create(DiningTable.class);
+        final int tableId = table.getId();
 
-        when(diningTableRepository.findById(tableId)
-                .map(updatingDiningTable -> updateDiningTable(diningTable, updatingDiningTable)))
-                .thenReturn(Optional.of(diningTable));
-        when(diningTableRepository.save(diningTable)).thenReturn(diningTable);
+        when(tableRepository.findById(tableId)).thenReturn(Optional.of(table));
+        when(tableRepository.save(table)).thenReturn(table);
 
         // when
-        final DiningTable result = diningTableService.updateDiningTable(tableId, diningTable);
+        final DiningTable result = tableService.updateTable(tableId, table);
 
         // then
         assertNotNull(result);
-        assertEquals(diningTable, result);
-        verify(diningTableRepository, times(1)).findById(tableId);
-        verify(diningTableRepository, times(1)).save(diningTable);
+        assertEquals(table, result);
+        verify(tableRepository, times(1)).findById(tableId);
+        verify(tableRepository, times(1)).save(table);
     }
 
     @Test
-    void whenTableNotFoundById_shouldThrowException() {
+    void update_whenTableNotFoundById_shouldThrowException() {
         // given
-        final DiningTable diningTable = Instancio.create(DiningTable.class);
-        final int tableId = diningTable.getId();
+        final DiningTable table = Instancio.create(DiningTable.class);
+        final int tableId = table.getId();
 
-        when(diningTableRepository.findById(tableId)
-                .map(updatingDiningTable -> updateDiningTable(diningTable, updatingDiningTable)))
-                .thenReturn(Optional.empty());
+        when(tableRepository.findById(tableId)).thenReturn(Optional.empty());
 
         // when & then
-        assertThrows(NotFoundException.class, () -> diningTableService.updateDiningTable(tableId, diningTable));
+        assertThrows(NotFoundException.class, () -> tableService.updateTable(tableId, table));
+        verify(tableRepository, times(1)).findById(tableId);
     }
 
     @Test
-    void shouldPartiallyUpdateDiningTable() {
+    void shouldPartiallyUpdateTable() {
         // given
-        final DiningTable diningTable = Instancio.create(DiningTable.class);
-        final int tableId = diningTable.getId();
+        final DiningTable table = Instancio.create(DiningTable.class);
+        final int tableId = table.getId();
 
-        when(diningTableRepository.findById(tableId)
-                .map(updatingTable -> partiallyUpdateDiningTable(diningTable, updatingTable)))
-                .thenReturn(Optional.of(diningTable));
-        when(diningTableRepository.save(diningTable))
-                .thenReturn(diningTable);
+        when(tableRepository.findById(tableId)).thenReturn(Optional.of(table));
+        when(tableRepository.save(table)).thenReturn(table);
 
         // when
-        final DiningTable result = diningTableService.partiallyUpdateDiningTable(tableId, diningTable);
+        final DiningTable result = tableService.partiallyUpdateTable(tableId, table);
 
         // then
         assertNotNull(result);
-        assertEquals(diningTable, result);
-        verify(diningTableRepository, times(1)).findById(tableId);
-        verify(diningTableRepository, times(1)).save(diningTable);
+        assertEquals(table, result);
+        verify(tableRepository, times(1)).findById(tableId);
+        verify(tableRepository, times(1)).save(table);
     }
 
     @Test
-    void whenDiningTableHasAssignedReservation_shouldThrowException() {
+    void partiallyUpdate_whenTableNotFoundById_shouldThrowException() {
         // given
-        final DiningTable diningTable = Instancio.create(DiningTable.class);
-        final int tableId = diningTable.getId();
+        final DiningTable table = Instancio.create(DiningTable.class);
+        final int tableId = table.getId();
 
-        final User user = Instancio.create(User.class);
-
-        final Reservation reservation = new Reservation();
-        reservation.setId(12L);
-        reservation.setReservationDate(LocalDate.now().plusDays(1));
-        reservation.setReservationTime(LocalTime.of(17,0));
-        reservation.setDuration(2);
-        reservation.setUser(user);
-        reservation.setDiningTable(diningTable);
-
-        ReservationService reservationService = new ReservationService(reservationRepository, reservationDTOMapper, null, null);
-        DiningTableService diningTableService = new DiningTableService(diningTableRepository, reservationService, null);
-
-        when(diningTableService.existsById(tableId)).thenReturn(true);
-        when(reservationRepository.findAllByDiningTableId(tableId))
-                .thenReturn(List.of(reservation));
+        when(tableRepository.findById(tableId)).thenReturn(Optional.empty());
 
         // when & then
-        assertThrows(InvalidInputException.class, () -> diningTableService.deleteDiningTable(tableId));
+        assertThrows(NotFoundException.class, () -> tableService.partiallyUpdateTable(tableId, table));
+        verify(tableRepository, times(1)).findById(tableId);
+    }
+
+    @Test
+    void shouldDeleteTable() {
+        // given
+        final int tableId = 111;
+
+        when(tableService.existsById(tableId)).thenReturn(true);
+        when(reservationService.findAllByTableId(tableId)).thenReturn(Collections.emptyList());
+
+        // when & then
+        assertDoesNotThrow(() -> tableService.deleteTable(tableId));
+        verify(reservationService, times(1)).findAllByTableId(tableId);
+        verify(tableRepository, times(1)).deleteById(tableId);
+    }
+
+    @Test
+    void whenTableNotExists_shouldThrowException() {
+        // given
+        final int tableId = 111;
+
+        when(tableService.existsById(tableId)).thenReturn(false);
+
+        // when & then
+        assertThrows(NotFoundException.class, () -> tableService.deleteTable(tableId));
+        verify(tableRepository, times(1)).existsById(tableId);
+    }
+
+    @Test
+    void whenTableHasAssignedReservation_shouldThrowException() {
+        // given
+        final int tableId = 111;
+        final ReservationDTO reservationDTO = Instancio.create(ReservationDTO.class);
+
+        when(tableService.existsById(tableId)).thenReturn(true);
+        when(reservationService.findAllByTableId(tableId)).thenReturn(List.of(reservationDTO));
+
+        // when & then
+        assertThrows(InvalidInputException.class, () -> tableService.deleteTable(tableId));
     }
 
     @Test
     void shouldReturnFreeTablesWhenAvailable() {
         // given
-        final DiningTable diningTable = Instancio.create(DiningTable.class);
+        final DiningTable table = Instancio.create(DiningTable.class);
 
-        final User user = Instancio.create(User.class);
+        final Reservation reservation = Instancio.create(Reservation.class);
+        reservation.setDiningTable(table);
 
-        final Reservation reservation = new Reservation();
-        reservation.setReservationDate(LocalDate.now().plusDays(1));
-        reservation.setReservationTime(LocalTime.of(19, 0));
-        reservation.setDuration(3);
-        reservation.setUser(user);
-        reservation.setDiningTable(diningTable);
-
-        final List<DiningTable> allDiningTablesWithMinSeats = new ArrayList<>();
-        allDiningTablesWithMinSeats.add(diningTable);
+        final List<DiningTable> allTablesWithMinSeats = new ArrayList<>();
+        allTablesWithMinSeats.add(table);
 
         final List<DiningTable> bookedDiningTables = new ArrayList<>();
 
-        ReservationValidator reservationValidator = new ReservationValidator(null, null, diningTableValidator, null);
-        ReservationService reservationService = new ReservationService(null, null, reservationValidator, null);
-        DiningTableService diningTableService = new DiningTableService(diningTableRepository, reservationService, null);
-
-        when(diningTableRepository.allDiningTablesWithMinSeats(diningTable.getSeats()))
-                .thenReturn(allDiningTablesWithMinSeats);
-        when(diningTableService.getBookedDiningTables(
-                reservation.getReservationDate(),
-                reservation.getReservationTime(),
-                reservation.getDuration())
-        )
+        when(tableRepository.allTablesWithMinSeats(table.getSeats()))
+                .thenReturn(allTablesWithMinSeats);
+        when(tableService.getBookedTables(
+                        reservation.getReservationDate(),
+                        reservation.getReservationTime(),
+                        reservation.getDuration()))
                 .thenReturn(bookedDiningTables);
 
         // when
-        final List<DiningTable> result = diningTableService.getFreeTables(reservation);
+        final List<DiningTable> result = tableService.getFreeTables(reservation);
 
         // then
         assertNotNull(result);
-        assertEquals(allDiningTablesWithMinSeats, result);
+        assertEquals(allTablesWithMinSeats, result);
+        verify(tableRepository, times(1)).allTablesWithMinSeats(table.getSeats());
     }
 
     @Test
     void whenAllTablesAreReserved_shouldThrowException() {
         // given
-        final DiningTable diningTable = Instancio.create(DiningTable.class);
-        final User user = Instancio.create(User.class);
+        final DiningTable table = Instancio.create(DiningTable.class);
 
-        final Reservation reservation = new Reservation();
-        reservation.setReservationDate(LocalDate.now().plusDays(1));
-        reservation.setReservationTime(LocalTime.of(19, 0));
-        reservation.setDuration(3);
-        reservation.setUser(user);
-        reservation.setDiningTable(diningTable);
+        final Reservation reservation = Instancio.create(Reservation.class);
+        reservation.setDiningTable(table);
 
-        final List<DiningTable> allDiningTablesWithMinSeats = new ArrayList<>();
-        allDiningTablesWithMinSeats.add(diningTable);
+        final List<DiningTable> allTablesWithMinSeats = new ArrayList<>();
+        allTablesWithMinSeats.add(table);
 
         final List<DiningTable> bookedDiningTables = new ArrayList<>();
-        bookedDiningTables.add(diningTable);
+        bookedDiningTables.add(table);
 
-        ReservationValidator reservationValidator = new ReservationValidator(null, null, diningTableValidator, null);
-        ReservationService reservationService = new ReservationService(null, null, reservationValidator, null);
-        DiningTableService diningTableService = new DiningTableService(diningTableRepository, reservationService, null);
-
-        when(diningTableRepository.allDiningTablesWithMinSeats(diningTable.getSeats()))
-                .thenReturn(allDiningTablesWithMinSeats);
-        when(diningTableService.getBookedDiningTables(
-                reservation.getReservationDate(),
-                reservation.getReservationTime(),
-                reservation.getDuration())
-        )
+        when(tableRepository.allTablesWithMinSeats(table.getSeats()))
+                .thenReturn(allTablesWithMinSeats);
+        when(tableService.getBookedTables(
+                        reservation.getReservationDate(),
+                        reservation.getReservationTime(),
+                        reservation.getDuration()))
                 .thenReturn(bookedDiningTables);
 
         // when & then
-        assertThrows(NotFoundException.class, () -> diningTableService.getFreeTables(reservation));
+        assertThrows(NotFoundException.class, () -> tableService.getFreeTables(reservation));
+        verify(tableRepository, times(1)).allTablesWithMinSeats(table.getSeats());
     }
 
     @Test
-    void shouldReturnAllDiningTableWithMinSeats() {
+    void shouldReturnAllTableWithMinSeats() {
         // given
-        final DiningTable diningTable = new DiningTable();
-        diningTable.setId(2);
-        diningTable.setNumber(2);
-        diningTable.setSeats(6);
-        final int minSeats = 6;
+        final DiningTable table = Instancio.create(DiningTable.class);
+        final int minSeats = table.getSeats();
 
-        when(diningTableRepository.allDiningTablesWithMinSeats(minSeats))
-                .thenReturn(List.of(diningTable));
+        when(tableRepository.allTablesWithMinSeats(minSeats)).thenReturn(List.of(table));
 
         // when
-        final List<DiningTable> result = diningTableService.getAllDiningTablesWithMinSeats(minSeats);
+        final List<DiningTable> result = tableService.getAllTablesWithMinSeats(minSeats);
 
         // then
         assertNotNull(result);
-        assertEquals(List.of(diningTable), result);
-        verify(diningTableRepository, times(1)).allDiningTablesWithMinSeats(minSeats);
+        assertEquals(List.of(table), result);
+        verify(tableRepository, times(1)).allTablesWithMinSeats(minSeats);
     }
 
     @Test
@@ -333,51 +318,53 @@ class DiningTableServiceTest {
         // given
         final int minSeats = 6;
 
-        when(diningTableRepository.allDiningTablesWithMinSeats(minSeats))
-                .thenReturn(Collections.emptyList());
+        when(tableRepository.allTablesWithMinSeats(minSeats)).thenReturn(Collections.emptyList());
 
         // when & then
-        assertThrows(NotFoundException.class, () -> diningTableService.getAllDiningTablesWithMinSeats(minSeats));
+        assertThrows(NotFoundException.class, () -> tableService.getAllTablesWithMinSeats(minSeats));
+        verify(tableRepository, times(1)).allTablesWithMinSeats(minSeats);
     }
 
     @Test
     void shouldReturnBookedDiningTables() {
         // given
-        final DiningTable diningTable = Instancio.create(DiningTable.class);
+        final DiningTable table = Instancio.create(DiningTable.class);
 
-        final List<DiningTable> diningTables = new ArrayList<>();
-        diningTables.add(diningTable);
+        final List<DiningTable> tables = new ArrayList<>();
+        tables.add(table);
 
         final LocalDate date = LocalDate.now().plusDays(1);
         final LocalTime time = LocalTime.of(19, 0);
         final int duration = 2;
 
-        when(diningTableRepository.BookedTablesByDateTimeAndDuration(date, time, duration))
-                .thenReturn(diningTables);
+        when(tableRepository.bookedTablesByDateTimeAndDuration(date, time, duration))
+                .thenReturn(tables);
 
         // when
-        final List<DiningTable> result = diningTableService.getBookedDiningTables(date, time, duration);
+        final List<DiningTable> result = tableService.getBookedTables(date, time, duration);
 
         // then
         assertNotNull(result);
-        assertEquals(diningTables, result);
+        assertEquals(tables, result);
+        verify(tableRepository, times(1)).bookedTablesByDateTimeAndDuration(date, time, duration);
     }
 
     @Test
-    void whenIdIsValid_shouldReturnDiningTableNumber() {
+    void whenIdIsValid_shouldReturnTableNumber() {
         // given
-        final DiningTable diningTable = Instancio.create(DiningTable.class);
-        final Integer tableId = diningTable.getId();
-        final Integer tableNumber = diningTable.getNumber();
+        final DiningTable table = Instancio.create(DiningTable.class);
+        final Integer tableId = table.getId();
+        final Integer tableNumber = table.getNumber();
 
-        when(diningTableRepository.findNumberById(tableId)).thenReturn(tableNumber);
+        when(tableRepository.findNumberByTableId(tableId)).thenReturn(tableNumber);
 
         // when
-        final Integer result = diningTableService.findNumberById(tableId);
+        final Integer result = tableService.findNumberByTableId(tableId);
 
         // then
         assertNotNull(result);
         assertEquals(tableNumber, result);
+        verify(tableRepository, times(1)).findNumberByTableId(tableId);
     }
 
     @Test
@@ -386,94 +373,97 @@ class DiningTableServiceTest {
         final Integer tableId = null;
 
         // when
-        final Integer result = diningTableService.findNumberById(tableId);
+        final Integer result = tableService.findNumberByTableId(tableId);
 
         // then
         assertEquals(0, result);
     }
 
     @Test
-    void whenDiningTableExistsById_shouldReturnTrue() {
+    void whenTableExistsById_shouldReturnTrue() {
         // given
-        final DiningTable diningTable = Instancio.create(DiningTable.class);
-        final Integer tableId = diningTable.getId();
+        final DiningTable table = Instancio.create(DiningTable.class);
+        final Integer tableId = table.getId();
 
-        when(diningTableRepository.existsById(tableId)).thenReturn(true);
+        when(tableRepository.existsById(tableId)).thenReturn(true);
 
         // when
-        final boolean result = diningTableService.existsById(tableId);
+        final boolean result = tableService.existsById(tableId);
 
         // then
         assertTrue(result);
+        verify(tableRepository, times(1)).existsById(tableId);
     }
 
     @Test
-    void whenDiningTableDoesNotExistsById_shouldThrowException() {
+    void whenTableDoesNotExistsById_shouldThrowException() {
         // given
         final int tableId = 123;
 
-        when(diningTableRepository.existsById(tableId)).thenReturn(false);
+        when(tableRepository.existsById(tableId)).thenReturn(false);
 
         // when & then
-        assertThrows(NotFoundException.class, () -> diningTableService.deleteDiningTable(tableId));
+        assertThrows(NotFoundException.class, () -> tableService.deleteTable(tableId));
+        verify(tableRepository, times(1)).existsById(tableId);
     }
 
     @Test
-    void whenDiningTableExistByNumber_shouldReturnTrue() {
+    void whenTableExistByNumber_shouldReturnTrue() {
         // given
         final int tableNumber = 123;
 
-        when(diningTableRepository.existsByNumber(tableNumber)).thenReturn(true);
+        when(tableRepository.existsByNumber(tableNumber)).thenReturn(true);
 
         // when
-        final boolean result = diningTableService.existsByNumber(tableNumber);
+        final boolean result = tableService.existsByNumber(tableNumber);
 
         // then
         assertTrue(result);
+        verify(tableRepository, times(1)).existsByNumber(tableNumber);
     }
 
     @Test
-    void whenDiningTableDoesNotExistsByNumber_shouldReturnFalse() {
+    void whenTableDoesNotExistsByNumber_shouldReturnFalse() {
         // given
         final int tableNumber = 123;
 
-        when(diningTableRepository.existsByNumber(tableNumber)).thenReturn(false);
+        when(tableRepository.existsByNumber(tableNumber)).thenReturn(false);
 
         // when
-        final boolean result = diningTableService.existsByNumber(tableNumber);
+        final boolean result = tableService.existsByNumber(tableNumber);
 
         // then
         assertFalse(result);
+        verify(tableRepository, times(1)).existsByNumber(tableNumber);
     }
 
     @Test
     void whenTableNumberIsNull_shouldThrowException() {
         //given
         final Integer tableId = 1;
-        final DiningTable diningTable = new DiningTable();
-        diningTable.setSeats(4);
+        final DiningTable table = new DiningTable();
+        table.setSeats(4);
+        table.setNumber(null);
 
         final Map<String, String> validationMessages = Map.of("number", FIELD_REQUIRED + NUMBER_MESSAGE);
 
-        when(diningTableValidator.validateDiningTable(tableId, diningTable))
-                .thenReturn(validationMessages);
+        when(tableValidator.validateTable(table)).thenReturn(validationMessages);
 
         // when
-        assertThrows(ValidationException.class, () -> diningTableService.validateDiningTable(tableId, diningTable));
+        assertThrows(ValidationException.class, () -> tableService.validateTable(table));
+        verify(tableValidator, times(1)).validateTable(table);
     }
 
     @Test
     void whenTableIsValid_shouldNotThrowException() {
         // given
         final Integer tableId = 1;
-        final DiningTable diningTable = new DiningTable();
-        diningTable.setNumber(1);
-        diningTable.setSeats(2);
+        final DiningTable table = Instancio.create(DiningTable.class);
 
-        when(diningTableValidator.validateDiningTable(tableId, diningTable))
-                .thenReturn(Collections.emptyMap());
+        when(tableValidator.validateTable(table)).thenReturn(Collections.emptyMap());
 
         // when & then
-        assertDoesNotThrow(() -> diningTableService.validateDiningTable(tableId, diningTable));
+        assertDoesNotThrow(() -> tableService.validateTable(table));
+        verify(tableValidator, times(1)).validateTable(table);
     }
 }

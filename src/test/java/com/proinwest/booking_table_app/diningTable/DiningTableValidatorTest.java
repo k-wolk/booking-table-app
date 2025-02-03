@@ -16,9 +16,9 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class DiningTableValidatorTest {
     @Mock
-    DiningTableService diningTableService;
+    DiningTableService tableService;
     @InjectMocks
-    DiningTableValidator diningTableValidator;
+    DiningTableValidator tableValidator;
 
     @Test
     void shouldNotReturnError_whenNumberAndSeatsAreValid() {
@@ -33,7 +33,7 @@ class DiningTableValidatorTest {
         table.setSeats(seats);
 
         // when
-        final Map<String, String> errors = diningTableValidator.validateDiningTable(id, table);
+        final Map<String, String> errors = tableValidator.validateTable(table);
 
         // then
         assertTrue(errors.isEmpty());
@@ -51,7 +51,7 @@ class DiningTableValidatorTest {
         table.setSeats(4);
 
         // when
-        final Map<String, String> errors = diningTableValidator.validateDiningTable(id, table);
+        final Map<String, String> errors = tableValidator.validateTable(table);
 
         // then
         final Map<String, String> expected = new HashMap<>();
@@ -72,11 +72,11 @@ class DiningTableValidatorTest {
         table.setNumber(number);
         table.setSeats(4);
 
-        when(diningTableService.findNumberById(id)).thenReturn(number + 1);
-        when(diningTableService.existsByNumber(number)).thenReturn(true);
+        when(tableService.findNumberByTableId(id)).thenReturn(number + 1);
+        when(tableService.existsByNumber(number)).thenReturn(true);
 
         // when
-        final Map<String, String> errors = diningTableValidator.validateDiningTable(id, table);
+        final Map<String, String> errors = tableValidator.validateTable(table);
 
         // then
         final Map<String, String> expected = new HashMap<>();
@@ -98,7 +98,7 @@ class DiningTableValidatorTest {
         table.setSeats(4);
 
         // when
-        final Map<String, String> errors = diningTableValidator.validateDiningTable(id, table);
+        final Map<String, String> errors = tableValidator.validateTable(table);
 
         // then
         final Map<String, String> expected = new HashMap<>();
@@ -120,7 +120,7 @@ class DiningTableValidatorTest {
         table.setSeats(4);
 
         // when
-        final Map<String, String> errors = diningTableValidator.validateDiningTable(id, table);
+        final Map<String, String> errors = tableValidator.validateTable(table);
 
         // then
         final Map<String, String> expected = new HashMap<>();
@@ -142,7 +142,7 @@ class DiningTableValidatorTest {
         table.setNumber(1);
 
         // when
-        final Map<String, String> errors = diningTableValidator.validateDiningTable(id, table);
+        final Map<String, String> errors = tableValidator.validateTable(table);
 
         // then
         final Map<String, String> expected = new HashMap<>();
@@ -164,7 +164,7 @@ class DiningTableValidatorTest {
         table.setNumber(1);
 
         // when
-        final Map<String, String> errors = diningTableValidator.validateDiningTable(id, table);
+        final Map<String, String> errors = tableValidator.validateTable(table);
 
         // then
         final Map<String, String> expected = new HashMap<>();
@@ -186,7 +186,7 @@ class DiningTableValidatorTest {
         table.setNumber(1);
 
         // when
-        final Map<String, String> errors = diningTableValidator.validateDiningTable(id, table);
+        final Map<String, String> errors = tableValidator.validateTable(table);
 
         // then
         final Map<String, String> expected = new HashMap<>();

@@ -13,20 +13,22 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.proinwest.booking_table_app.diningTable.DiningTableService.TABLE_ID_IS_REQUIRED;
 import static com.proinwest.booking_table_app.reservation.ReservationService.*;
+import static com.proinwest.booking_table_app.reservation.ReservationService.FIELD_REQUIRED;
+import static com.proinwest.booking_table_app.user.UserService.*;
 
 @Component
 public class ReservationValidator {
-
     private final UserService userService;
-    private final DiningTableService diningTableService;
-    private final DiningTableValidator diningTableValidator;
+    private final DiningTableService tableService;
+    private final DiningTableValidator tableValidator;
     private final ReservationRepository reservationRepository;
 
-    public ReservationValidator(UserService userService, DiningTableService diningTableService, DiningTableValidator diningTableValidator, ReservationRepository reservationRepository) {
+    public ReservationValidator(UserService userService, DiningTableService tableService, DiningTableValidator tableValidator, ReservationRepository reservationRepository) {
         this.userService = userService;
-        this.diningTableService = diningTableService;
-        this.diningTableValidator = diningTableValidator;
+        this.tableService = tableService;
+        this.tableValidator = tableValidator;
         this.reservationRepository = reservationRepository;
     }
 
@@ -34,7 +36,7 @@ public class ReservationValidator {
         final Map<String, String> errors = new HashMap<>();
 
         validateUserId(reservation.getUser().getId(), errors);
-        validateDiningTableId(reservation.getDiningTable().getId(), errors);
+        validateTableId(reservation.getDiningTable().getId(), errors);
         validateDate(reservation.getReservationDate(), errors);
         validateTime(reservation.getReservationTime(),
                 reservation.getReservationDate(),
@@ -55,32 +57,24 @@ public class ReservationValidator {
                 reservation.getDuration(),
                 errors);
         validateDuration(reservation.getDuration(), errors);
-        diningTableValidator.validateSeats(reservation.getDiningTable().getSeats(), errors);
+        tableValidator.validateSeats(reservation.getDiningTable().getSeats(), errors);
 
         return errors;
     }
 
-    private void validateUserId(Long id, Map<String, String> errors) {
-        if (id == null) {
-            errors.put("user", "User ID is required.");
-        } else if (!userService.existsById(id)) {
-            errors.put("user", "User with id " + id + " was not found.");
+    private void validateUserId(Long userId, Map<String, String> errors) {
+        if (userId == null) {
+            errors.put("user", USER_ID_IS_REQUIRED);
+        } else if (!userService.existsById(userId)) {
+            errors.put("user", "User with id " + userId + " was not found.");
         }
     }
 
-    private void validateDiningTableId(Integer id, Map<String, String> errors) {
-        if (id == null) {
-            errors.put("diningTable", "Dining table ID is required.");
-        } else if (!diningTableService.existsById(id)) {
-            errors.put("diningTable", "Dining table with id " + id + " was not found.");
-        }
-    }
-
-    private void validateDuration(Integer duration, Map<String, String> errors) {
-        if (duration == null) {
-            errors.put("duration", FIELD_REQUIRED + DURATION_MESSAGE);
-        } else if (duration < MIN_DURATION || duration > MAX_DURATION) {
-            errors.put("duration", DURATION_MESSAGE);
+    private void validateTableId(Integer tableId, Map<String, String> errors) {
+        if (tableId == null) {
+            errors.put("diningTable", TABLE_ID_IS_REQUIRED);
+        } else if (!tableService.existsById(tableId)) {
+            errors.put("diningTable", "Dining table with id " + tableId + " was not found.");
         }
     }
 
@@ -104,16 +98,25 @@ public class ReservationValidator {
         }
     }
 
+    private void validateDuration(Integer duration, Map<String, String> errors) {
+        if (duration == null) {
+            errors.put("duration", FIELD_REQUIRED + DURATION_MESSAGE);
+        } else if (duration < MIN_DURATION || duration > MAX_DURATION) {
+            errors.put("duration", DURATION_MESSAGE);
+        }
+    }
+
     void isTableAvailable(Reservation reservation) {
-        final List<Reservation> allReservationsByDateAndTableId = reservationRepository
-                .findAllByReservationDateAndDiningTableId(reservation.getReservationDate(), reservation.getDiningTable().getId());
+        Integer tableId = reservation.getDiningTable().getId();
+        final List<Reservation> allByDateAndTableId = reservationRepository
+                .findAllByDateAndTableId(reservation.getReservationDate(), tableId);
 
-        allReservationsByDateAndTableId.remove(reservation);
+        allByDateAndTableId.remove(reservation);
 
-        for (Reservation savedReservation : allReservationsByDateAndTableId) {
+        for (Reservation savedReservation : allByDateAndTableId) {
             if (isReservationColliding(reservation, savedReservation))
             {
-                throw new TableNotAvailableException("Dining table with id " + reservation.getDiningTable().getId() + " is not available at the time.");
+                throw new TableNotAvailableException("Dining table with id " + tableId + " is not available at the time.");
             }
         }
     }

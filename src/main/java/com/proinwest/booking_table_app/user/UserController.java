@@ -21,9 +21,9 @@ public class UserController {
         return ResponseEntity.ok(allUsers);
     }
 
-    @GetMapping("{id}")
-    public ResponseEntity<UserDTO> getUser(@PathVariable Long id) {
-        return ResponseEntity.ok(userService.getUser(id));
+    @GetMapping("{userId}")
+    public ResponseEntity<UserDTO> getUser(@PathVariable Long userId) {
+        return ResponseEntity.ok(userService.getUser(userId));
     }
 
     @PostMapping()
@@ -33,21 +33,21 @@ public class UserController {
                 .body(savedUser);
     }
 
-    @PutMapping("{id}")
-    public ResponseEntity<UserDTO> updateUser(@PathVariable Long id, @RequestBody User user) {
-        UserDTO updatedUser = userService.updateUser(id, user);
+    @PutMapping("{userId}")
+    public ResponseEntity<UserDTO> updateUser(@PathVariable Long userId, @RequestBody User user) {
+        UserDTO updatedUser = userService.updateUser(userId, user);
         return ResponseEntity.ok().body(updatedUser);
     }
 
-    @PatchMapping("{id}")
-    public ResponseEntity<UserDTO> partiallyUpdateUser(@PathVariable Long id, @RequestBody User user) {
-        UserDTO partiallyUpdatedUser = userService.partiallyUpdateUser(id, user);
+    @PatchMapping("{userId}")
+    public ResponseEntity<UserDTO> partiallyUpdateUser(@PathVariable Long userId, @RequestBody User user) {
+        UserDTO partiallyUpdatedUser = userService.partiallyUpdateUser(userId, user);
         return ResponseEntity.ok().body(partiallyUpdatedUser);
     }
 
-    @DeleteMapping("{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
-        userService.deleteUser(id);
+    @DeleteMapping("{userId}")
+    public ResponseEntity<Void> deleteUser(@PathVariable Long userId) {
+        userService.deleteUser(userId);
         return ResponseEntity.noContent().build();
     }
 
@@ -80,10 +80,9 @@ public class UserController {
         List<UserDTO> allUsersByPhoneNumber = userService.findAllByPhoneNumber(phoneNumber);
         return ResponseEntity.ok(allUsersByPhoneNumber);
     }
-
-    @GetMapping("/search/{name}")
-    public ResponseEntity<List<UserDTO>> findAllUsersByAnyString(@PathVariable String name) {
-        List<UserDTO> allUsersByAnyString = userService.findAllByAnyString(name);
+    @GetMapping("/search/{anyString}")
+    public ResponseEntity<List<UserDTO>> findAllUsersByAnyString(@PathVariable String anyString) {
+        List<UserDTO> allUsersByAnyString = userService.findAllByAnyString(anyString);
         return ResponseEntity.ok(allUsersByAnyString);
     }
 }

@@ -10,25 +10,25 @@ import static com.proinwest.booking_table_app.diningTable.DiningTableService.*;
 
 @Component
 public class DiningTableValidator {
-    private final DiningTableService diningTableService;
+    private final DiningTableService tableService;
 
-    public DiningTableValidator(@Lazy DiningTableService diningTableService) {
-        this.diningTableService = diningTableService;
+    public DiningTableValidator(@Lazy DiningTableService tableService) {
+        this.tableService = tableService;
     }
 
-    Map<String, String> validateDiningTable(Integer id, DiningTable diningTable) {
+    Map<String, String> validateTable(DiningTable table) {
         final Map<String, String> errors = new HashMap<>();
         
-        validateNumber(diningTable.getNumber(), errors, id);
-        validateSeats(diningTable.getSeats(), errors);
+        validateNumber(table.getNumber(), errors, table.getId());
+        validateSeats(table.getSeats(), errors);
         
         return errors;
     }
 
-    private void validateNumber(Integer number, Map<String, String> errors, Integer id) {
+    private void validateNumber(Integer number, Map<String, String> errors, Integer tableId) {
         if (number == null) {
             errors.put("number", FIELD_REQUIRED + NUMBER_MESSAGE);
-        } else if (!diningTableService.findNumberById(id).equals(number) && diningTableService.existsByNumber(number)) {
+        } else if (!tableService.findNumberByTableId(tableId).equals(number) && tableService.existsByNumber(number)) {
             errors.put("number", "Table number " + number + " already exists. It should be unique.");
         } else if (number < MIN_NUMBER || number > MAX_NUMBER) {
             errors.put("number", NUMBER_MESSAGE);

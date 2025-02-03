@@ -15,13 +15,10 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-import static com.proinwest.booking_table_app.user.UserService.partiallyUpdateUser;
-import static com.proinwest.booking_table_app.user.UserService.updateUser;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -41,46 +38,20 @@ class UserServiceTest {
     @Test
     void shouldGetAllUsers() {
         // given
-        final User user1 = Instancio.create(User.class);
-        final User user2 = Instancio.create(User.class);
+        final User user = Instancio.create(User.class);
+        final UserDTO userDTO = Instancio.create(UserDTO.class);
 
-        final List<User> allUsers = new ArrayList<>();
-        allUsers.add(user1);
-        allUsers.add(user2);
-
-        final UserDTO userDTO1 = new UserDTO(
-                user1.getId(),
-                user1.getLogin(),
-                user1.getFirstName(),
-                user1.getLastName(),
-                user1.getEmail(),
-                user1.getPhoneNumber()
-        );
-
-        final UserDTO userDTO2 = new UserDTO(
-                user2.getId(),
-                user2.getLogin(),
-                user2.getFirstName(),
-                user2.getLastName(),
-                user2.getEmail(),
-                user2.getPhoneNumber()
-        );
-
-        final List<UserDTO> usersDTO = new ArrayList<>();
-        usersDTO.add(userDTO1);
-        usersDTO.add(userDTO2);
-
-        when(userRepository.findAll()).thenReturn(allUsers);
-        when(userDTOMapper.apply(user1)).thenReturn(userDTO1);
-        when(userDTOMapper.apply(user2)).thenReturn(userDTO2);
+        when(userRepository.findAll()).thenReturn(List.of(user));
+        when(userDTOMapper.apply(user)).thenReturn(userDTO);
 
         // when
         final List<UserDTO> result = userService.getAllUsers();
 
         // then
         assertNotNull(result);
-        assertEquals(usersDTO, result);
+        assertEquals(List.of(userDTO), result);
         verify(userRepository, times(1)).findAll();
+        verify(userDTOMapper, times(1)).apply(user);
     }
 
     @Test
@@ -97,16 +68,8 @@ class UserServiceTest {
     void shouldGetUser() {
         // given
         final User user = Instancio.create(User.class);
+        final UserDTO userDTO = Instancio.create(UserDTO.class);
         final Long userId = user.getId();
-
-        final UserDTO userDTO = new UserDTO(
-                user.getId(),
-                user.getLogin(),
-                user.getFirstName(),
-                user.getLastName(),
-                user.getEmail(),
-                user.getPhoneNumber()
-        );
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(userDTOMapper.apply(user)).thenReturn(userDTO);
@@ -118,6 +81,7 @@ class UserServiceTest {
         assertNotNull(result);
         assertEquals(userDTO, result);
         verify(userRepository, times(1)).findById(userId);
+        verify(userDTOMapper, times(1)).apply(user);
     }
 
     @Test
@@ -135,19 +99,12 @@ class UserServiceTest {
     void shouldAddUser() {
         // given
         final User user = Instancio.create(User.class);
-        user.setId(1L);
+        user.setId(null);
 
         final User savedUser = user;
         savedUser.setId(1L);
 
-        final UserDTO userDTO = new UserDTO(
-                savedUser.getId(),
-                savedUser.getLogin(),
-                savedUser.getFirstName(),
-                savedUser.getLastName(),
-                savedUser.getEmail(),
-                savedUser.getPhoneNumber()
-        );
+        final UserDTO userDTO = Instancio.create(UserDTO.class);
 
         when(userRepository.save(user)).thenReturn(savedUser);
         when(userDTOMapper.apply(savedUser)).thenReturn(userDTO);
@@ -175,11 +132,12 @@ class UserServiceTest {
 
         when(user.getId()).thenReturn(7L);
 
+        final URI expected = URI.create("http://localhost/users/7");
+
         // when
         final URI result = userService.location(user);
 
         // then
-        final URI expected = URI.create("http://localhost/users/7");
         assertEquals(expected, result);
     }
 
@@ -194,18 +152,9 @@ class UserServiceTest {
 
         final User savedUser = userToUpdate;
 
-        final UserDTO userDTO = new UserDTO(
-                userId,
-                savedUser.getLogin(),
-                savedUser.getFirstName(),
-                savedUser.getLastName(),
-                savedUser.getEmail(),
-                savedUser.getPhoneNumber()
-        );
+        final UserDTO userDTO = Instancio.create(UserDTO.class);
 
-        when(userRepository.findById(userId)
-                .map(updatingUser -> updateUser(user, updatingUser)))
-                .thenReturn(Optional.of(userToUpdate));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(userToUpdate));
         when(userRepository.save(userToUpdate)).thenReturn(savedUser);
         when(userDTOMapper.apply(savedUser)).thenReturn(userDTO);
 
@@ -226,9 +175,7 @@ class UserServiceTest {
         final User user = Instancio.create(User.class);
         final Long userId = user.getId();
 
-        when(userRepository.findById(userId)
-                .map(updatingUser -> updateUser(user, updatingUser)))
-                .thenReturn(Optional.empty());
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
         // when & then
         assertThrows(NotFoundException.class, () -> userService.updateUser(userId, user));
@@ -246,18 +193,9 @@ class UserServiceTest {
 
         final User savedUser = userToUpdate;
 
-        final UserDTO userDTO = new UserDTO(
-                userId,
-                savedUser.getLogin(),
-                savedUser.getFirstName(),
-                savedUser.getLastName(),
-                savedUser.getEmail(),
-                savedUser.getPhoneNumber()
-        );
+        final UserDTO userDTO = Instancio.create(UserDTO.class);
 
-        when(userRepository.findById(userId)
-                .map(updatingUser -> partiallyUpdateUser(user, updatingUser)))
-                .thenReturn(Optional.of(userToUpdate));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(userToUpdate));
         when(userRepository.save(userToUpdate)).thenReturn(savedUser);
         when(userDTOMapper.apply(savedUser)).thenReturn(userDTO);
 
@@ -278,9 +216,7 @@ class UserServiceTest {
         final User user = Instancio.create(User.class);
         final Long userId = user.getId();
 
-        when(userRepository.findById(userId)
-                .map(updatingUser -> partiallyUpdateUser(user, updatingUser)))
-                .thenReturn(Optional.empty());
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
         // when & then
         assertThrows(NotFoundException.class, () -> userService.partiallyUpdateUser(userId, user));
@@ -307,269 +243,190 @@ class UserServiceTest {
     @Test
     void shouldFindUserByLoginFragment() {
         // given
-        final String loginFragment = "jOh";
-
-        final User user = new User();
-        user.setId(1L);
-        user.setLogin("john");
-        user.setEmail("doe@mail.com");
-        user.setPassword("secret");
-        user.setPhoneNumber("123-456-789");
-
-        final UserDTO userDTO = new UserDTO(
-                user.getId(),
-                user.getLogin(),
-                user.getFirstName(),
-                user.getLastName(),
-                user.getEmail(),
-                user.getPhoneNumber()
-        );
-
-        final List<UserDTO> usersDTO = new ArrayList<>();
-        usersDTO.add(userDTO);
+        final String loginFragment = "any";
+        final User user = Instancio.create(User.class);
+        final UserDTO userDTO = Instancio.create(UserDTO.class);
 
         when(userDTOMapper.apply(user)).thenReturn(userDTO);
-        when(userRepository.findAllByLoginContainingIgnoreCase(loginFragment)).thenReturn(List.of(user));
+        when(userRepository.findAllByLogin(loginFragment)).thenReturn(List.of(user));
 
         // when
         final List<UserDTO> result = userService.findAllByLogin(loginFragment);
 
         // then
         assertNotNull(result);
-        assertEquals(usersDTO, result);
-        verify(userRepository, times(1)).findAllByLoginContainingIgnoreCase(loginFragment);
+        assertEquals(List.of(userDTO), result);
+        verify(userRepository, times(1)).findAllByLogin(loginFragment);
         verify(userDTOMapper, times(1)).apply(user);
     }
 
     @Test
-    void whenLoginFragmentIsNull_shouldThrowException() {
+    void whenLoginFragmentIsBlank_shouldThrowException() {
         // given
-        final String loginFragment = null;
+        final String loginFragment = " ";
 
         // when & then
         assertThrows(InvalidInputException.class, () -> userService.findAllByLogin(loginFragment));
-        verify(userRepository, never()).findAllByLoginContainingIgnoreCase(loginFragment);
+        verify(userRepository, never()).findAllByLogin(loginFragment);
     }
 
     @Test
     void whenUserNotFoundByLoginFragment_shouldThrowException() {
         // given
-        final String loginFragment = "john";
-        when(userRepository.findAllByLoginContainingIgnoreCase(loginFragment)).thenReturn(Collections.emptyList());
+        final String loginFragment = "any";
+
+        when(userRepository.findAllByLogin(loginFragment)).thenReturn(Collections.emptyList());
 
         // when & then
         assertThrows(NotFoundException.class, () -> userService.findAllByLogin(loginFragment));
+        verify(userRepository, times(1)).findAllByLogin(loginFragment);
     }
 
     @Test
     void shouldFindUserByFirstNameFragment() {
         // given
-        final String firstNameFragment = "jOh";
-
-        final User user = new User();
-        user.setId(1L);
-        user.setLogin("john");
-        user.setFirstName("John");
-        user.setEmail("doe@mail.com");
-        user.setPassword("secret");
-        user.setPhoneNumber("123-456-789");
-
-        final UserDTO userDTO = new UserDTO(
-                user.getId(),
-                user.getLogin(),
-                user.getFirstName(),
-                user.getLastName(),
-                user.getEmail(),
-                user.getPhoneNumber()
-        );
-
-        final List<UserDTO> usersDTO = new ArrayList<>();
-        usersDTO.add(userDTO);
+        final String firstNameFragment = "any";
+        final User user = Instancio.create(User.class);
+        final UserDTO userDTO = Instancio.create(UserDTO.class);
 
         when(userDTOMapper.apply(user)).thenReturn(userDTO);
-        when(userRepository.findAllByFirstNameContainingIgnoreCase(firstNameFragment)).thenReturn(List.of(user));
+        when(userRepository.findAllByFirstName(firstNameFragment)).thenReturn(List.of(user));
 
         // when
         final List<UserDTO> result = userService.findAllByFirstName(firstNameFragment);
 
         // then
         assertNotNull(result);
-        assertEquals(usersDTO, result);
-        verify(userRepository, times(1)).findAllByFirstNameContainingIgnoreCase(firstNameFragment);
+        assertEquals(List.of(userDTO), result);
+        verify(userRepository, times(1)).findAllByFirstName(firstNameFragment);
         verify(userDTOMapper, times(1)).apply(user);
     }
 
     @Test
-    void whenFirstNameFragmentIsNull_shouldThrowException() {
+    void whenFirstNameFragmentIsBlank_shouldThrowException() {
         // given
-        final String firstNameFragment = null;
+        final String firstNameFragment = " ";
 
         // when & then
         assertThrows(InvalidInputException.class, () -> userService.findAllByFirstName(firstNameFragment));
-        verify(userRepository, never()).findAllByFirstNameContainingIgnoreCase(firstNameFragment);
+        verify(userRepository, never()).findAllByFirstName(firstNameFragment);
     }
 
     @Test
     void whenUserNotFoundByFirstNameFragment_shouldThrowException() {
         // given
-        final String firstNameFragment = "john";
-        when(userRepository.findAllByFirstNameContainingIgnoreCase(firstNameFragment)).thenReturn(Collections.emptyList());
+        final String firstNameFragment = "any";
+
+        when(userRepository.findAllByFirstName(firstNameFragment)).thenReturn(Collections.emptyList());
 
         // when & then
         assertThrows(NotFoundException.class, () -> userService.findAllByFirstName(firstNameFragment));
+        verify(userRepository, times(1)).findAllByFirstName(firstNameFragment);
     }
 
     @Test
     void shouldFindUserByLastNameFragment() {
         // given
-        final String lastNameFragment = "dO";
-
-        final User user = new User();
-        user.setId(1L);
-        user.setLogin("john");
-        user.setLastName("Doe");
-        user.setEmail("john@mail.com");
-        user.setPassword("secret");
-        user.setPhoneNumber("123-456-789");
-
-        final UserDTO userDTO = new UserDTO(
-                user.getId(),
-                user.getLogin(),
-                user.getFirstName(),
-                user.getLastName(),
-                user.getEmail(),
-                user.getPhoneNumber()
-        );
-
-        final List<UserDTO> usersDTO = new ArrayList<>();
-        usersDTO.add(userDTO);
+        final String lastNameFragment = "any";
+        final User user = Instancio.create(User.class);
+        final UserDTO userDTO = Instancio.create(UserDTO.class);
 
         when(userDTOMapper.apply(user)).thenReturn(userDTO);
-        when(userRepository.findAllByLastNameContainingIgnoreCase(lastNameFragment)).thenReturn(List.of(user));
+        when(userRepository.findAllByLastName(lastNameFragment)).thenReturn(List.of(user));
 
         // when
         final List<UserDTO> result = userService.findAllByLastName(lastNameFragment);
 
         // then
         assertNotNull(result);
-        assertEquals(usersDTO, result);
+        assertEquals(List.of(userDTO), result);
         verify(userRepository, times(1))
-                .findAllByLastNameContainingIgnoreCase(lastNameFragment);
+                .findAllByLastName(lastNameFragment);
         verify(userDTOMapper, times(1)).apply(user);
     }
 
     @Test
-    void whenLastNameFragmentIsNull_shouldThrowException() {
+    void whenLastNameFragmentIsBlank_shouldThrowException() {
         // given
-        final String lastNameFragment = null;
+        final String lastNameFragment = " ";
 
         // when & then
-        assertThrows(NotFoundException.class, () -> userService.findAllByLastName(lastNameFragment));
-        verify(userRepository, never()).findAllByLastNameContainingIgnoreCase(lastNameFragment);
+        assertThrows(InvalidInputException.class, () -> userService.findAllByLastName(lastNameFragment));
+        verify(userRepository, never()).findAllByLastName(lastNameFragment);
     }
 
     @Test
     void whenUserNotFoundByLastNameFragment_shouldThrowException() {
         // given
-        final String lastNameFragment = "Do";
-        when(userRepository.findAllByLastNameContainingIgnoreCase(lastNameFragment))
+        final String lastNameFragment = "any";
+
+        when(userRepository.findAllByLastName(lastNameFragment))
                 .thenReturn(Collections.emptyList());
 
         // when & then
         assertThrows(NotFoundException.class, () -> userService.findAllByLastName(lastNameFragment));
+        verify(userRepository, times(1)).findAllByLastName(lastNameFragment);
     }
 
     @Test
     void shouldFindUserByEmailFragment() {
         // given
-        final String emailFragment = "jOh";
-
-        final User user = new User();
-        user.setId(1L);
-        user.setLogin("sam");
-        user.setEmail("john@mail.com");
-        user.setPassword("secret");
-        user.setPhoneNumber("123-456-789");
-
-        final UserDTO userDTO = new UserDTO(
-                user.getId(),
-                user.getLogin(),
-                user.getFirstName(),
-                user.getLastName(),
-                user.getEmail(),
-                user.getPhoneNumber()
-        );
-
-        final List<UserDTO> usersDTO = new ArrayList<>();
-        usersDTO.add(userDTO);
+        final String emailFragment = "any";
+        final User user = Instancio.create(User.class);
+        final UserDTO userDTO = Instancio.create(UserDTO.class);
 
         when(userDTOMapper.apply(user)).thenReturn(userDTO);
-        when(userRepository.findAllByEmailContainingIgnoreCase(emailFragment)).thenReturn(List.of(user));
+        when(userRepository.findAllByEmail(emailFragment)).thenReturn(List.of(user));
 
         // when
         final List<UserDTO> result = userService.findAllByEmail(emailFragment);
 
         // then
         assertNotNull(result);
-        assertEquals(usersDTO, result);
-        verify(userRepository, times(1)).findAllByEmailContainingIgnoreCase(emailFragment);
+        assertEquals(List.of(userDTO), result);
+        verify(userRepository, times(1)).findAllByEmail(emailFragment);
         verify(userDTOMapper, times(1)).apply(user);
     }
 
     @Test
-    void whenEmailFragmentIsNull_shouldThrowException() {
+    void whenEmailFragmentIsBlank_shouldThrowException() {
         // given
-        final String emailFragment = null;
+        final String emailFragment = " ";
 
         // when & then
         assertThrows(InvalidInputException.class, () -> userService.findAllByEmail(emailFragment));
-        verify(userRepository, never()).findAllByEmailContainingIgnoreCase(emailFragment);
+        verify(userRepository, never()).findAllByEmail(emailFragment);
     }
 
     @Test
     void whenUserNotFoundByEmailFragment_shouldThrowException() {
         // given
-        final String emailFragment = "john";
-        when(userRepository.findAllByEmailContainingIgnoreCase(emailFragment)).thenReturn(Collections.emptyList());
+        final String emailFragment = "any";
+
+        when(userRepository.findAllByEmail(emailFragment)).thenReturn(Collections.emptyList());
 
         // when & then
         assertThrows(NotFoundException.class, () -> userService.findAllByEmail(emailFragment));
+        verify(userRepository, times(1)).findAllByEmail(emailFragment);
     }
 
     @Test
     void shouldFindUserByPhoneNumberFragment() {
         // given
         final String phoneNumberFragment = "234";
-
-        final User user = new User();
-        user.setId(1L);
-        user.setLogin("john");
-        user.setEmail("john@mail.com");
-        user.setPassword("secret");
-        user.setPhoneNumber("123-456-789");
-
-        final UserDTO userDTO = new UserDTO(
-                user.getId(),
-                user.getLogin(),
-                user.getFirstName(),
-                user.getLastName(),
-                user.getEmail(),
-                user.getPhoneNumber()
-        );
-
-        final List<UserDTO> usersDTO = new ArrayList<>();
-        usersDTO.add(userDTO);
+        final User user = Instancio.create(User.class);
+        final UserDTO userDTO = Instancio.create(UserDTO.class);
 
         when(userDTOMapper.apply(user)).thenReturn(userDTO);
-        when(userRepository.findAllByPhoneNumberContaining(phoneNumberFragment)).thenReturn(List.of(user));
+        when(userRepository.findAllByPhoneNumber(phoneNumberFragment)).thenReturn(List.of(user));
 
         // when
         final List<UserDTO> result = userService.findAllByPhoneNumber(phoneNumberFragment);
 
         // then
         assertNotNull(result);
-        assertEquals(usersDTO, result);
-        verify(userRepository, times(1)).findAllByPhoneNumberContaining(phoneNumberFragment);
+        assertEquals(List.of(userDTO), result);
+        verify(userRepository, times(1)).findAllByPhoneNumber(phoneNumberFragment);
         verify(userDTOMapper, times(1)).apply(user);
     }
 
@@ -580,142 +437,68 @@ class UserServiceTest {
 
         // when & then
         assertThrows(InvalidInputException.class, () -> userService.findAllByPhoneNumber(phoneNumberFragment));
-        verify(userRepository, never()).findAllByPhoneNumberContaining(phoneNumberFragment);
+        verify(userRepository, never()).findAllByPhoneNumber(phoneNumberFragment);
     }
 
     @Test
     void whenUserNotFoundByPhoneNumberFragment_shouldThrowException() {
         // given
-        final String phoneNumber = "234";
-        when(userRepository.findAllByPhoneNumberContaining(phoneNumber)).thenReturn(Collections.emptyList());
+        final String phoneNumberFragment = "234";
+
+        when(userRepository.findAllByPhoneNumber(phoneNumberFragment)).thenReturn(Collections.emptyList());
 
         // when & then
-        assertThrows(NotFoundException.class, () -> userService.findAllByPhoneNumber(phoneNumber));
+        assertThrows(NotFoundException.class, () -> userService.findAllByPhoneNumber(phoneNumberFragment));
+        verify(userRepository, times(1)).findAllByPhoneNumber(phoneNumberFragment);
     }
 
     @Test
     void shouldFindUserByAnyString() {
         // given
-        final String searchPhrase = "jOh";
+        final String searchPhrase = "any";
+        final User user = Instancio.create(User.class);
+        final UserDTO userDTO = Instancio.create(UserDTO.class);
 
-        final User user1 = new User();
-        user1.setId(1L);
-        user1.setLogin("john");
-        user1.setEmail("mail@mail.com");
-        user1.setPassword("secret");
-        user1.setPhoneNumber("123-456-789");
-
-        final UserDTO userDTO1 = new UserDTO(
-                user1.getId(),
-                user1.getLogin(),
-                user1.getFirstName(),
-                user1.getLastName(),
-                user1.getEmail(),
-                user1.getPhoneNumber()
-        );
-
-        final User user2 = new User();
-        user2.setId(1L);
-        user2.setLogin("aaa");
-        user2.setFirstName("John");
-        user2.setLastName("Doe");
-        user2.setEmail("aaa@mail.com");
-        user2.setPassword("aaaaaaa");
-        user2.setPhoneNumber("111-111-111");
-
-        final UserDTO userDTO2 = new UserDTO(
-                user2.getId(),
-                user2.getLogin(),
-                user2.getFirstName(),
-                user2.getLastName(),
-                user2.getEmail(),
-                user2.getPhoneNumber()
-        );
-
-        final User user3 = new User();
-        user3.setId(1L);
-        user3.setLogin("bbb");
-        user3.setFirstName("bbb");
-        user3.setLastName("John");
-        user3.setEmail("bbb@mail.com");
-        user3.setPassword("bbbbbbbb");
-        user3.setPhoneNumber("222-222-222");
-
-        final UserDTO userDTO3 = new UserDTO(
-                user3.getId(),
-                user3.getLogin(),
-                user3.getFirstName(),
-                user3.getLastName(),
-                user3.getEmail(),
-                user3.getPhoneNumber()
-        );
-
-        final User user4 = new User();
-        user4.setId(1L);
-        user4.setLogin("ccc");
-        user4.setFirstName("ccc");
-        user4.setLastName("ccc");
-        user4.setEmail("john@mail.com");
-        user4.setPassword("cccccccc");
-        user4.setPhoneNumber("333-333-333");
-
-        final UserDTO userDTO4 = new UserDTO(
-                user4.getId(),
-                user4.getLogin(),
-                user4.getFirstName(),
-                user4.getLastName(),
-                user4.getEmail(),
-                user4.getPhoneNumber()
-        );
-
-        final List<UserDTO> usersDTO = new ArrayList<>();
-        usersDTO.add(userDTO1);
-        usersDTO.add(userDTO2);
-        usersDTO.add(userDTO3);
-        usersDTO.add(userDTO4);
-
-        when(userDTOMapper.apply(user1)).thenReturn(userDTO1);
-        when(userDTOMapper.apply(user2)).thenReturn(userDTO2);
-        when(userDTOMapper.apply(user3)).thenReturn(userDTO3);
-        when(userDTOMapper.apply(user4)).thenReturn(userDTO4);
-        when(userRepository.findAllByLoginContainingIgnoreCaseOrFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCaseOrEmailContainingIgnoreCase(searchPhrase, searchPhrase, searchPhrase, searchPhrase))
-                .thenReturn(List.of(user1, user2,user3, user4));
+        when(userRepository.findAllByAnyString(searchPhrase)).thenReturn(List.of(user));
+        when(userDTOMapper.apply(user)).thenReturn(userDTO);
 
         // when
         final List<UserDTO> result = userService.findAllByAnyString(searchPhrase);
 
         // then
         assertNotNull(result);
-        assertEquals(usersDTO, result);
-        verify(userRepository, times(1)).findAllByLoginContainingIgnoreCaseOrFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCaseOrEmailContainingIgnoreCase(searchPhrase, searchPhrase, searchPhrase, searchPhrase);
-        verify(userDTOMapper, times(1)).apply(user1);
+        assertEquals(List.of(userDTO), result);
+        verify(userRepository, times(1)).findAllByAnyString(searchPhrase);
+        verify(userDTOMapper, times(1)).apply(user);
     }
 
     @Test
-    void whenSearchPhraseIsNull_shouldThrowException() {
+    void whenSearchPhraseIsBlank_shouldThrowException() {
         // given
-        final String searchPhrase = null;
+        final String searchPhrase = " ";
 
         // when & then
         assertThrows(InvalidInputException.class, () -> userService.findAllByAnyString(searchPhrase));
-        verify(userRepository, never()).findAllByLoginContainingIgnoreCaseOrFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCaseOrEmailContainingIgnoreCase(searchPhrase, searchPhrase, searchPhrase, searchPhrase);
+        verify(userRepository, never()).findAllByAnyString(searchPhrase);
     }
 
     @Test
     void whenUserNotFoundByStringPhrase_shouldThrowException() {
         // given
-        final String searchPhrase = "john";
-        when(userRepository.findAllByLoginContainingIgnoreCaseOrFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCaseOrEmailContainingIgnoreCase(searchPhrase, searchPhrase, searchPhrase, searchPhrase))
-                .thenReturn(Collections.emptyList());
+        final String searchPhrase = "any";
+
+        when(userRepository.findAllByAnyString(searchPhrase)).thenReturn(Collections.emptyList());
 
         // when & then
         assertThrows(NotFoundException.class, () -> userService.findAllByAnyString(searchPhrase));
+        verify(userRepository, times(1)).findAllByAnyString(searchPhrase);
     }
 
     @Test
     void whenUserNotExists_shouldThrowException() {
         // given
         final Long userId = 1L;
+
         when(userService.existsById(userId)).thenReturn(false);
 
         // when & then
@@ -727,14 +510,10 @@ class UserServiceTest {
     void whenUserHasReservationAssigned_shouldThrowException() {
         // given
         final Long userId = 1L;
-
         final ReservationDTO reservationDTO = Instancio.create(ReservationDTO.class);
 
-        final List<ReservationDTO> reservationsList = new ArrayList<>();
-        reservationsList.add(reservationDTO);
-
-        when(userService.existsById(userId)).thenReturn(true);
-        when(reservationService.findAllByUserId(userId)).thenReturn(reservationsList);
+        when(userRepository.existsById(userId)).thenReturn(true);
+        when(reservationService.findAllByUserId(userId)).thenReturn(List.of(reservationDTO));
 
         // when & then
         assertThrows(InvalidInputException.class, () -> userService.deleteUser(userId));
@@ -745,38 +524,41 @@ class UserServiceTest {
     void shouldFindLoginById() {
         // given
         final Long userId = 1L;
-        final String expectedLogin = "john";
-        when(userRepository.findLoginById(userId)).thenReturn(expectedLogin);
+        final String expectedLogin = "any";
+
+        when(userRepository.findLoginByUserId(userId)).thenReturn(expectedLogin);
 
         // when
-        final String result = userService.findLoginById(userId);
+        final String result = userService.findLoginByUserId(userId);
 
         // then
         assertNotNull(result);
         assertEquals(expectedLogin, result);
-        verify(userRepository, times(1)).findLoginById(userId);
+        verify(userRepository, times(1)).findLoginByUserId(userId);
     }
 
     @Test
     void shouldFindEmailById() {
         // given
         final Long userId = 1L;
-        final String expectedEmail = "john@mail.com";
-        when(userRepository.findEmailById(userId)).thenReturn(expectedEmail);
+        final String expectedEmail = "any@mail.com";
+
+        when(userRepository.findEmailByUserId(userId)).thenReturn(expectedEmail);
 
         // when
-        final String result = userService.findEmailById(userId);
+        final String result = userService.findEmailByUserId(userId);
 
         // then
         assertNotNull(result);
         assertEquals(expectedEmail, result);
-        verify(userRepository, times(1)).findEmailById(userId);
+        verify(userRepository, times(1)).findEmailByUserId(userId);
     }
 
     @Test
     void whenUserExistsById_shouldReturnTrue() {
         // given
         final Long userId = 1L;
+
         when(userRepository.existsById(userId)).thenReturn(true);
 
         // when
@@ -791,6 +573,7 @@ class UserServiceTest {
     void whenUserNotExistsById_shouldReturnFalse() {
         // given
         final Long userId = 1L;
+
         when(userRepository.existsById(userId)).thenReturn(false);
 
         // when
@@ -804,7 +587,8 @@ class UserServiceTest {
     @Test
     void whenUserExistsByLogin_shouldReturnTrue() {
         // given
-        final String login = "john";
+        final String login = "any";
+
         when(userRepository.existsByLogin(login)).thenReturn(true);
 
         // when
@@ -818,7 +602,8 @@ class UserServiceTest {
     @Test
     void whenUserNotExistsByLogin_shouldReturnFalse() {
         // given
-        final String login = "john";
+        final String login = "any";
+
         when(userRepository.existsByLogin(login)).thenReturn(false);
 
         // when
@@ -832,7 +617,8 @@ class UserServiceTest {
     @Test
     void whenUserExistsByEmail_shouldReturnTrue() {
         // given
-        final String email = "john@mail.com";
+        final String email = "any@mail.com";
+
         when(userRepository.existsByEmail(email)).thenReturn(true);
 
         // when
@@ -846,7 +632,8 @@ class UserServiceTest {
     @Test
     void whenUserNotExistsByEmail_shouldReturnFalse() {
         // given
-        final String email = "john@mail.com";
+        final String email = "any@mail.com";
+
         when(userRepository.existsByEmail(email)).thenReturn(false);
 
         // when

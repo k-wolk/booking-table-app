@@ -18,8 +18,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class UserRepositoryTest {
     @Container
     @ServiceConnection
-    private static MySQLContainer mySQLContainer = new MySQLContainer("mysql:8.4.0");
-
+    private static final MySQLContainer mySQLContainer = new MySQLContainer("mysql:8.4.0");
     @Autowired
     private UserRepository userRepository;
 
@@ -47,7 +46,7 @@ class UserRepositoryTest {
         final User savedUser = userRepository.save(user);
 
         // when
-        final String result = userRepository.findLoginById(savedUser.getId());
+        final String result = userRepository.findLoginByUserId(savedUser.getId());
 
         // then
         assertNotNull(result);
@@ -60,7 +59,7 @@ class UserRepositoryTest {
         final Long id = 1L;
 
         // when
-        final String result = userRepository.findLoginById(id);
+        final String result = userRepository.findLoginByUserId(id);
 
         // then
         assertNull(result);
@@ -80,7 +79,7 @@ class UserRepositoryTest {
         final Long id = savedUser.getId();
 
         // when
-        final String result = userRepository.findEmailById(id);
+        final String result = userRepository.findEmailByUserId(id);
 
         // then
         assertNotNull(result);
@@ -93,7 +92,7 @@ class UserRepositoryTest {
         final Long id = 1L;
 
         // when
-        final String result = userRepository.findEmailById(id);
+        final String result = userRepository.findEmailByUserId(id);
 
         // then
         assertNull(result);

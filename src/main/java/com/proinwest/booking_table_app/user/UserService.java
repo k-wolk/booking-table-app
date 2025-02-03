@@ -30,6 +30,8 @@ public class UserService {
     public static final String INPUT_IS_MISSING = "Input is missing.";
     public static final String VALID_PHONE_NUMBER = "Examples of valid number are: "
             + "123456789, " + "123 456 789, " + "123-456-7890, " + "+48 123 456 789, " + "+123-123-456-7890";
+    public static final String NO_USERS_IN_DATABASE = "There are no users in database.";
+    public static final String USER_ID_IS_REQUIRED = "User id is required.";
 
     private final UserRepository userRepository;
     private final UserDTOMapper userDTOMapper;
@@ -49,15 +51,15 @@ public class UserService {
                 .map(userDTOMapper)
                 .toList();
 
-        if (allUsersList.isEmpty()) throw new NotFoundException("There are no users in database.");
+        if (allUsersList.isEmpty()) throw new NotFoundException(NO_USERS_IN_DATABASE);
 
         return allUsersList;
     }
 
-    UserDTO getUser(Long id) {
-        return userRepository.findById(id)
+    UserDTO getUser(Long userId) {
+        return userRepository.findById(userId)
                 .map(userDTOMapper)
-                .orElseThrow(() -> new NotFoundException("User with id " + id + " was not found."));
+                .orElseThrow(() -> new NotFoundException("User with id " + userId + " was not found."));
     }
 
     UserDTO addUser(User user) {
@@ -74,41 +76,41 @@ public class UserService {
                 .toUri();
     }
 
-    UserDTO updateUser(Long id, User user) {
-        final User userToUpdate = userRepository.findById(id)
+    UserDTO updateUser(Long userId, User user) {
+        final User userToUpdate = userRepository.findById(userId)
                 .map(updatingUser -> updateUser(user, updatingUser))
-                .orElseThrow(() -> new NotFoundException("User with id " + id + " was not found."));
+                .orElseThrow(() -> new NotFoundException("User with id " + userId + " was not found."));
 
-        validateUser(user, id);
+        validateUser(user, userId);
 
         final User savedUser = userRepository.save(userToUpdate);
         return userDTOMapper.apply(savedUser);
     }
 
-    UserDTO partiallyUpdateUser(Long id, User user) {
-        final User userToUpdate = userRepository.findById(id)
+    UserDTO partiallyUpdateUser(Long userId, User user) {
+        final User userToUpdate = userRepository.findById(userId)
                 .map(updatingUser -> partiallyUpdateUser(user, updatingUser))
-                .orElseThrow(() -> new NotFoundException("User with id " + id + " was not found."));
+                .orElseThrow(() -> new NotFoundException("User with id " + userId + " was not found."));
 
-        validateUser(user, id);
+        validatePartialUser(user, userId);
 
         final User savedUser = userRepository.save(userToUpdate);
         return userDTOMapper.apply(savedUser);
     }
 
-    void deleteUser(Long id) {
-        if(!existsById(id)) throw new NotFoundException("User with id " + id + " was not found");
+    void deleteUser(Long userId) {
+        if(!existsById(userId)) throw new NotFoundException("User with id " + userId + " was not found");
 
-        if (!reservationService.findAllByUserId(id).isEmpty())
-            throw new InvalidInputException("User with id " + id + " can not be deleted because he has at least one reservation assigned.");
+        if (!reservationService.findAllByUserId(userId).isEmpty())
+            throw new InvalidInputException("User with id " + userId + " can not be deleted because he has at least one reservation assigned.");
 
-        userRepository.deleteById(id);
+        userRepository.deleteById(userId);
     }
 
     List<UserDTO> findAllByLogin(String loginFragment) {
-        if (loginFragment == null) throw new InvalidInputException(INPUT_IS_MISSING);
+        if (loginFragment.isBlank()) throw new InvalidInputException(INPUT_IS_MISSING);
 
-        final List<UserDTO> allByLogin = userRepository.findAllByLoginContainingIgnoreCase(loginFragment)
+        final List<UserDTO> allByLogin = userRepository.findAllByLogin(loginFragment)
                 .stream()
                 .map(userDTOMapper)
                 .toList();
@@ -119,9 +121,9 @@ public class UserService {
     }
 
     List<UserDTO> findAllByFirstName(String firstNameFragment) {
-        if (firstNameFragment == null) throw new InvalidInputException(INPUT_IS_MISSING);
+        if (firstNameFragment.isBlank()) throw new InvalidInputException(INPUT_IS_MISSING);
 
-        final List<UserDTO> allByFirstName = userRepository.findAllByFirstNameContainingIgnoreCase(firstNameFragment)
+        final List<UserDTO> allByFirstName = userRepository.findAllByFirstName(firstNameFragment)
                 .stream()
                 .map(userDTOMapper)
                 .toList();
@@ -132,9 +134,9 @@ public class UserService {
     }
 
     List<UserDTO> findAllByLastName(String lastNameFragment) {
-        if (lastNameFragment == null) throw new NotFoundException(INPUT_IS_MISSING);
+        if (lastNameFragment.isBlank()) throw new InvalidInputException(INPUT_IS_MISSING);
 
-        final List<UserDTO> allByLastName = userRepository.findAllByLastNameContainingIgnoreCase(lastNameFragment)
+        final List<UserDTO> allByLastName = userRepository.findAllByLastName(lastNameFragment)
                 .stream()
                 .map(userDTOMapper)
                 .toList();
@@ -145,9 +147,9 @@ public class UserService {
     }
 
     List<UserDTO> findAllByEmail(String emailFragment) {
-        if (emailFragment == null) throw new InvalidInputException(INPUT_IS_MISSING);
+        if (emailFragment.isBlank()) throw new InvalidInputException(INPUT_IS_MISSING);
 
-        final List<UserDTO> allByEmail = userRepository.findAllByEmailContainingIgnoreCase(emailFragment)
+        final List<UserDTO> allByEmail = userRepository.findAllByEmail(emailFragment)
                 .stream()
                 .map(userDTOMapper)
                 .toList();
@@ -160,7 +162,7 @@ public class UserService {
     List<UserDTO> findAllByPhoneNumber(String phoneNumberFragment) {
         if (phoneNumberFragment.isBlank()) throw new InvalidInputException(INPUT_IS_MISSING);
 
-        final List<UserDTO> allByPhoneNumber = userRepository.findAllByPhoneNumberContaining(phoneNumberFragment)
+        final List<UserDTO> allByPhoneNumber = userRepository.findAllByPhoneNumber(phoneNumberFragment)
                 .stream()
                 .map(userDTOMapper)
                 .toList();
@@ -171,29 +173,29 @@ public class UserService {
     }
 
     List<UserDTO> findAllByAnyString(String searchPharse) {
-        if (searchPharse == null) throw new InvalidInputException(INPUT_IS_MISSING);
+        if (searchPharse.isBlank()) throw new InvalidInputException(INPUT_IS_MISSING);
 
         final List<UserDTO> allByAnyString = userRepository
-                .findAllByLoginContainingIgnoreCaseOrFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCaseOrEmailContainingIgnoreCase(searchPharse, searchPharse, searchPharse, searchPharse)
+                .findAllByAnyString(searchPharse)
                 .stream()
                 .map(userDTOMapper)
                 .toList();
 
-        if (allByAnyString.isEmpty()) throw new NotFoundException("There are no users containing login, name or email: " + searchPharse);
+        if (allByAnyString.isEmpty()) throw new NotFoundException("There are no users containing login, name, email or phone number: " + searchPharse);
 
         return allByAnyString;
     }
 
-    String findLoginById(Long id) {
-        return userRepository.findLoginById(id);
+    String findLoginByUserId(Long userId) {
+        return userRepository.findLoginByUserId(userId);
     }
 
-    String findEmailById(Long id) {
-        return userRepository.findEmailById(id);
+    String findEmailByUserId(Long userId) {
+        return userRepository.findEmailByUserId(userId);
     }
 
-    public boolean existsById(Long id) {
-        return userRepository.existsById(id);
+    public boolean existsById(Long userId) {
+        return userRepository.existsById(userId);
     }
 
     boolean existsByLogin(String login) {
@@ -204,8 +206,13 @@ public class UserService {
         return userRepository.existsByEmail(email);
     }
 
-    private void validateUser(User userToUpdate, Long id) {
-        Map<String, String> validationMessages = userValidator.validateUser(userToUpdate, id);
+    private void validateUser(User userToUpdate, Long userId) {
+        Map<String, String> validationMessages = userValidator.validateUser(userToUpdate, userId);
+        if (!validationMessages.isEmpty()) throw new ValidationException(validationMessages);
+    }
+
+    private void validatePartialUser(User userToUpdate, Long userId) {
+        Map<String, String> validationMessages = userValidator.validatePartialUser(userToUpdate, userId);
         if (!validationMessages.isEmpty()) throw new ValidationException(validationMessages);
     }
 

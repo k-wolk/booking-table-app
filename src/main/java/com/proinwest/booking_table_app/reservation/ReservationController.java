@@ -20,8 +20,8 @@ public class ReservationController {
     }
 
     @GetMapping()
-    public ResponseEntity<List<ReservationDTO>> getAllReservation() {
-        List<ReservationDTO> allReservations = reservationService.getAllReservation();
+    public ResponseEntity<List<ReservationDTO>> getAllReservations() {
+        List<ReservationDTO> allReservations = reservationService.getAllReservations();
         return ResponseEntity.ok(allReservations);
     }
 
@@ -56,15 +56,15 @@ public class ReservationController {
     }
 
     @GetMapping("/search/date/{date}")
-    public ResponseEntity<List<ReservationDTO>> findAllByReservationDate(@PathVariable LocalDate date) {
-        List<ReservationDTO> allByDate = reservationService.findAllByReservationDate(date);
+    public ResponseEntity<List<ReservationDTO>> findAllByDate(@PathVariable LocalDate date) {
+        List<ReservationDTO> allByDate = reservationService.findAllByDate(date);
         return ResponseEntity.ok(allByDate);
     }
 
-    @GetMapping("/search/user/{id}")
-    public ResponseEntity<List<ReservationDTO>> findAllByUserId(@PathVariable Long id) {
-        List<ReservationDTO> allByUserId = reservationService.findAllByUserId(id);
-        if (allByUserId.isEmpty()) throw new NotFoundException("There is no reservation with user's id " + id + ".");
+    @GetMapping("/search/user/{userId}")
+    public ResponseEntity<List<ReservationDTO>> findAllByUserId(@PathVariable Long userId) {
+        List<ReservationDTO> allByUserId = reservationService.findAllByUserId(userId);
+        if (allByUserId.isEmpty()) throw new NotFoundException("There is no reservation booked by user with id: " + userId + ".");
         return ResponseEntity.ok(allByUserId);
     }
 
@@ -74,7 +74,7 @@ public class ReservationController {
         return ResponseEntity.ok(allByUserLogin);
     }
 
-    @GetMapping("/search/firstName/{firstName}")
+    @GetMapping("/search/firstname/{firstName}")
     public ResponseEntity<List<ReservationDTO>> findAllByUserFirstName(@PathVariable String firstName) {
         List<ReservationDTO> allByUserName = reservationService.findAllByUserFirstName(firstName);
         return ResponseEntity.ok(allByUserName);
@@ -98,15 +98,16 @@ public class ReservationController {
         return ResponseEntity.ok(allByUserPhoneNumber);
     }
 
-    @GetMapping("/search/table/{id}")
-    public ResponseEntity<List<ReservationDTO>> findAllByTableId(@PathVariable Integer id) {
-        List<ReservationDTO> allByTableId = reservationService.findAllByTableId(id);
+    @GetMapping("/search/table/{tableId}")
+    public ResponseEntity<List<ReservationDTO>> findAllByTableId(@PathVariable Integer tableId) {
+        List<ReservationDTO> allByTableId = reservationService.findAllByTableId(tableId);
+        if (allByTableId.isEmpty()) throw new NotFoundException("There is no reservation with table id: " + tableId);
         return ResponseEntity.ok(allByTableId);
     }
 
-    @GetMapping("/search/date/{date}/id/{id}")
-    public ResponseEntity<List<ReservationDTO>> findAllByReservationDateAndDiningTableId(@PathVariable LocalDate date, @PathVariable Integer id) {
-        List<ReservationDTO> allByDateAndId = reservationService.findAllByDateAndTableId(date, id);
+    @GetMapping("/search/date/{date}/table/{tableId}")
+    public ResponseEntity<List<ReservationDTO>> findAllByDateAndTableId(@PathVariable LocalDate date, @PathVariable Integer tableId) {
+        List<ReservationDTO> allByDateAndId = reservationService.findAllByDateAndTableId(date, tableId);
         return ResponseEntity.ok(allByDateAndId);
     }
 

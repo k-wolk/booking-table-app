@@ -18,14 +18,14 @@ public class UserValidator {
         this.userService = userService;
     }
 
-    Map<String, String> validateUser(User user, Long id) {
+    Map<String, String> validateUser(User user, Long userId) {
         final Map<String, String> errors = new HashMap<>();
 
-        validateLogin(user.getLogin(), errors, id);
+        validateLogin(user.getLogin(), errors, userId);
         validatePassword(user.getPassword(), errors);
         validateFirstName(user.getFirstName(), errors);
         validateLastName(user.getLastName(), errors);
-        validateEmail(user.getEmail(), errors, id);
+        validateEmail(user.getEmail(), errors, userId);
         validatePhoneNumber(user.getPhoneNumber(), errors);
 
         return errors;
@@ -44,10 +44,23 @@ public class UserValidator {
         return errors;
     }
 
-    private void validateLogin(String login, Map<String, String> errors, Long id) {
+    Map<String, String> validatePartialUser(User user, Long userId) {
+        final Map<String, String> errors = new HashMap<>();
+
+        if (user.getLogin() != null) validateLogin(user.getLogin(), errors, userId);
+        if (user.getPassword() != null) validatePassword(user.getPassword(), errors);
+        if (user.getFirstName() != null) validateFirstName(user.getFirstName(), errors);
+        if (user.getLastName() != null) validateLastName(user.getLastName(), errors);
+        if (user.getEmail() != null) validateEmail(user.getEmail(), errors, userId);
+        if (user.getPhoneNumber() != null) validatePhoneNumber(user.getPhoneNumber(), errors);
+
+        return errors;
+    }
+
+    private void validateLogin(String login, Map<String, String> errors, Long userId) {
         if (login == null || login.isBlank()) {
             errors.put("login", FIELD_REQUIRED + LOGIN_MESSAGE);
-        } else if (!userService.findLoginById(id).equals(login) && userService.existsByLogin(login)) {
+        } else if (!userService.findLoginByUserId(userId).equals(login) && userService.existsByLogin(login)) {
             errors.put("login", "Login " + login + " already exists. It should be unique.");
         } else if (login.length() < LOGIN_MIN_LENGTH) {
             errors.put("login", LOGIN_MESSAGE);
@@ -80,10 +93,10 @@ public class UserValidator {
         if (lastName == null || lastName.isBlank()) errors.put("lastName", FIELD_REQUIRED);
     }
 
-    private void validateEmail(String email, Map<String, String> errors, Long id) {
+    private void validateEmail(String email, Map<String, String> errors, Long userId) {
         if (email == null || email.isBlank()) {
             errors.put("email", FIELD_REQUIRED + EMAIL_MESSAGE);
-        } else if (!userService.findEmailById(id).equals(email) && userService.existsByEmail(email)) {
+        } else if (!userService.findEmailByUserId(userId).equals(email) && userService.existsByEmail(email)) {
             errors.put("email", "Email address " + email + " already exists. It should be unique.");
         } else if (email.length() > EMAIL_MAX_LENGTH) {
             errors.put("email", EMAIL_MESSAGE);

@@ -28,10 +28,9 @@ import static org.junit.jupiter.api.Assertions.*;
 public class DiningTableRepositoryTest {
     @Container
     @ServiceConnection
-    private static MySQLContainer mySQLContainer = new MySQLContainer("mysql:8.4.0");
-
+    private static final MySQLContainer mySQLContainer = new MySQLContainer("mysql:8.4.0");
     @Autowired
-    private DiningTableRepository diningTableRepository;
+    private DiningTableRepository tableRepository;
     @Autowired
     private UserRepository userRepository;
     @Autowired
@@ -39,7 +38,7 @@ public class DiningTableRepositoryTest {
 
     @AfterEach
     void tearDown() {
-        diningTableRepository.deleteAll();
+        tableRepository.deleteAll();
         userRepository.deleteAll();
         reservationRepository.deleteAll();
     }
@@ -81,14 +80,14 @@ public class DiningTableRepositoryTest {
         reservation2.setDuration(3);
         reservation2.setUser(user);
 
-        diningTableRepository.save(table1);
-        diningTableRepository.save(table2);
+        tableRepository.save(table1);
+        tableRepository.save(table2);
         userRepository.save(user);
         reservationRepository.save(reservation1);
         reservationRepository.save(reservation2);
 
         // when
-        final List<DiningTable> bookedTables = diningTableRepository.BookedTablesByDateTimeAndDuration(
+        final List<DiningTable> bookedTables = tableRepository.bookedTablesByDateTimeAndDuration(
                 tomorrow,
                 LocalTime.of(17,0),
                 1
@@ -107,10 +106,10 @@ public class DiningTableRepositoryTest {
         table.setNumber(number);
         table.setSeats(4);
 
-        diningTableRepository.save(table);
+        tableRepository.save(table);
 
         // when
-        final Integer result = diningTableRepository.findNumberById(table.getId());
+        final Integer result = tableRepository.findNumberByTableId(table.getId());
 
         // then
         assertNotNull(result);
@@ -123,7 +122,7 @@ public class DiningTableRepositoryTest {
         final int id = 1;
 
         // when
-        final Integer result = diningTableRepository.findNumberById(id);
+        final Integer result = tableRepository.findNumberByTableId(id);
 
         // then
         assertNull(result);
@@ -140,11 +139,11 @@ public class DiningTableRepositoryTest {
         table2.setNumber(2);
         table2.setSeats(6);
 
-        diningTableRepository.save(table1);
-        diningTableRepository.save(table2);
+        tableRepository.save(table1);
+        tableRepository.save(table2);
 
         // when
-        final List<DiningTable> result = diningTableRepository.allDiningTablesWithMinSeats(6);
+        final List<DiningTable> result = tableRepository.allTablesWithMinSeats(6);
 
         // then
         assertNotNull(result);
@@ -158,10 +157,10 @@ public class DiningTableRepositoryTest {
         table.setNumber(1);
         table.setSeats(4);
 
-        diningTableRepository.save(table);
+        tableRepository.save(table);
 
         // when
-        final List<DiningTable> result = diningTableRepository.allDiningTablesWithMinSeats(5);
+        final List<DiningTable> result = tableRepository.allTablesWithMinSeats(5);
 
         // then
         assertEquals(Collections.emptyList(), result);

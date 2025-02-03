@@ -21,7 +21,7 @@ class ReservationDTOMapperTest {
         final Reservation reservation = new Reservation();
         reservation.setId(1111L);
         reservation.setReservationDate(LocalDate.now().plusDays(1));
-        reservation.setReservationTime(LocalTime.parse("19:30"));
+        reservation.setReservationTime(LocalTime.of(17,0));
         reservation.setDuration(3);
         reservation.setUser(user);
         reservation.setDiningTable(diningTable);

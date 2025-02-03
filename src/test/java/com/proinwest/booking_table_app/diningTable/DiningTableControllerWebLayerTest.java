@@ -2,7 +2,6 @@ package com.proinwest.booking_table_app.diningTable;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.proinwest.booking_table_app.reservation.Reservation;
-import org.hamcrest.Matchers;
 import org.instancio.Instancio;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,15 +24,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(DiningTableController.class)
 @ExtendWith(MockitoExtension.class)
 class DiningTableControllerWebLayerTest {
-
     @MockBean
-    private DiningTableService diningTableService;
-
+    private DiningTableService tableService;
     @Autowired
-    MockMvc mockMvc;
-
+    private MockMvc mockMvc;
     @Autowired
-    ObjectMapper mapper = new ObjectMapper();
+    private ObjectMapper mapper;
 
     @Test
     void shouldGetAllTables() throws Exception {
@@ -45,20 +41,20 @@ class DiningTableControllerWebLayerTest {
         tablesList.add(table1);
         tablesList.add(table2);
 
-        when(diningTableService.getAllDiningTables()).thenReturn(tablesList);
+        when(tableService.getAllTables()).thenReturn(tablesList);
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .get("/diningtables")
+                        .get("/tables")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.size()",     Matchers.is(tablesList.size())))
-                .andExpect(jsonPath("$[0].id",      Matchers.is(table1.getId())))
-                .andExpect(jsonPath("$[0].number",  Matchers.is(table1.getNumber())))
-                .andExpect(jsonPath("$[0].seats",   Matchers.is(table1.getSeats())))
-                .andExpect(jsonPath("$[1].id",      Matchers.is(table2.getId())))
-                .andExpect(jsonPath("$[1].number",  Matchers.is(table2.getNumber())))
-                .andExpect(jsonPath("$[1].seats",   Matchers.is(table2.getSeats())));
+                .andExpect(jsonPath("$.size()")     .value(tablesList.size()))
+                .andExpect(jsonPath("$[0].id")      .value(table1.getId()))
+                .andExpect(jsonPath("$[0].number")  .value(table1.getNumber()))
+                .andExpect(jsonPath("$[0].seats")   .value(table1.getSeats()))
+                .andExpect(jsonPath("$[1].id")      .value(table2.getId()))
+                .andExpect(jsonPath("$[1].number")  .value(table2.getNumber()))
+                .andExpect(jsonPath("$[1].seats")   .value(table2.getSeats()));
     }
 
     @Test
@@ -69,16 +65,16 @@ class DiningTableControllerWebLayerTest {
         final DiningTable table = Instancio.create(DiningTable.class);
         table.setId(tableId);
 
-        when(diningTableService.getDiningTable(tableId)).thenReturn(table);
+        when(tableService.getTable(tableId)).thenReturn(table);
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .get("/diningtables/{id}", tableId)
+                        .get("/tables/{tableId}", tableId)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id",     Matchers.is(table.getId())))
-                .andExpect(jsonPath("$.number", Matchers.is(table.getNumber())))
-                .andExpect(jsonPath("$.seats",  Matchers.is(table.getSeats())));
+                .andExpect(jsonPath("$.id")     .value(table.getId()))
+                .andExpect(jsonPath("$.number") .value(table.getNumber()))
+                .andExpect(jsonPath("$.seats")  .value(table.getSeats()));
     }
 
     @Test
@@ -94,21 +90,22 @@ class DiningTableControllerWebLayerTest {
         savedTable.setNumber(table.getNumber());
         savedTable.setSeats(table.getSeats());
 
-        when(diningTableService.addDiningTable(any(DiningTable.class))).thenReturn(savedTable);
-        when(diningTableService.location(savedTable)).thenReturn(URI.create("/diningtables/" + tableId));
+        when(tableService.addTable(any(DiningTable.class))).thenReturn(savedTable);
+        when(tableService.location(savedTable)).thenReturn(URI.create("/tables/" + tableId));
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .post("/diningtables")
+                        .post("/tables")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(table)))
                 .andExpect(status().isCreated())
-                .andExpect(header().string("Location", "/diningtables/" + tableId))
-                .andExpect(jsonPath("$.id",     Matchers.is(savedTable.getId())))
-                .andExpect(jsonPath("$.number", Matchers.is(savedTable.getNumber())))
-                .andExpect(jsonPath("$.seats",  Matchers.is(savedTable.getSeats())));
+                .andExpect(header().string("Location", "/tables/" + tableId))
+                .andExpect(jsonPath("$.id")     .value(savedTable.getId()))
+                .andExpect(jsonPath("$.number") .value(savedTable.getNumber()))
+                .andExpect(jsonPath("$.seats")  .value(savedTable.getSeats()));
 
-        verify(diningTableService, times(1)).addDiningTable(any(DiningTable.class));
+        verify(tableService, times(1)).addTable(any(DiningTable.class));
+        verify(tableService, times(1)).location(savedTable);
     }
 
     @Test
@@ -122,19 +119,19 @@ class DiningTableControllerWebLayerTest {
         final DiningTable updatedTable = Instancio.create(DiningTable.class);
         updatedTable.setId(tableId);
 
-        when(diningTableService.updateDiningTable(eq(tableId), any(DiningTable.class))).thenReturn(updatedTable);
+        when(tableService.updateTable(eq(tableId), any(DiningTable.class))).thenReturn(updatedTable);
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .put("/diningtables/{id}", tableId)
+                        .put("/tables/{tableId}", tableId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(table)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id",       Matchers.is(updatedTable.getId())))
-                .andExpect(jsonPath("$.number",   Matchers.is(updatedTable.getNumber())))
-                .andExpect(jsonPath("$.seats",    Matchers.is(updatedTable.getSeats())));
+                .andExpect(jsonPath("$.id")     .value(updatedTable.getId()))
+                .andExpect(jsonPath("$.number") .value(updatedTable.getNumber()))
+                .andExpect(jsonPath("$.seats")  .value(updatedTable.getSeats()));
 
-        verify(diningTableService, times(1)).updateDiningTable(eq(tableId), any(DiningTable.class));
+        verify(tableService, times(1)).updateTable(eq(tableId), any(DiningTable.class));
     }
 
     @Test
@@ -154,19 +151,19 @@ class DiningTableControllerWebLayerTest {
         updatedTable.setNumber(newTable.getNumber());
         updatedTable.setSeats(tableToUpdate.getSeats());
 
-        when(diningTableService.partiallyUpdateDiningTable(eq(tableId), any(DiningTable.class))).thenReturn(updatedTable);
+        when(tableService.partiallyUpdateTable(eq(tableId), any(DiningTable.class))).thenReturn(updatedTable);
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                .patch("/diningtables/{id}", tableId)
+                .patch("/tables/{tableId}", tableId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(tableToUpdate)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id",     Matchers.is(updatedTable.getId())))
-                .andExpect(jsonPath("$.number", Matchers.is(updatedTable.getNumber())))
-                .andExpect(jsonPath("$.seats",  Matchers.is(updatedTable.getSeats())));
+                .andExpect(jsonPath("$.id")     .value(updatedTable.getId()))
+                .andExpect(jsonPath("$.number") .value(updatedTable.getNumber()))
+                .andExpect(jsonPath("$.seats")  .value(updatedTable.getSeats()));
 
-        verify(diningTableService, times(1)).partiallyUpdateDiningTable(eq(tableId), any(DiningTable.class));
+        verify(tableService, times(1)).partiallyUpdateTable(eq(tableId), any(DiningTable.class));
     }
 
     @Test
@@ -174,14 +171,12 @@ class DiningTableControllerWebLayerTest {
         // given
         final Integer tableId = 1;
 
-        doNothing().when(diningTableService).deleteDiningTable(tableId);
-
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                .delete("/diningtables/{id}", tableId))
+                .delete("/tables/{tableId}", tableId))
                 .andExpect(status().isNoContent());
 
-        verify(diningTableService, times(1)).deleteDiningTable(tableId);
+        verify(tableService, times(1)).deleteTable(tableId);
     }
 
     @Test
@@ -196,21 +191,21 @@ class DiningTableControllerWebLayerTest {
         freeTables.add(table1);
         freeTables.add(table2);
 
-        when(diningTableService.getFreeTables(any(Reservation.class))).thenReturn(freeTables);
+        when(tableService.getFreeTables(any(Reservation.class))).thenReturn(freeTables);
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                .get("/diningtables/freetables")
+                .get("/tables/freetables")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(reservation)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id",      Matchers.is(table1.getId())))
-                .andExpect(jsonPath("$[0].number",  Matchers.is(table1.getNumber())))
-                .andExpect(jsonPath("$[0].seats",   Matchers.is(table1.getSeats())))
-                .andExpect(jsonPath("$[1].id",      Matchers.is(table2.getId())))
-                .andExpect(jsonPath("$[1].number",  Matchers.is(table2.getNumber())))
-                .andExpect(jsonPath("$[1].seats",   Matchers.is(table2.getSeats())));
+                .andExpect(jsonPath("$[0].id")      .value(table1.getId()))
+                .andExpect(jsonPath("$[0].number")  .value(table1.getNumber()))
+                .andExpect(jsonPath("$[0].seats")   .value(table1.getSeats()))
+                .andExpect(jsonPath("$[1].id")      .value(table2.getId()))
+                .andExpect(jsonPath("$[1].number")  .value(table2.getNumber()))
+                .andExpect(jsonPath("$[1].seats")   .value(table2.getSeats()));
 
-        verify(diningTableService, times(1)).getFreeTables(any(Reservation.class));
+        verify(tableService, times(1)).getFreeTables(any(Reservation.class));
     }
 }

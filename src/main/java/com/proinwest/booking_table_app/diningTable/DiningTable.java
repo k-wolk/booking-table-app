@@ -14,14 +14,11 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 public class DiningTable {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
-
     @Column(unique = true)
     private Integer number;
-
     private Integer seats;
 
     @OneToMany(mappedBy = "diningTable")

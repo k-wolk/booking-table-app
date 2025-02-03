@@ -24,7 +24,8 @@ public class ReservationService {
     static final String TIME_MESSAGE = "Reservation time should be present of future.";
     static final int MIN_DURATION = 1;
     static final int MAX_DURATION = 6;
-    static final String DURATION_MESSAGE = "Duration should be between " + MIN_DURATION + " and " + MAX_DURATION + " hours.";
+    public static final String DURATION_MESSAGE = "Duration should be between " + MIN_DURATION + " and " + MAX_DURATION + " hours.";
+    public static final String NO_RESERVATIONS_IN_DATABASE = "There are no reservations in database.";
 
     private final ReservationRepository reservationRepository;
     private final ReservationDTOMapper reservationDTOMapper;
@@ -34,22 +35,22 @@ public class ReservationService {
     public ReservationService(ReservationRepository reservationRepository,
                               ReservationDTOMapper reservationDTOMapper,
                               ReservationValidator reservationValidator,
-                              DiningTableService diningTableService)
+                              DiningTableService tableService)
     {
         this.reservationRepository = reservationRepository;
         this.reservationDTOMapper = reservationDTOMapper;
         this.reservationValidator = reservationValidator;
-        this.diningTableService = diningTableService;
+        this.diningTableService = tableService;
     }
 
-    List<ReservationDTO> getAllReservation() {
+    List<ReservationDTO> getAllReservations() {
         final Iterable<Reservation> allReservations = reservationRepository.findAll();
 
         final List<ReservationDTO> allReservationsList = StreamSupport.stream(allReservations.spliterator(), false)
                 .map(reservationDTOMapper)
                 .toList();
 
-        if (allReservationsList.isEmpty()) throw new NotFoundException("There are no reservations in database.");
+        if (allReservationsList.isEmpty()) throw new NotFoundException(NO_RESERVATIONS_IN_DATABASE);
 
         return allReservationsList;
     }
@@ -105,8 +106,8 @@ public class ReservationService {
         return reservationRepository.existsById(id);
     }
 
-    List<ReservationDTO> findAllByReservationDate(LocalDate date) {
-        final List<ReservationDTO> allByDate = reservationRepository.findAllByReservationDate(date)
+    List<ReservationDTO> findAllByDate(LocalDate date) {
+        final List<ReservationDTO> allByDate = reservationRepository.findAllByDate(date)
                 .stream()
                 .sorted(Comparator.comparing(Reservation::getReservationTime))
                 .map(reservationDTOMapper)
@@ -117,16 +118,18 @@ public class ReservationService {
         return allByDate;
     }
 
-    public List<ReservationDTO> findAllByUserId(Long id) {
-        return reservationRepository.findAllByUserId(id)
+    public List<ReservationDTO> findAllByUserId(Long userId) {
+        List<ReservationDTO> allByUserId = reservationRepository.findAllByUserId(userId)
                 .stream()
                 .sorted(Comparator.comparing(Reservation::getId))
                 .map(reservationDTOMapper)
                 .toList();
+
+        return allByUserId;
     }
 
     List<ReservationDTO> findAllByUserLogin(String loginFragment) {
-        final List<ReservationDTO> allByUserLogin = reservationRepository.findAllByUserLoginContainingIgnoreCase(loginFragment)
+        final List<ReservationDTO> allByUserLogin = reservationRepository.findAllByUserLogin(loginFragment)
                 .stream()
                 .map(reservationDTOMapper)
                 .toList();
@@ -137,7 +140,7 @@ public class ReservationService {
     }
 
     List<ReservationDTO> findAllByUserFirstName(String firstNameFragment) {
-        final List<ReservationDTO> allByUserName = reservationRepository.findAllByUserFirstNameContainingIgnoreCase(firstNameFragment)
+        final List<ReservationDTO> allByUserName = reservationRepository.findAllByUserFirstName(firstNameFragment)
                 .stream()
                 .map(reservationDTOMapper)
                 .toList();
@@ -148,7 +151,7 @@ public class ReservationService {
     }
 
     List<ReservationDTO> findAllByUserLastName(String lastNameFragment) {
-        final List<ReservationDTO> allByUserLastName = reservationRepository.findAllByUserLastNameContainingIgnoreCase(lastNameFragment)
+        final List<ReservationDTO> allByUserLastName = reservationRepository.findAllByUserLastName(lastNameFragment)
                 .stream()
                 .map(reservationDTOMapper)
                 .toList();
@@ -159,7 +162,7 @@ public class ReservationService {
     }
 
     List<ReservationDTO> findAllByUserEmail(String emailFragment) {
-        final List<ReservationDTO> allByUserEmail = reservationRepository.findAllByUserEmailContainingIgnoreCase(emailFragment)
+        final List<ReservationDTO> allByUserEmail = reservationRepository.findAllByUserEmail(emailFragment)
                 .stream()
                 .map(reservationDTOMapper)
                 .toList();
@@ -170,7 +173,7 @@ public class ReservationService {
     }
 
     List<ReservationDTO> findAllByUserPhoneNumber(String phoneNumberFragment) {
-        final List<ReservationDTO> allByUserPhoneNumber = reservationRepository.findAllByUserPhoneNumberContaining(phoneNumberFragment)
+        final List<ReservationDTO> allByUserPhoneNumber = reservationRepository.findAllByUserPhoneNumber(phoneNumberFragment)
                 .stream()
                 .map(reservationDTOMapper)
                 .toList();
@@ -180,36 +183,34 @@ public class ReservationService {
         return allByUserPhoneNumber;
     }
 
-    List<ReservationDTO> findAllByTableId(Integer id) {
-        if (!diningTableService.existsById(id))
-            throw new NotFoundException("Dining table with id " + id + " was not found.");
+    public List<ReservationDTO> findAllByTableId(Integer tableId) {
+        if (!diningTableService.existsById(tableId))
+            throw new NotFoundException("Dining table with id " + tableId + " was not found.");
 
-        final List<ReservationDTO> allByTableId = reservationRepository.findAllByDiningTableId(id)
+        final List<ReservationDTO> allByTableId = reservationRepository.findAllByTableId(tableId)
                 .stream()
                 .map(reservationDTOMapper)
                 .toList();
-
-        if (allByTableId.isEmpty()) throw new NotFoundException("There is no reservation with table id: " + id);
 
         return allByTableId;
     }
 
-    List<ReservationDTO> findAllByDateAndTableId(LocalDate date, Integer id) {
-        if (!diningTableService.existsById(id))
-            throw new NotFoundException("Dining table with id " + id + " was not found.");
+    List<ReservationDTO> findAllByDateAndTableId(LocalDate date, Integer tableId) {
+        if (!diningTableService.existsById(tableId))
+            throw new NotFoundException("Dining table with id " + tableId + " was not found.");
 
-        final List<ReservationDTO> allByDateAndTableId = reservationRepository.findAllByReservationDateAndDiningTableId(date, id)
+        final List<ReservationDTO> allByDateAndTableId = reservationRepository.findAllByDateAndTableId(date, tableId)
                 .stream()
                 .map(reservationDTOMapper)
                 .toList();
 
-        if (allByDateAndTableId.isEmpty()) throw new NotFoundException("There is no reservation on date " + date + " at table with id " + id + ".");
+        if (allByDateAndTableId.isEmpty()) throw new NotFoundException("There is no reservation on date " + date + " at table with id " + tableId + ".");
 
         return allByDateAndTableId;
     }
 
     List<ReservationDTO> findAllByDateAndTime(LocalDate date, LocalTime time) {
-        final List<ReservationDTO> allByDateAndTime = reservationRepository.findAllByReservationDateAndReservationTime(date, time)
+        final List<ReservationDTO> allByDateAndTime = reservationRepository.findAllByDateAndTime(date, time)
                 .stream()
                 .map(reservationDTOMapper)
                 .toList();
@@ -219,14 +220,7 @@ public class ReservationService {
         return allByDateAndTime;
     }
 
-    public List<ReservationDTO> findAllByDiningTableId(Integer id) {
-        return reservationRepository.findAllByDiningTableId(id)
-                .stream()
-                .map(reservationDTOMapper)
-                .toList();
-    }
-
-    private void validateReservation(Reservation reservation) {
+    void validateReservation(Reservation reservation) {
         Map<String, String> validationMessages = reservationValidator.validateReservation(reservation);
         if (!validationMessages.isEmpty()) throw new ValidationException(validationMessages);
     }
@@ -236,7 +230,7 @@ public class ReservationService {
         if (!validationMessages.isEmpty()) throw new ValidationException(validationMessages);
     }
 
-    private static Reservation updateReservation(Reservation reservation, Reservation updatingReservation) {
+    static Reservation updateReservation(Reservation reservation, Reservation updatingReservation) {
         updatingReservation.setReservationDate(reservation.getReservationDate());
         updatingReservation.setReservationTime(reservation.getReservationTime());
         updatingReservation.setDuration(reservation.getDuration());

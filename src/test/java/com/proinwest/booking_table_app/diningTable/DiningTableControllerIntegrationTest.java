@@ -5,7 +5,6 @@ import com.proinwest.booking_table_app.reservation.Reservation;
 import com.proinwest.booking_table_app.reservation.ReservationRepository;
 import com.proinwest.booking_table_app.user.User;
 import com.proinwest.booking_table_app.user.UserRepository;
-import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,8 +23,7 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
-import static com.proinwest.booking_table_app.diningTable.DiningTableService.NO_FREE_TABLES_WAS_FOUND;
-import static com.proinwest.booking_table_app.diningTable.DiningTableService.NO_TABLES_IN_DATABASE;
+import static com.proinwest.booking_table_app.diningTable.DiningTableService.*;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -34,30 +32,24 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Testcontainers
 public class DiningTableControllerIntegrationTest {
-
     @Container
     @ServiceConnection
-    private static MySQLContainer mySQLContainer = new MySQLContainer<>("mysql:8.4.0");
-
+    private static final MySQLContainer mySQLContainer = new MySQLContainer<>("mysql:8.4.0");
     @Autowired
-    private DiningTableRepository diningTableRepository;
-
+    private DiningTableRepository tableRepository;
     @Autowired
     private ReservationRepository reservationRepository;
-
     @Autowired
     private UserRepository userRepository;
-
     @Autowired
     private MockMvc mockMvc;
-
     @Autowired
     private ObjectMapper mapper;
 
     @BeforeEach
     void setup() {
         reservationRepository.deleteAll();
-        diningTableRepository.deleteAll();
+        tableRepository.deleteAll();
         userRepository.deleteAll();
     }
 
@@ -68,7 +60,7 @@ public class DiningTableControllerIntegrationTest {
     }
 
     @Test
-    void shouldReturnAllDiningTables_whenExists() throws Exception {
+    void shouldGetAllDiningTables() throws Exception {
         // given
         final DiningTable table1 = new DiningTable();
         table1.setNumber(1);
@@ -78,26 +70,26 @@ public class DiningTableControllerIntegrationTest {
         table2.setNumber(2);
         table2.setSeats(4);
 
-        diningTableRepository.saveAll(List.of(table1, table2));
+        tableRepository.saveAll(List.of(table1, table2));
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .get("/diningtables"))
+                        .get("/tables"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()",   Matchers.is(2)))
-                .andExpect(jsonPath("$[0].id",      Matchers.is(table1.getId())))
-                .andExpect(jsonPath("$[0].number",  Matchers.is(table1.getNumber())))
-                .andExpect(jsonPath("$[0].seats",   Matchers.is(table1.getSeats())))
-                .andExpect(jsonPath("$[1].id",      Matchers.is(table2.getId())))
-                .andExpect(jsonPath("$[1].number",  Matchers.is(table2.getNumber())))
-                .andExpect(jsonPath("$[1].seats",   Matchers.is(table2.getSeats())));
+                .andExpect(jsonPath("$.length()")   .value(2))
+                .andExpect(jsonPath("$[0].id")      .value(table1.getId()))
+                .andExpect(jsonPath("$[0].number")  .value(table1.getNumber()))
+                .andExpect(jsonPath("$[0].seats")   .value(table1.getSeats()))
+                .andExpect(jsonPath("$[1].id")      .value(table2.getId()))
+                .andExpect(jsonPath("$[1].number")  .value(table2.getNumber()))
+                .andExpect(jsonPath("$[1].seats")   .value(table2.getSeats()));
     }
 
     @Test
     void whenTablesNotFound_shouldThrowException() throws Exception {
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .get("/diningtables"))
+                        .get("/tables"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value(NO_TABLES_IN_DATABASE));
     }
@@ -109,16 +101,16 @@ public class DiningTableControllerIntegrationTest {
         table.setNumber(1);
         table.setSeats(2);
 
-        diningTableRepository.save(table);
+        tableRepository.save(table);
         final Integer tableId = table.getId();
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .get("/diningtables/{id}", tableId))
+                        .get("/tables/{id}", tableId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id",     Matchers.is(tableId)))
-                .andExpect(jsonPath("$.number", Matchers.is(table.getNumber())))
-                .andExpect(jsonPath("$.seats",  Matchers.is(table.getSeats())));
+                .andExpect(jsonPath("$.id")     .value(tableId))
+                .andExpect(jsonPath("$.number") .value(table.getNumber()))
+                .andExpect(jsonPath("$.seats")  .value(table.getSeats()));
     }
 
     @Test
@@ -128,10 +120,10 @@ public class DiningTableControllerIntegrationTest {
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .get("/diningtables/{id}", tableId))
+                        .get("/tables/{tableId}", tableId))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("Dining table with id " + tableId + " was not found."));
+                        .value("Table with id " + tableId + " was not found."));
     }
 
     @Test
@@ -143,12 +135,12 @@ public class DiningTableControllerIntegrationTest {
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .post("/diningtables")
+                        .post("/tables")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(table)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.number", Matchers.is(table.getNumber())))
-                .andExpect(jsonPath("$.seats",  Matchers.is(table.getSeats())));
+                .andExpect(jsonPath("$.number") .value(table.getNumber()))
+                .andExpect(jsonPath("$.seats")  .value(table.getSeats()));
     }
 
     @Test
@@ -158,7 +150,7 @@ public class DiningTableControllerIntegrationTest {
         tableToUpdate.setNumber(1);
         tableToUpdate.setSeats(2);
 
-        diningTableRepository.save(tableToUpdate);
+        tableRepository.save(tableToUpdate);
 
         final DiningTable newTable = new DiningTable();
         newTable.setNumber(2);
@@ -171,17 +163,17 @@ public class DiningTableControllerIntegrationTest {
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .put("/diningtables/{id}", tableToUpdate.getId())
+                        .put("/tables/{tableId}", tableToUpdate.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(newTable)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id",     Matchers.is(updatedTable.getId())))
-                .andExpect(jsonPath("$.number", Matchers.is(updatedTable.getNumber())))
-                .andExpect(jsonPath("$.seats",  Matchers.is(updatedTable.getSeats())));
+                .andExpect(jsonPath("$.id")     .value(updatedTable.getId()))
+                .andExpect(jsonPath("$.number") .value(updatedTable.getNumber()))
+                .andExpect(jsonPath("$.seats")  .value(updatedTable.getSeats()));
     }
 
     @Test
-    void updateDiningTable_whenTableNotFoundById_shouldThrowException() throws Exception {
+    void updateTable_whenTableNotFoundById_shouldThrowException() throws Exception {
         // given
         final Integer tableId = 7;
 
@@ -191,12 +183,12 @@ public class DiningTableControllerIntegrationTest {
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .put("/diningtables/{id}", tableId)
+                        .put("/tables/{tableId}", tableId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(newTable)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("Dining table with id " + tableId + " was not found."));
+                        .value("Table with id " + tableId + " was not found."));
     }
 
     @Test
@@ -206,7 +198,7 @@ public class DiningTableControllerIntegrationTest {
         tableToUpdate.setNumber(1);
         tableToUpdate.setSeats(2);
 
-        diningTableRepository.save(tableToUpdate);
+        tableRepository.save(tableToUpdate);
 
         final DiningTable newTable = new DiningTable();
         newTable.setNumber(2);
@@ -216,17 +208,17 @@ public class DiningTableControllerIntegrationTest {
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .patch("/diningtables/{id}", tableToUpdate.getId())
+                        .patch("/tables/{tableId}", tableToUpdate.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(newTable)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id",     Matchers.is(updatedTable.getId())))
-                .andExpect(jsonPath("$.number", Matchers.is(updatedTable.getNumber())))
-                .andExpect(jsonPath("$.seats",  Matchers.is(updatedTable.getSeats())));
+                .andExpect(jsonPath("$.id")     .value(updatedTable.getId()))
+                .andExpect(jsonPath("$.number") .value(updatedTable.getNumber()))
+                .andExpect(jsonPath("$.seats")  .value(updatedTable.getSeats()));
     }
 
     @Test
-    void partiallyUpdateDiningTable_whenTableNotFoundById_shouldThrowException() throws Exception {
+    void partiallyUpdateTable_whenTableNotFoundById_shouldThrowException() throws Exception {
         // given
         final Integer tableId = 7;
 
@@ -236,12 +228,12 @@ public class DiningTableControllerIntegrationTest {
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .patch("/diningtables/{id}", tableId)
+                        .patch("/tables/{tableId}", tableId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(newTable)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("Dining table with id " + tableId + " was not found."));
+                        .value("Table with id " + tableId + " was not found."));
     }
 
     @Test
@@ -251,15 +243,15 @@ public class DiningTableControllerIntegrationTest {
         table.setNumber(1);
         table.setSeats(2);
 
-        diningTableRepository.save(table);
+        tableRepository.save(table);
         final Integer tableId = table.getId();
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .delete("/diningtables/{id}", tableId))
+                        .delete("/tables/{tableId}", tableId))
                 .andExpect(status().isNoContent());
 
-        Optional<DiningTable> deletedTable = diningTableRepository.findById(tableId);
+        Optional<DiningTable> deletedTable = tableRepository.findById(tableId);
         assertTrue(deletedTable.isEmpty());
     }
 
@@ -270,10 +262,10 @@ public class DiningTableControllerIntegrationTest {
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .delete("/diningtables/{id}", tableId))
+                        .delete("/tables/{tableId}", tableId))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("Dining table with " + tableId + " was not found."));
+                        .value("Table with " + tableId + " was not found."));
     }
 
     @Test
@@ -283,7 +275,7 @@ public class DiningTableControllerIntegrationTest {
         table.setNumber(1);
         table.setSeats(2);
 
-        diningTableRepository.save(table);
+        tableRepository.save(table);
         final Integer tableId = table.getId();
 
         final User user = new User();
@@ -305,10 +297,11 @@ public class DiningTableControllerIntegrationTest {
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .delete("/diningtables/{id}", tableId))
+                        .delete("/tables/{tableId}", tableId))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message")
-                        .value("Dining table with " + tableId + " can not be deleted because it has at least one reservation assigned."));
+                        .value("Table with " + tableId
+                                + " can not be deleted because it has at least one reservation assigned."));
     }
 
     @Test
@@ -322,8 +315,8 @@ public class DiningTableControllerIntegrationTest {
         freeTable.setNumber(2);
         freeTable.setSeats(4);
 
-        diningTableRepository.save(table);
-        diningTableRepository.save(freeTable);
+        tableRepository.save(table);
+        tableRepository.save(freeTable);
 
         final User user = new User();
         user.setFirstName("John");
@@ -355,13 +348,13 @@ public class DiningTableControllerIntegrationTest {
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .get("/diningtables/freetables")
+                        .get("/tables/freetables")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(newReservation)))
-                .andExpect(jsonPath("$.size()",     Matchers.is(1)))
-                .andExpect(jsonPath("$[0].id",      Matchers.is(freeTable.getId())))
-                .andExpect(jsonPath("$[0].number",  Matchers.is(freeTable.getNumber())))
-                .andExpect(jsonPath("$[0].seats",   Matchers.is(freeTable.getSeats())));
+                .andExpect(jsonPath("$.size()")     .value(1))
+                .andExpect(jsonPath("$[0].id")      .value(freeTable.getId()))
+                .andExpect(jsonPath("$[0].number")  .value(freeTable.getNumber()))
+                .andExpect(jsonPath("$[0].seats")   .value(freeTable.getSeats()));
     }
 
     @Test
@@ -375,8 +368,8 @@ public class DiningTableControllerIntegrationTest {
         table2.setNumber(2);
         table2.setSeats(6);
 
-        diningTableRepository.save(table1);
-        diningTableRepository.save(table2);
+        tableRepository.save(table1);
+        tableRepository.save(table2);
 
         final User user = new User();
         user.setLogin("john");
@@ -404,7 +397,7 @@ public class DiningTableControllerIntegrationTest {
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .get("/diningtables/freetables")
+                        .get("/tables/freetables")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(newReservation)))
                 .andExpect(status().isNotFound())
