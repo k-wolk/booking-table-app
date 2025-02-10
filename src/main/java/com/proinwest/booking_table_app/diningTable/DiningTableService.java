@@ -118,7 +118,7 @@ public class DiningTableService {
 
     List<DiningTable> getAllTablesWithMinSeats(Integer seats) {
         final List<DiningTable> allTablesWithMinSeats = tableRepository.allTablesWithMinSeats(seats);
-        if (allTablesWithMinSeats.isEmpty()) throw new NotFoundException("There are no tables with the required number of seats = " + seats + ".");
+        if (allTablesWithMinSeats.isEmpty()) throw new NotFoundException("There are no tables with the required number of seats (" + seats + ").");
 
         return allTablesWithMinSeats;
     }

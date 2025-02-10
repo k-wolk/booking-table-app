@@ -463,7 +463,7 @@ class UserServiceTest {
         when(userDTOMapper.apply(user)).thenReturn(userDTO);
 
         // when
-        final List<UserDTO> result = userService.findAllByAnyString(searchPhrase);
+        final List<UserDTO> result = userService.findAllByAnyStringField(searchPhrase);
 
         // then
         assertNotNull(result);
@@ -478,7 +478,7 @@ class UserServiceTest {
         final String searchPhrase = " ";
 
         // when & then
-        assertThrows(InvalidInputException.class, () -> userService.findAllByAnyString(searchPhrase));
+        assertThrows(InvalidInputException.class, () -> userService.findAllByAnyStringField(searchPhrase));
         verify(userRepository, never()).findAllByAnyString(searchPhrase);
     }
 
@@ -490,7 +490,7 @@ class UserServiceTest {
         when(userRepository.findAllByAnyString(searchPhrase)).thenReturn(Collections.emptyList());
 
         // when & then
-        assertThrows(NotFoundException.class, () -> userService.findAllByAnyString(searchPhrase));
+        assertThrows(NotFoundException.class, () -> userService.findAllByAnyStringField(searchPhrase));
         verify(userRepository, times(1)).findAllByAnyString(searchPhrase);
     }
 

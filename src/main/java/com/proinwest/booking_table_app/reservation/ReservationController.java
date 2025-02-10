@@ -61,7 +61,7 @@ public class ReservationController {
         return ResponseEntity.ok(allByDate);
     }
 
-    @GetMapping("/search/user/{userId}")
+    @GetMapping("/search/userid/{userId}")
     public ResponseEntity<List<ReservationDTO>> findAllByUserId(@PathVariable Long userId) {
         List<ReservationDTO> allByUserId = reservationService.findAllByUserId(userId);
         if (allByUserId.isEmpty()) throw new NotFoundException("There is no reservation booked by user with id: " + userId + ".");
@@ -96,6 +96,12 @@ public class ReservationController {
     public ResponseEntity<List<ReservationDTO>> findAllByUserPhoneNumber(@PathVariable String phoneNumber) {
         List<ReservationDTO> allByUserPhoneNumber = reservationService.findAllByUserPhoneNumber(phoneNumber);
         return ResponseEntity.ok(allByUserPhoneNumber);
+    }
+
+    @GetMapping("/search/user/{anyString}")
+    public ResponseEntity<List<ReservationDTO>> findAllByAnyUserStringField(@PathVariable String anyString) {
+        List<ReservationDTO> allByAnyUserStringField = reservationService.findAllByAnyUserStringField(anyString);
+        return ResponseEntity.ok(allByAnyUserStringField);
     }
 
     @GetMapping("/search/table/{tableId}")

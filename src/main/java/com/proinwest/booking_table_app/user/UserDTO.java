@@ -9,4 +9,3 @@ public record UserDTO(
         String phoneNumber
 ) {
 }
-

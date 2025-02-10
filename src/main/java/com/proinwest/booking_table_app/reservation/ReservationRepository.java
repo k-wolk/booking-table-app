@@ -16,6 +16,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
     List<Reservation> findAllByUserLastNameContainingIgnoreCase(String lastName);
     List<Reservation> findAllByUserEmailContainingIgnoreCase(String email);
     List<Reservation> findAllByUserPhoneNumberContaining(String phoneNumber);
+    List<Reservation> findAllByUserLoginContainingIgnoreCaseOrUserFirstNameContainingIgnoreCaseOrUserLastNameContainingIgnoreCaseOrEmailContainingIgnoreCaseOrPhoneNumberContaining(String login, String firstName, String lastName, String email, String phoneNumber);
     List<Reservation> findAllByReservationDateAndDiningTableId(LocalDate date, Integer id);
     List<Reservation> findAllByReservationDateAndReservationTime(LocalDate date, LocalTime time);
 
@@ -39,6 +40,9 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
     }
     default List<Reservation> findAllByUserPhoneNumber(String phoneNumber) {
         return findAllByUserPhoneNumberContaining(phoneNumber);
+    }
+    default List<Reservation> findAllByAnyUserStringField(String login, String firstName, String lastName, String email, String phoneNumber) {
+        return findAllByUserLoginContainingIgnoreCaseOrUserFirstNameContainingIgnoreCaseOrUserLastNameContainingIgnoreCaseOrEmailContainingIgnoreCaseOrPhoneNumberContaining(login, firstName, lastName, email, phoneNumber);
     }
     default List<Reservation> findAllByDateAndTableId(LocalDate date, Integer tableId) {
         return findAllByReservationDateAndDiningTableId(date, tableId);

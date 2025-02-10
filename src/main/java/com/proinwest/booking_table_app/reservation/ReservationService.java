@@ -17,13 +17,13 @@ import java.util.stream.StreamSupport;
 @Service
 public class ReservationService {
     static final String FIELD_REQUIRED = "This field is required. ";
-    static final LocalTime OPENING_TIME = LocalTime.of(11,0);
+    public static final LocalTime OPENING_TIME = LocalTime.of(11,0);
     static final LocalTime CLOSING_TIME = LocalTime.of(23,0);
-    static final String OPENING_HOURS_MESSAGE = "Our place is open from " + OPENING_TIME + " to " + CLOSING_TIME + ".";
-    static final String DATE_MESSAGE = "Reservation date should be present or future.";
-    static final String TIME_MESSAGE = "Reservation time should be present of future.";
-    static final int MIN_DURATION = 1;
-    static final int MAX_DURATION = 6;
+    public static final String OPENING_HOURS_MESSAGE = "Our place is open from " + OPENING_TIME + " to " + CLOSING_TIME + ".";
+    public static final String DATE_MESSAGE = "Reservation date should be present or future.";
+    public static final String TIME_MESSAGE = "Reservation time should be present of future.";
+    public static final int MIN_DURATION = 1;
+    public static final int MAX_DURATION = 6;
     public static final String DURATION_MESSAGE = "Duration should be between " + MIN_DURATION + " and " + MAX_DURATION + " hours.";
     public static final String NO_RESERVATIONS_IN_DATABASE = "There are no reservations in database.";
 
@@ -207,6 +207,17 @@ public class ReservationService {
         if (allByDateAndTableId.isEmpty()) throw new NotFoundException("There is no reservation on date " + date + " at table with id " + tableId + ".");
 
         return allByDateAndTableId;
+    }
+
+    public List<ReservationDTO> findAllByAnyUserStringField(String anyString) {
+        final List<ReservationDTO> allByAnyUserString = reservationRepository.findAllByAnyUserStringField(anyString, anyString, anyString, anyString, anyString)
+                .stream()
+                .map(reservationDTOMapper)
+                .toList();
+
+        if (allByAnyUserString.isEmpty()) throw new NotFoundException("There is no reservation booked by user containing login, name, email or phone number: " + anyString);
+
+        return allByAnyUserString;
     }
 
     List<ReservationDTO> findAllByDateAndTime(LocalDate date, LocalTime time) {

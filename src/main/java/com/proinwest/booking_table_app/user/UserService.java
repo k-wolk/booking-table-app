@@ -99,7 +99,7 @@ public class UserService {
     }
 
     void deleteUser(Long userId) {
-        if(!existsById(userId)) throw new NotFoundException("User with id " + userId + " was not found");
+        if(!existsById(userId)) throw new NotFoundException("User with id " + userId + " was not found.");
 
         if (!reservationService.findAllByUserId(userId).isEmpty())
             throw new InvalidInputException("User with id " + userId + " can not be deleted because he has at least one reservation assigned.");
@@ -172,16 +172,16 @@ public class UserService {
         return allByPhoneNumber;
     }
 
-    List<UserDTO> findAllByAnyString(String searchPharse) {
-        if (searchPharse.isBlank()) throw new InvalidInputException(INPUT_IS_MISSING);
+    List<UserDTO> findAllByAnyStringField(String searchingPhrase) {
+        if (searchingPhrase.isBlank()) throw new InvalidInputException(INPUT_IS_MISSING);
 
         final List<UserDTO> allByAnyString = userRepository
-                .findAllByAnyString(searchPharse)
+                .findAllByAnyString(searchingPhrase)
                 .stream()
                 .map(userDTOMapper)
                 .toList();
 
-        if (allByAnyString.isEmpty()) throw new NotFoundException("There are no users containing login, name, email or phone number: " + searchPharse);
+        if (allByAnyString.isEmpty()) throw new NotFoundException("There are no users containing login, name, email or phone number: " + searchingPhrase);
 
         return allByAnyString;
     }

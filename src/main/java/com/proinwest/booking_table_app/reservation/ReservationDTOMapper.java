@@ -19,7 +19,4 @@ public class ReservationDTOMapper implements Function<Reservation, ReservationDT
                 reservation.getDiningTable()
         );
     }
-
-
-
 }

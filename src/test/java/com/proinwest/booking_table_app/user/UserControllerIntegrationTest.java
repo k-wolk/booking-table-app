@@ -268,7 +268,7 @@ class UserControllerIntegrationTest {
                         .delete("/users/{id}", userId))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("User with id " + userId + " was not found"));
+                        .value("User with id " + userId + " was not found."));
     }
 
     @Test

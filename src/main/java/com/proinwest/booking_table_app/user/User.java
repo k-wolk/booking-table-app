@@ -31,4 +31,3 @@ public class User {
     @JsonIgnore
     List<Reservation> reservations;
 }
-

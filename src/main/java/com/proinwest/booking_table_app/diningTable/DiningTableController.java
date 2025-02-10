@@ -58,5 +58,3 @@ public class DiningTableController {
         return ResponseEntity.ok(freeTables);
     }
 }
-
-

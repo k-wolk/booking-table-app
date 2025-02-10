@@ -318,7 +318,7 @@ class UserControllerWebLayerTest {
         final List<UserDTO> allUsersByAnyString = new ArrayList<>();
         allUsersByAnyString.add(userDTO);
 
-        when(userService.findAllByAnyString(anyString)).thenReturn(allUsersByAnyString);
+        when(userService.findAllByAnyStringField(anyString)).thenReturn(allUsersByAnyString);
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
@@ -332,6 +332,6 @@ class UserControllerWebLayerTest {
                 .andExpect(jsonPath("$[0].email")       .value(userDTO.email()))
                 .andExpect(jsonPath("$[0].phoneNumber") .value(userDTO.phoneNumber()));
 
-        verify(userService, times(1)).findAllByAnyString(anyString);
+        verify(userService, times(1)).findAllByAnyStringField(anyString);
     }
 }

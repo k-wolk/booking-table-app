@@ -80,10 +80,10 @@ public class UserController {
         List<UserDTO> allUsersByPhoneNumber = userService.findAllByPhoneNumber(phoneNumber);
         return ResponseEntity.ok(allUsersByPhoneNumber);
     }
+
     @GetMapping("/search/{anyString}")
-    public ResponseEntity<List<UserDTO>> findAllUsersByAnyString(@PathVariable String anyString) {
-        List<UserDTO> allUsersByAnyString = userService.findAllByAnyString(anyString);
+    public ResponseEntity<List<UserDTO>> findAllUsersByAnyStringField(@PathVariable String anyString) {
+        List<UserDTO> allUsersByAnyString = userService.findAllByAnyStringField(anyString);
         return ResponseEntity.ok(allUsersByAnyString);
     }
 }
-
