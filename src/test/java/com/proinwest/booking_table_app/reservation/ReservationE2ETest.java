@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import com.proinwest.booking_table_app.diningTable.DiningTable;
 import com.proinwest.booking_table_app.user.User;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -68,6 +69,11 @@ public class ReservationE2ETest {
         reservation.setDuration(MIN_DURATION);
         reservation.setUser(user);
         reservation.setDiningTable(table);
+    }
+
+    @AfterAll
+    static void stopContainer() {
+        mySQLContainer.stop();
     }
 
     @Test
@@ -343,9 +349,9 @@ public class ReservationE2ETest {
                         .value(OPENING_HOURS_MESSAGE + " Try change reservation time and/or duration."))
                 .andExpect(jsonPath("$.duration").value(DURATION_MESSAGE))
                 .andExpect(jsonPath("$.user")
-                        .value("User with id " + userId + " was not found."))
+                        .value("User with id " + invalidUserId + " was not found."))
                 .andExpect(jsonPath("$.diningTable")
-                        .value("Dining table with id " + tableId + " was not found."));
+                        .value("Dining table with id " + invalidTableId + " was not found."));
     }
 
     @Test
@@ -455,7 +461,7 @@ public class ReservationE2ETest {
         final Long userId = 1L;
 
         // when & then
-        mockMvc.perform(get("/reservations/search/user/{userId}", userId))
+        mockMvc.perform(get("/reservations/search/userid/{userId}", userId))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
                         .value("There is no reservation booked by user with id: " + userId + "."));

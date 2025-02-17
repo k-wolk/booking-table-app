@@ -284,7 +284,7 @@ class ReservationControllerWebLayerTest {
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/search/user/{id}", userId))
+                        .get("/reservations/search/userid/{id}", userId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")                 .value(1))
                 .andExpect(jsonPath("$[0].id")                  .value(reservationDTO.id()))

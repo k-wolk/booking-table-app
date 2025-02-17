@@ -1,6 +1,7 @@
 package com.proinwest.booking_table_app.user;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,12 +16,14 @@ public class UserController {
         this.userService = userService;
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping()
     public ResponseEntity<List<UserDTO>> getAllUsers() {
         List<UserDTO> allUsers = userService.getAllUsers();
         return ResponseEntity.ok(allUsers);
     }
 
+    @PreAuthorize("hasRole('USER')")
     @GetMapping("{userId}")
     public ResponseEntity<UserDTO> getUser(@PathVariable Long userId) {
         return ResponseEntity.ok(userService.getUser(userId));

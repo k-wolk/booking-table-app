@@ -5,6 +5,7 @@ import com.proinwest.booking_table_app.reservation.Reservation;
 import com.proinwest.booking_table_app.reservation.ReservationRepository;
 import com.proinwest.booking_table_app.user.User;
 import com.proinwest.booking_table_app.user.UserRepository;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,6 +52,11 @@ public class DiningTableControllerIntegrationTest {
         reservationRepository.deleteAll();
         tableRepository.deleteAll();
         userRepository.deleteAll();
+    }
+
+    @AfterAll
+    static void stopContainer() {
+        mySQLContainer.stop();
     }
 
     @Test

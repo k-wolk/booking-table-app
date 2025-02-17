@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import com.proinwest.booking_table_app.reservation.Reservation;
 import com.proinwest.booking_table_app.user.User;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +50,11 @@ public class DiningTableE2ETest {
         table = new DiningTable();
         table.setNumber(5);
         table.setSeats(7);
+    }
+
+    @AfterAll
+    static void stopContainer() {
+        mySQLContainer.stop();
     }
 
     @Test

@@ -5,6 +5,7 @@ import com.proinwest.booking_table_app.diningTable.DiningTable;
 import com.proinwest.booking_table_app.diningTable.DiningTableRepository;
 import com.proinwest.booking_table_app.reservation.Reservation;
 import com.proinwest.booking_table_app.reservation.ReservationRepository;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,8 +51,8 @@ class UserControllerIntegrationTest {
 
     @BeforeEach
     void setup() {
-        tableRepository.deleteAll();
         reservationRepository.deleteAll();
+        tableRepository.deleteAll();
         userRepository.deleteAll();
 
         user = new User();
@@ -61,6 +62,11 @@ class UserControllerIntegrationTest {
         user.setEmail("ann@mail.com");
         user.setPhoneNumber("123-456-789");
         user.setPassword("secretpassword");
+    }
+
+    @AfterAll
+    static void stopContainer() {
+        mySQLContainer.stop();
     }
 
     @Test

@@ -9,7 +9,6 @@ import java.util.List;
 @RestController
 @RequestMapping("tables")
 public class DiningTableController {
-
     private final DiningTableService tableService;
 
     public DiningTableController(DiningTableService tableService) {

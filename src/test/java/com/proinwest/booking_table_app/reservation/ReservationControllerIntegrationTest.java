@@ -5,6 +5,7 @@ import com.proinwest.booking_table_app.diningTable.DiningTable;
 import com.proinwest.booking_table_app.diningTable.DiningTableRepository;
 import com.proinwest.booking_table_app.user.User;
 import com.proinwest.booking_table_app.user.UserRepository;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -77,6 +78,11 @@ class ReservationControllerIntegrationTest {
         reservation.setDuration(2);
         reservation.setUser(user);
         reservation.setDiningTable(table);
+    }
+
+    @AfterAll
+    static void stopContainer() {
+        mySQLContainer.stop();
     }
 
     @Test
@@ -575,7 +581,7 @@ class ReservationControllerIntegrationTest {
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/search/user/{id}", user.getId()))
+                        .get("/reservations/search/userid/{id}", user.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id")                  .value(reservation.getId()))
                 .andExpect(jsonPath("$[0].reservationDate")     .value(reservation.getReservationDate().toString()))
@@ -600,7 +606,7 @@ class ReservationControllerIntegrationTest {
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/search/user/{userId}", userId))
+                        .get("/reservations/search/userid/{userId}", userId))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
                         .value("There is no reservation booked by user with id: " + userId + "."));

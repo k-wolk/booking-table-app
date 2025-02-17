@@ -1,5 +1,6 @@
 package com.proinwest.booking_table_app.user;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +26,11 @@ class UserRepositoryTest {
     @AfterEach
     void tearDown() {
         userRepository.deleteAll();
+    }
+
+    @AfterAll
+    static void stopContainer() {
+        mySQLContainer.stop();
     }
 
     @Test
