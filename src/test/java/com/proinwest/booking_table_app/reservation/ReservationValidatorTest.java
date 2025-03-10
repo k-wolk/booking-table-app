@@ -154,8 +154,8 @@ class ReservationValidatorTest {
         reservation.setReservationDate(null);
 
         final Map<String, String> expected = new HashMap<>();
-        expected.put("reservationDate", FIELD_REQUIRED + DATE_MESSAGE);
-        expected.put("reservationTime", "Make sure reservation date and duration are not null.");
+        expected.put("date", FIELD_REQUIRED + DATE_MESSAGE);
+        expected.put("time", "Make sure reservation date and duration are not null.");
 
         when(userService.existsById(user.getId())).thenReturn(true);
         when(tableService.existsById(table.getId())).thenReturn(true);
@@ -176,7 +176,7 @@ class ReservationValidatorTest {
         reservation.setReservationDate(LocalDate.now().minusDays(1));
 
         final Map<String, String> expected = new HashMap<>();
-        expected.put("reservationDate", DATE_MESSAGE);
+        expected.put("date", DATE_MESSAGE);
 
         when(userService.existsById(user.getId())).thenReturn(true);
         when(tableService.existsById(table.getId())).thenReturn(true);
@@ -197,7 +197,7 @@ class ReservationValidatorTest {
         reservation.setReservationTime(null);
 
         final Map<String, String> expected = new HashMap<>();
-        expected.put("reservationTime", FIELD_REQUIRED + TIME_MESSAGE);
+        expected.put("time", FIELD_REQUIRED + TIME_MESSAGE);
 
         when(userService.existsById(user.getId())).thenReturn(true);
         when(tableService.existsById(table.getId())).thenReturn(true);
@@ -219,7 +219,7 @@ class ReservationValidatorTest {
         reservation.setReservationTime(LocalTime.now().minusMinutes(1));
 
         final Map<String, String> expected = new HashMap<>();
-        expected.put("reservationTime", TIME_MESSAGE + OPENING_HOURS_MESSAGE);
+        expected.put("time", TIME_MESSAGE + OPENING_HOURS_MESSAGE);
 
         when(userService.existsById(user.getId())).thenReturn(true);
         when(tableService.existsById(table.getId())).thenReturn(true);
@@ -241,7 +241,7 @@ class ReservationValidatorTest {
         reservation.setReservationTime(OPENING_TIME.minusMinutes(1));
 
         final Map<String, String> expected = new HashMap<>();
-        expected.put("reservationTime", OPENING_HOURS_MESSAGE + " Try change reservation time and/or duration.");
+        expected.put("time", OPENING_HOURS_MESSAGE + " Try change reservation time and/or duration.");
 
         when(userService.existsById(user.getId())).thenReturn(true);
         when(tableService.existsById(table.getId())).thenReturn(true);
@@ -264,7 +264,7 @@ class ReservationValidatorTest {
         reservation.setDuration(3);
 
         final Map<String, String> expected = new HashMap<>();
-        expected.put("reservationTime", OPENING_HOURS_MESSAGE + " Try change reservation time and/or duration.");
+        expected.put("time", OPENING_HOURS_MESSAGE + " Try change reservation time and/or duration.");
 
         when(userService.existsById(user.getId())).thenReturn(true);
         when(tableService.existsById(table.getId())).thenReturn(true);
@@ -285,7 +285,7 @@ class ReservationValidatorTest {
         reservation.setDuration(null);
 
         final Map<String, String> expected = new HashMap<>();
-        expected.put("reservationTime", "Make sure reservation date and duration are not null.");
+        expected.put("time", "Make sure reservation date and duration are not null.");
         expected.put("duration", FIELD_REQUIRED + DURATION_MESSAGE);
 
         when(userService.existsById(user.getId())).thenReturn(true);

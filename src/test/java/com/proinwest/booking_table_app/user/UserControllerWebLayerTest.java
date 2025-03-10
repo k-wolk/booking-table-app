@@ -1,6 +1,10 @@
 package com.proinwest.booking_table_app.user;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.proinwest.booking_table_app.jwt.AuthEntryPointJwt;
+import com.proinwest.booking_table_app.jwt.CustomUserDetailsService;
+import com.proinwest.booking_table_app.jwt.JwtUtils;
+import com.proinwest.booking_table_app.jwt.SecurityConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -8,7 +12,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
@@ -23,9 +29,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(UserController.class)
 @ExtendWith(MockitoExtension.class)
+@Import(SecurityConfig.class)
 class UserControllerWebLayerTest {
     @MockBean
     private UserService userService;
+    @MockBean
+    private JwtUtils jwtUtils;
+    @MockBean
+    private CustomUserDetailsService customUserDetailsService;
+    @MockBean
+    private AuthEntryPointJwt authEntryPointJwt;
     @Autowired
     private MockMvc mockMvc;
     @Autowired
@@ -50,11 +63,13 @@ class UserControllerWebLayerTest {
                 user.getFirstName(),
                 user.getLastName(),
                 user.getEmail(),
-                user.getPhoneNumber()
+                user.getPhoneNumber(),
+                user.getRole()
         );
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void shouldGetAllUsers() throws Exception {
         // given
         final List<UserDTO> allUsers = new ArrayList<>();
@@ -78,6 +93,7 @@ class UserControllerWebLayerTest {
     }
 
     @Test
+    @WithMockUser
     void shouldGetUserById() throws Exception {
         // given
         final Long userId = user.getId();
@@ -86,7 +102,7 @@ class UserControllerWebLayerTest {
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .get("/users/{id}", userId))
+                        .get("/users/{userId}", userId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id")         .value(userDTO.id()))
                 .andExpect(jsonPath("$.login")      .value(userDTO.login()))
@@ -99,13 +115,14 @@ class UserControllerWebLayerTest {
     }
 
     @Test
-    void shouldAddUser() throws Exception {
+    @WithMockUser
+    void shouldRegisterUser() throws Exception {
         // given
         final Long userId = user.getId();
 
         user.setId(null);
 
-        when(userService.addUser(any(User.class))).thenReturn(userDTO);
+        when(userService.registerUser(any(User.class))).thenReturn(userDTO);
         when(userService.location(any(User.class))).thenReturn(URI.create("/users/" + userId));
 
         // when & then
@@ -122,39 +139,17 @@ class UserControllerWebLayerTest {
                 .andExpect(jsonPath("$.email")      .value(userDTO.email()))
                 .andExpect(jsonPath("$.phoneNumber").value(userDTO.phoneNumber()));
 
-        verify(userService, times(1)).addUser(any(User.class));
+        verify(userService, times(1)).registerUser(any(User.class));
         verify(userService, times(1)).location(any(User.class));
     }
 
     @Test
+    @WithMockUser
     void shouldUpdateUser() throws Exception {
         // given
         final Long userId = user.getId();
 
         when(userService.updateUser(eq(userId), any(User.class))).thenReturn(userDTO);
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .put("/users/{id}", userId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(user)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id")         .value(userDTO.id()))
-                .andExpect(jsonPath("$.login")      .value(userDTO.login()))
-                .andExpect(jsonPath("$.firstName")  .value(userDTO.firstName()))
-                .andExpect(jsonPath("$.lastName")   .value(userDTO.lastName()))
-                .andExpect(jsonPath("$.email")      .value(userDTO.email()))
-                .andExpect(jsonPath("$.phoneNumber").value(userDTO.phoneNumber()));
-
-        verify(userService, times(1)).updateUser(eq(userId), any(User.class));
-    }
-
-    @Test
-    void shouldPartiallyUpdateUser() throws Exception {
-        // given
-        final Long userId = user.getId();
-
-        when(userService.partiallyUpdateUser(eq(userId), any(User.class))).thenReturn(userDTO);
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
@@ -169,37 +164,25 @@ class UserControllerWebLayerTest {
                 .andExpect(jsonPath("$.email")      .value(userDTO.email()))
                 .andExpect(jsonPath("$.phoneNumber").value(userDTO.phoneNumber()));
 
-        verify(userService, times(1)).partiallyUpdateUser(eq(userId), any(User.class));
+        verify(userService, times(1)).updateUser(eq(userId), any(User.class));
     }
 
     @Test
-    void shouldDeleteUser() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void shouldFindUsersByQuery() throws Exception {
         // given
-        final Long userId = user.getId();
+        final String query = "oH";
+
+        final List<UserDTO> searchResult = new ArrayList<>();
+        searchResult.add(userDTO);
+
+        when(userService.searchUsers(query)).thenReturn(searchResult);
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .delete("/users/{id}", userId))
-                .andExpect(status().isNoContent());
-
-        verify(userService, times(1)).deleteUser(userId);
-    }
-
-    @Test
-    void shouldFindAllUsersByLoginFragment() throws Exception {
-        // given
-        final String loginFragment = "oH";
-
-        final List<UserDTO> allUsersByLogin = new ArrayList<>();
-        allUsersByLogin.add(userDTO);
-
-        when(userService.findAllByLogin(loginFragment)).thenReturn(allUsersByLogin);
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                .get("/users/search/login/{login}", loginFragment))
+                .get("/users/search?query={name}", query))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.size()")         .value(allUsersByLogin.size()))
+                .andExpect(jsonPath("$.size()")         .value(searchResult.size()))
                 .andExpect(jsonPath("$[0].id")          .value(userDTO.id()))
                 .andExpect(jsonPath("$[0].login")       .value(userDTO.login()))
                 .andExpect(jsonPath("$[0].firstName")   .value(userDTO.firstName()))
@@ -207,131 +190,6 @@ class UserControllerWebLayerTest {
                 .andExpect(jsonPath("$[0].email")       .value(userDTO.email()))
                 .andExpect(jsonPath("$[0].phoneNumber") .value(userDTO.phoneNumber()));
 
-        verify(userService, times(1)).findAllByLogin(loginFragment);
-    }
-
-    @Test
-    void shouldFindAllUsersByFirstNameFragment() throws Exception {
-        // given
-        final String firstNameFragment = "Am";
-
-        final List<UserDTO> allUsersByFirstName = new ArrayList<>();
-        allUsersByFirstName.add(userDTO);
-
-        when(userService.findAllByFirstName(firstNameFragment)).thenReturn(allUsersByFirstName);
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                .get("/users/search/firstname/{firstname}", firstNameFragment))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.size()")         .value(allUsersByFirstName.size()))
-                .andExpect(jsonPath("$[0].id")          .value(userDTO.id()))
-                .andExpect(jsonPath("$[0].login")       .value(userDTO.login()))
-                .andExpect(jsonPath("$[0].firstName")   .value(userDTO.firstName()))
-                .andExpect(jsonPath("$[0].lastName")    .value(userDTO.lastName()))
-                .andExpect(jsonPath("$[0].email")       .value(userDTO.email()))
-                .andExpect(jsonPath("$[0].phoneNumber") .value(userDTO.phoneNumber()));
-
-        verify(userService, times(1)).findAllByFirstName(firstNameFragment);
-    }
-
-    @Test
-    void shouldFindAllUsersByLastNameFragment() throws Exception {
-        // given
-        final String lastNameFragment = "dO";
-
-        final List<UserDTO> allUsersByLastName = new ArrayList<>();
-        allUsersByLastName.add(userDTO);
-
-        when(userService.findAllByLastName(lastNameFragment)).thenReturn(allUsersByLastName);
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                .get("/users/search/lastname/{lastname}", lastNameFragment))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.size()")         .value(allUsersByLastName.size()))
-                .andExpect(jsonPath("$[0].id")          .value(userDTO.id()))
-                .andExpect(jsonPath("$[0].login")       .value(userDTO.login()))
-                .andExpect(jsonPath("$[0].firstName")   .value(userDTO.firstName()))
-                .andExpect(jsonPath("$[0].lastName")    .value(userDTO.lastName()))
-                .andExpect(jsonPath("$[0].email")       .value(userDTO.email()))
-                .andExpect(jsonPath("$[0].phoneNumber") .value(userDTO.phoneNumber()));
-
-        verify(userService, times(1)).findAllByLastName(lastNameFragment);
-    }
-
-    @Test
-    void shouldFindAllUsersByEmailFragment() throws Exception {
-        // given
-        final String emailFragment = "Nn";
-
-        final List<UserDTO> allUsersByEmail = new ArrayList<>();
-        allUsersByEmail.add(userDTO);
-
-        when(userService.findAllByEmail(emailFragment)).thenReturn(allUsersByEmail);
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                .get("/users/search/email/{email}", emailFragment))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.size()")         .value(allUsersByEmail.size()))
-                .andExpect(jsonPath("$[0].id")          .value(userDTO.id()))
-                .andExpect(jsonPath("$[0].login")       .value(userDTO.login()))
-                .andExpect(jsonPath("$[0].firstName")   .value(userDTO.firstName()))
-                .andExpect(jsonPath("$[0].lastName")    .value(userDTO.lastName()))
-                .andExpect(jsonPath("$[0].email")       .value(userDTO.email()))
-                .andExpect(jsonPath("$[0].phoneNumber") .value(userDTO.phoneNumber()));
-
-        verify(userService, times(1)).findAllByEmail(emailFragment);
-    }
-
-    @Test
-    void shouldFindAllUsersByPhoneNumberFragment() throws Exception {
-        // given
-        final String phoneNumberFragment = "34";
-
-        final List<UserDTO> allUsersByPhoneNumber = new ArrayList<>();
-        allUsersByPhoneNumber.add(userDTO);
-
-        when(userService.findAllByPhoneNumber(phoneNumberFragment)).thenReturn(allUsersByPhoneNumber);
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                .get("/users/search/phone/{phonenumber}", phoneNumberFragment))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.size()")         .value(allUsersByPhoneNumber.size()))
-                .andExpect(jsonPath("$[0].id")          .value(userDTO.id()))
-                .andExpect(jsonPath("$[0].login")       .value(userDTO.login()))
-                .andExpect(jsonPath("$[0].firstName")   .value(userDTO.firstName()))
-                .andExpect(jsonPath("$[0].lastName")    .value(userDTO.lastName()))
-                .andExpect(jsonPath("$[0].email")       .value(userDTO.email()))
-                .andExpect(jsonPath("$[0].phoneNumber") .value(userDTO.phoneNumber()));
-
-        verify(userService, times(1)).findAllByPhoneNumber(phoneNumberFragment);
-    }
-
-    @Test
-    void shouldFindAllUsersByAnyString() throws Exception {
-        // given
-        final String anyString = "oH";
-
-        final List<UserDTO> allUsersByAnyString = new ArrayList<>();
-        allUsersByAnyString.add(userDTO);
-
-        when(userService.findAllByAnyStringField(anyString)).thenReturn(allUsersByAnyString);
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                .get("/users/search/{name}", anyString))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.size()")         .value(allUsersByAnyString.size()))
-                .andExpect(jsonPath("$[0].id")          .value(userDTO.id()))
-                .andExpect(jsonPath("$[0].login")       .value(userDTO.login()))
-                .andExpect(jsonPath("$[0].firstName")   .value(userDTO.firstName()))
-                .andExpect(jsonPath("$[0].lastName")    .value(userDTO.lastName()))
-                .andExpect(jsonPath("$[0].email")       .value(userDTO.email()))
-                .andExpect(jsonPath("$[0].phoneNumber") .value(userDTO.phoneNumber()));
-
-        verify(userService, times(1)).findAllByAnyStringField(anyString);
+        verify(userService, times(1)).searchUsers(query);
     }
 }

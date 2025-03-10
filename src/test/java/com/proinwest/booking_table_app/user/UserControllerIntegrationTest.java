@@ -5,6 +5,7 @@ import com.proinwest.booking_table_app.diningTable.DiningTable;
 import com.proinwest.booking_table_app.diningTable.DiningTableRepository;
 import com.proinwest.booking_table_app.reservation.Reservation;
 import com.proinwest.booking_table_app.reservation.ReservationRepository;
+import com.proinwest.booking_table_app.reservation.ReservationService;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -339,7 +340,7 @@ class UserControllerIntegrationTest {
                         .get("/users/search/login/{login}", loginFragment))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message")
-                        .value(INPUT_IS_MISSING));
+                        .value(ReservationService.INPUT_IS_MISSING));
     }
 
     @Test
@@ -385,7 +386,7 @@ class UserControllerIntegrationTest {
                         .get("/users/search/firstname/{firstName}", firstNameFragment))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message")
-                        .value(INPUT_IS_MISSING));
+                        .value(ReservationService.INPUT_IS_MISSING));
     }
 
     @Test
@@ -431,7 +432,7 @@ class UserControllerIntegrationTest {
                         .get("/users/search/lastname/{lastName}", lastNameFragment))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message")
-                        .value(INPUT_IS_MISSING));
+                        .value(ReservationService.INPUT_IS_MISSING));
     }
 
     @Test
@@ -477,7 +478,7 @@ class UserControllerIntegrationTest {
                         .get("/users/search/email/{email}", emailFragment))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message")
-                        .value(INPUT_IS_MISSING));
+                        .value(ReservationService.INPUT_IS_MISSING));
     }
 
     @Test
@@ -523,7 +524,7 @@ class UserControllerIntegrationTest {
                         .get("/users/search/phone/{phoneNumber}", phoneNumberFragment))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message")
-                        .value(INPUT_IS_MISSING));
+                        .value(ReservationService.INPUT_IS_MISSING));
     }
 
     @Test
@@ -569,7 +570,7 @@ class UserControllerIntegrationTest {
                         .get("/users/search/{anyString}", anyString))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message")
-                        .value(INPUT_IS_MISSING));
+                        .value(ReservationService.INPUT_IS_MISSING));
     }
 
     @Test

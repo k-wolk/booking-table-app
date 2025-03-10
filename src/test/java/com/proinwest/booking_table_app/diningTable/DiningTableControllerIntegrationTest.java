@@ -1,6 +1,8 @@
 package com.proinwest.booking_table_app.diningTable;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.proinwest.booking_table_app.jwt.CustomUserDetailsService;
+import com.proinwest.booking_table_app.jwt.JwtUtils;
 import com.proinwest.booking_table_app.reservation.Reservation;
 import com.proinwest.booking_table_app.reservation.ReservationRepository;
 import com.proinwest.booking_table_app.user.User;
@@ -11,8 +13,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.test.context.support.WithUserDetails;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.testcontainers.containers.MySQLContainer;
@@ -25,7 +32,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.proinwest.booking_table_app.diningTable.DiningTableService.*;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -36,6 +43,8 @@ public class DiningTableControllerIntegrationTest {
     @Container
     @ServiceConnection
     private static final MySQLContainer mySQLContainer = new MySQLContainer<>("mysql:8.4.0");
+    @MockBean
+    private JwtUtils jwtUtils;
     @Autowired
     private DiningTableRepository tableRepository;
     @Autowired
@@ -46,17 +55,45 @@ public class DiningTableControllerIntegrationTest {
     private MockMvc mockMvc;
     @Autowired
     private ObjectMapper mapper;
+    private User admin = new User();
 
     @BeforeEach
     void setup() {
         reservationRepository.deleteAll();
         tableRepository.deleteAll();
         userRepository.deleteAll();
+
+        admin.setLogin("admin");
+        admin.setPassword(new BCryptPasswordEncoder().encode("secretpassword"));
+        admin.setFirstName("John");
+        admin.setLastName("Doe");
+        admin.setEmail("john@mail.com");
+        admin.setPhoneNumber("111222333");
+        admin.setRole("ADMIN");
+        userRepository.save(admin);
+        userRepository.flush();
+
+        System.out.println("Users in DB: " + userRepository.findByLogin("admin"));
     }
 
     @AfterAll
     static void stopContainer() {
         mySQLContainer.stop();
+    }
+
+    @Autowired
+    private CustomUserDetailsService customUserDetailsService;
+
+    @Test
+    void shouldLoadUserByUsername() {
+        UserDetails userDetails = customUserDetailsService.loadUserByUsername("admin");
+        assertNotNull(userDetails);
+        assertEquals("admin", userDetails.getUsername());
+    }
+
+    @Test
+    void sh() {
+        assertTrue(userRepository.findByLogin("admin").isPresent());
     }
 
     @Test
@@ -66,15 +103,26 @@ public class DiningTableControllerIntegrationTest {
     }
 
     @Test
+//    @WithUserDetails(value = "admin", userDetailsServiceBeanName = "customUserDetailsService")
+    @WithMockUser(username = "admin", roles = "ADMIN")
     void shouldGetAllDiningTables() throws Exception {
         // given
         final DiningTable table1 = new DiningTable();
         table1.setNumber(1);
         table1.setSeats(2);
+        table1.setActive(true);
 
         final DiningTable table2 = new DiningTable();
         table2.setNumber(2);
         table2.setSeats(4);
+        table2.setActive(true);
+
+//        User admin = new User();
+//        admin.setLogin("admin");
+//        admin.setPassword(new BCryptPasswordEncoder().encode("password")); // jeśli hasła są hashowane
+//        admin.setRole("ROLE_ADMIN");
+//        admin.setActive(true);
+//        userRepository.save(admin);
 
         tableRepository.saveAll(List.of(table1, table2));
 
@@ -101,6 +149,7 @@ public class DiningTableControllerIntegrationTest {
     }
 
     @Test
+    @WithMockUser
     void shouldGetTableById() throws Exception {
         // given
         final DiningTable table = new DiningTable();

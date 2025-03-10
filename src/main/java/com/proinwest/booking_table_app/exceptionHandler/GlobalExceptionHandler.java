@@ -34,7 +34,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(NotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public ExceptionResponse handleTableNotFoundException(NotFoundException exception) {
+    public ExceptionResponse handleNotFoundException(NotFoundException exception) {
         return new ExceptionResponse(HttpStatus.NOT_FOUND.value(),
                 exception.getMessage(), now);
     }
@@ -58,5 +58,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(exception.getErrors());
+    }
+
+    @ExceptionHandler(DisableException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ExceptionResponse handleDisableException(DisableException exception) {
+        return new ExceptionResponse(HttpStatus.CONFLICT.value(),
+                exception.getMessage(), now);
     }
 }

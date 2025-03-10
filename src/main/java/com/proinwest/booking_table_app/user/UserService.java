@@ -3,68 +3,82 @@ package com.proinwest.booking_table_app.user;
 import com.proinwest.booking_table_app.exceptions.InvalidInputException;
 import com.proinwest.booking_table_app.exceptions.NotFoundException;
 import com.proinwest.booking_table_app.exceptions.ValidationException;
+import com.proinwest.booking_table_app.jwt.CustomUserDetails;
 import com.proinwest.booking_table_app.reservation.ReservationService;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.StreamSupport;
 
 @Service
 public class UserService {
-    public static final String FIELD_REQUIRED = "This field is required. ";
-    public static final int LOGIN_MIN_LENGTH = 3;
-    public static final String LOGIN_MESSAGE = "Login should contain at least " + LOGIN_MIN_LENGTH + " characters.";
-    public static final int PASSWORD_MIN_LENGTH = 12;
-    public static final String PASSWORD_MESSAGE = "Password should contain at least " + PASSWORD_MIN_LENGTH + " characters.";
+    public static final String ACCESS_DENIED = "Access denied.";
     public static final int EMAIL_MAX_LENGTH = 70;
     public static final String EMAIL_REGEX = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$";
     public static final String EMAIL_MESSAGE = "Email address should contain max " + EMAIL_MAX_LENGTH + " characters.";
     public static final String WRONG_EMAIL = "Wrong email address format.";
+    public static final String FIELD_REQUIRED = "This field is required. ";
+    public static final int LOGIN_MIN_LENGTH = 3;
+    public static final String LOGIN_MESSAGE = "Login should contain at least " + LOGIN_MIN_LENGTH + " characters.";
+    public static final String NO_USERS_IN_DATABASE = "There are no users in database.";
+    public static final int PASSWORD_MIN_LENGTH = 12;
+    public static final String PASSWORD_MESSAGE = "Password should contain at least " + PASSWORD_MIN_LENGTH + " characters.";
     public static final int PHONE_NUMBER_MIN_LENGTH = 7;
     public static final String PHONE_NUMBER_REGEX = "^\\+?[1-9][0-9]{0,2}([- ]?[0-9]{2,4}){2,3}$";
     public static final String PHONE_MESSAGE = "Phone number should contain at least " + PHONE_NUMBER_MIN_LENGTH + " digits. ";
-    public static final String INPUT_IS_MISSING = "Input is missing.";
+    public static final String USER_ID_IS_REQUIRED = "User id is required.";
     public static final String VALID_PHONE_NUMBER = "Examples of valid number are: "
             + "123456789, " + "123 456 789, " + "123-456-7890, " + "+48 123 456 789, " + "+123-123-456-7890";
-    public static final String NO_USERS_IN_DATABASE = "There are no users in database.";
-    public static final String USER_ID_IS_REQUIRED = "User id is required.";
 
     private final UserRepository userRepository;
     private final UserDTOMapper userDTOMapper;
     private final ReservationService reservationService;
     private final UserValidator userValidator;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository, UserDTOMapper userDTOMapper, @Lazy ReservationService reservationService, UserValidator userValidator) {
+    public UserService(UserRepository userRepository,
+                       UserDTOMapper userDTOMapper,
+                       @Lazy ReservationService reservationService,
+                       UserValidator userValidator,
+                       PasswordEncoder passwordEncoder)
+    {
         this.userRepository = userRepository;
         this.userDTOMapper = userDTOMapper;
         this.reservationService = reservationService;
         this.userValidator = userValidator;
+        this.passwordEncoder = passwordEncoder;
     }
 
     List<UserDTO> getAllUsers() {
         final Iterable<User> allUsers = userRepository.findAll();
-        final List<UserDTO> allUsersList = StreamSupport.stream(allUsers.spliterator(), false)
+        final List<UserDTO> allUsersDTOList = StreamSupport.stream(allUsers.spliterator(), false)
                 .map(userDTOMapper)
                 .toList();
 
-        if (allUsersList.isEmpty()) throw new NotFoundException(NO_USERS_IN_DATABASE);
+        if (allUsersDTOList.isEmpty()) throw new NotFoundException(NO_USERS_IN_DATABASE);
 
-        return allUsersList;
+        return allUsersDTOList;
     }
 
     UserDTO getUser(Long userId) {
+        isAdminOrOwner(userId);
+
         return userRepository.findById(userId)
                 .map(userDTOMapper)
                 .orElseThrow(() -> new NotFoundException("User with id " + userId + " was not found."));
     }
 
-    UserDTO addUser(User user) {
-        validateUser(user);
-
+    UserDTO registerUser(User user) {
+        validateNewUser(user);
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
         final User savedUser = userRepository.save(user);
         return userDTOMapper.apply(savedUser);
     }
@@ -77,113 +91,59 @@ public class UserService {
     }
 
     UserDTO updateUser(Long userId, User user) {
+        isCurrentUser(userId);
+
         final User userToUpdate = userRepository.findById(userId)
                 .map(updatingUser -> updateUser(user, updatingUser))
                 .orElseThrow(() -> new NotFoundException("User with id " + userId + " was not found."));
 
-        validateUser(user, userId);
+        validateUserToUpdate(user, userId);
 
         final User savedUser = userRepository.save(userToUpdate);
         return userDTOMapper.apply(savedUser);
     }
 
-    UserDTO partiallyUpdateUser(Long userId, User user) {
+    UserDTO updateUserRole(Long userId, Map<String, String> role) {
         final User userToUpdate = userRepository.findById(userId)
-                .map(updatingUser -> partiallyUpdateUser(user, updatingUser))
                 .orElseThrow(() -> new NotFoundException("User with id " + userId + " was not found."));
 
-        validatePartialUser(user, userId);
+        String newRole = role.get("role");
+        if (newRole == null || newRole.isBlank())   throw new InvalidInputException("Role cannot be empty.");
+        if (!isValidRole(newRole))                  throw new InvalidInputException("Invalid role.");
 
+        userToUpdate.setRole(newRole);
         final User savedUser = userRepository.save(userToUpdate);
         return userDTOMapper.apply(savedUser);
     }
 
-    void deleteUser(Long userId) {
-        if(!existsById(userId)) throw new NotFoundException("User with id " + userId + " was not found.");
+    void deactivateUser(Long userId) {
+        isAdminOrOwner(userId);
 
-        if (!reservationService.findAllByUserId(userId).isEmpty())
-            throw new InvalidInputException("User with id " + userId + " can not be deleted because he has at least one reservation assigned.");
+        final User userToDeactivate = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User with id " + userId + " was not found."));
 
-        userRepository.deleteById(userId);
+        userToDeactivate.setActive(false);
+        userRepository.save(userToDeactivate);
     }
 
-    List<UserDTO> findAllByLogin(String loginFragment) {
-        if (loginFragment.isBlank()) throw new InvalidInputException(INPUT_IS_MISSING);
+    List<UserDTO> searchUsers(String query) {
+        if (query.isBlank()) throw new InvalidInputException(ReservationService.INPUT_IS_MISSING);
 
-        final List<UserDTO> allByLogin = userRepository.findAllByLogin(loginFragment)
-                .stream()
-                .map(userDTOMapper)
-                .toList();
+        String[] terms = query.split("\\s+");
+        Set<UserDTO> resultSet = new HashSet<>();
 
-        if (allByLogin.isEmpty()) throw new NotFoundException("There are no users containing login: " + loginFragment);
+        for (String term : terms) {
+            List<UserDTO> users = userRepository.searchUsers(term)
+                    .stream()
+                    .map(userDTOMapper)
+                    .toList();
 
-        return allByLogin;
-    }
+            resultSet.addAll(users);
+        }
 
-    List<UserDTO> findAllByFirstName(String firstNameFragment) {
-        if (firstNameFragment.isBlank()) throw new InvalidInputException(INPUT_IS_MISSING);
+        if (resultSet.isEmpty()) throw new NotFoundException("There are no users containing: " + query);
 
-        final List<UserDTO> allByFirstName = userRepository.findAllByFirstName(firstNameFragment)
-                .stream()
-                .map(userDTOMapper)
-                .toList();
-
-        if (allByFirstName.isEmpty()) throw new NotFoundException("There are no users containing first name: " + firstNameFragment);
-
-        return allByFirstName;
-    }
-
-    List<UserDTO> findAllByLastName(String lastNameFragment) {
-        if (lastNameFragment.isBlank()) throw new InvalidInputException(INPUT_IS_MISSING);
-
-        final List<UserDTO> allByLastName = userRepository.findAllByLastName(lastNameFragment)
-                .stream()
-                .map(userDTOMapper)
-                .toList();
-
-        if (allByLastName.isEmpty()) throw new NotFoundException("There are no users containing last name: " + lastNameFragment);
-
-        return allByLastName;
-    }
-
-    List<UserDTO> findAllByEmail(String emailFragment) {
-        if (emailFragment.isBlank()) throw new InvalidInputException(INPUT_IS_MISSING);
-
-        final List<UserDTO> allByEmail = userRepository.findAllByEmail(emailFragment)
-                .stream()
-                .map(userDTOMapper)
-                .toList();
-
-        if (allByEmail.isEmpty()) throw new NotFoundException("There are no users containing email: " + emailFragment);
-
-        return allByEmail;
-    }
-
-    List<UserDTO> findAllByPhoneNumber(String phoneNumberFragment) {
-        if (phoneNumberFragment.isBlank()) throw new InvalidInputException(INPUT_IS_MISSING);
-
-        final List<UserDTO> allByPhoneNumber = userRepository.findAllByPhoneNumber(phoneNumberFragment)
-                .stream()
-                .map(userDTOMapper)
-                .toList();
-
-        if (allByPhoneNumber.isEmpty()) throw new NotFoundException("There are no users containing phone number: " + phoneNumberFragment);
-
-        return allByPhoneNumber;
-    }
-
-    List<UserDTO> findAllByAnyStringField(String searchingPhrase) {
-        if (searchingPhrase.isBlank()) throw new InvalidInputException(INPUT_IS_MISSING);
-
-        final List<UserDTO> allByAnyString = userRepository
-                .findAllByAnyString(searchingPhrase)
-                .stream()
-                .map(userDTOMapper)
-                .toList();
-
-        if (allByAnyString.isEmpty()) throw new NotFoundException("There are no users containing login, name, email or phone number: " + searchingPhrase);
-
-        return allByAnyString;
+        return new ArrayList<>(resultSet);
     }
 
     String findLoginByUserId(Long userId) {
@@ -206,39 +166,59 @@ public class UserService {
         return userRepository.existsByEmail(email);
     }
 
-    private void validateUser(User userToUpdate, Long userId) {
-        Map<String, String> validationMessages = userValidator.validateUser(userToUpdate, userId);
+    private void validateUserToUpdate(User userToUpdate, Long userId) {
+        Map<String, String> validationMessages = userValidator.validateUserToUpdate(userToUpdate, userId);
         if (!validationMessages.isEmpty()) throw new ValidationException(validationMessages);
     }
 
-    private void validatePartialUser(User userToUpdate, Long userId) {
-        Map<String, String> validationMessages = userValidator.validatePartialUser(userToUpdate, userId);
+    private void validateNewUser(User userToUpdate) {
+        Map<String, String> validationMessages = userValidator.validateNewUser(userToUpdate);
         if (!validationMessages.isEmpty()) throw new ValidationException(validationMessages);
     }
 
-    void validateUser(User userToUpdate) {
-        Map<String, String> validationMessages = userValidator.validateUser(userToUpdate);
-        if (!validationMessages.isEmpty()) throw new ValidationException(validationMessages);
+    private boolean isValidRole(String role) {
+        return role.equals("USER") || role.equals("ADMIN");
     }
 
-    static User updateUser(User user, User updatingUser) {
-        updatingUser.setLogin(user.getLogin());
-        updatingUser.setPassword(user.getPassword());
-        updatingUser.setEmail(user.getEmail());
-        updatingUser.setFirstName(user.getFirstName());
-        updatingUser.setLastName(user.getLastName());
-        updatingUser.setPhoneNumber(user.getPhoneNumber());
-
-        return updatingUser;
+    public boolean isAdmin() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        return userDetails.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
     }
 
-    static User partiallyUpdateUser(User user, User updatingUser) {
-        if (user.getLogin() != null) updatingUser.setLogin(user.getLogin());
-        if (user.getPassword() != null) updatingUser.setPassword(user.getPassword());
-        if (user.getEmail() != null) updatingUser.setEmail(user.getEmail());
-        if (user.getFirstName() != null) updatingUser.setFirstName(user.getFirstName());
-        if (user.getLastName() != null) updatingUser.setLastName(user.getLastName());
-        if (user.getPhoneNumber() != null) updatingUser.setPhoneNumber(user.getPhoneNumber());
+    public boolean isUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        return userDetails.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_USER"));
+    }
+
+    public void isAdminOrOwner(Long userId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        boolean isAdmin = userDetails.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (!isAdmin && !userDetails.getId().equals(userId))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, ACCESS_DENIED);
+    }
+
+    void isCurrentUser(Long userId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+
+        if (!userDetails.getId().equals(userId))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, ACCESS_DENIED);
+    }
+
+    private static User updateUser(User user, User updatingUser) {
+        if (user.getLogin() != null)        updatingUser.setLogin(user.getLogin());
+        if (user.getPassword() != null)     updatingUser.setPassword(user.getPassword());
+        if (user.getEmail() != null)        updatingUser.setEmail(user.getEmail());
+        if (user.getFirstName() != null)    updatingUser.setFirstName(user.getFirstName());
+        if (user.getLastName() != null)     updatingUser.setLastName(user.getLastName());
+        if (user.getPhoneNumber() != null)  updatingUser.setPhoneNumber(user.getPhoneNumber());
 
         return updatingUser;
     }

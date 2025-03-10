@@ -1,24 +1,25 @@
 package com.proinwest.booking_table_app.reservation;
 
 import com.proinwest.booking_table_app.diningTable.DiningTableService;
+import com.proinwest.booking_table_app.exceptions.InvalidInputException;
 import com.proinwest.booking_table_app.exceptions.NotFoundException;
 import com.proinwest.booking_table_app.exceptions.ValidationException;
+import com.proinwest.booking_table_app.user.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.StreamSupport;
 
 @Service
 public class ReservationService {
     static final String FIELD_REQUIRED = "This field is required. ";
+    public static final String INPUT_IS_MISSING = "Input is missing.";
     public static final LocalTime OPENING_TIME = LocalTime.of(11,0);
-    static final LocalTime CLOSING_TIME = LocalTime.of(23,0);
+    public static final LocalTime CLOSING_TIME = LocalTime.of(23,0);
     public static final String OPENING_HOURS_MESSAGE = "Our place is open from " + OPENING_TIME + " to " + CLOSING_TIME + ".";
     public static final String DATE_MESSAGE = "Reservation date should be present or future.";
     public static final String TIME_MESSAGE = "Reservation time should be present of future.";
@@ -31,22 +32,26 @@ public class ReservationService {
     private final ReservationDTOMapper reservationDTOMapper;
     private final ReservationValidator reservationValidator;
     private final DiningTableService diningTableService;
+    private final UserService userService;
 
     public ReservationService(ReservationRepository reservationRepository,
                               ReservationDTOMapper reservationDTOMapper,
                               ReservationValidator reservationValidator,
-                              DiningTableService tableService)
+                              DiningTableService tableService,
+                              UserService userService)
     {
         this.reservationRepository = reservationRepository;
         this.reservationDTOMapper = reservationDTOMapper;
         this.reservationValidator = reservationValidator;
         this.diningTableService = tableService;
+        this.userService = userService;
     }
 
     List<ReservationDTO> getAllReservations() {
         final Iterable<Reservation> allReservations = reservationRepository.findAll();
 
         final List<ReservationDTO> allReservationsList = StreamSupport.stream(allReservations.spliterator(), false)
+                .sorted(Comparator.comparing(Reservation::getReservationDate))
                 .map(reservationDTOMapper)
                 .toList();
 
@@ -56,12 +61,16 @@ public class ReservationService {
     }
 
     ReservationDTO getReservation(Long id) {
-        return reservationRepository.findById(id)
+        ReservationDTO reservationDTO = reservationRepository.findById(id)
                 .map(reservationDTOMapper)
                 .orElseThrow(() -> new NotFoundException("Reservation with id " + id + " was not found."));
+
+        userService.isAdminOrOwner(reservationDTO.user().id());
+
+        return reservationDTO;
     }
 
-    ReservationDTO addReservation(Reservation reservation) {
+    ReservationDTO createReservation(Reservation reservation) {
         validateReservation(reservation);
 
         final Reservation savedReservation = reservationRepository.save(reservation);
@@ -75,20 +84,11 @@ public class ReservationService {
                 .toUri();
     }
 
-    ReservationDTO updateReservation(Long id, Reservation reservation) {
+    ReservationDTO updateReservation(final Long id, final Reservation reservation) {
+        userService.isAdminOrOwner(reservation.getUser().getId());
+
         final Reservation reservationToUpdate = reservationRepository.findById(id)
-                        .map(updatingReservation -> updateReservation(reservation, updatingReservation))
-                        .orElseThrow(() -> new NotFoundException("Reservation with id " + id + " was not found."));
-
-        validateReservation(reservationToUpdate);
-
-        final Reservation savedReservation = reservationRepository.save(reservationToUpdate);
-        return reservationDTOMapper.apply(savedReservation);
-    }
-
-    ReservationDTO partiallyUpdateReservation(final Long id, final Reservation reservation) {
-        final Reservation reservationToUpdate = reservationRepository.findById(id)
-                .map(updatingReservation -> partiallyUpdateReservation(reservation, updatingReservation))
+                .map(updatingReservation -> updateReservation(reservation, updatingReservation))
                 .orElseThrow(() -> new NotFoundException("Reservation with id " + id + " was not found."));
 
         validateReservation(reservationToUpdate);
@@ -97,13 +97,41 @@ public class ReservationService {
         return reservationDTOMapper.apply(savedReservation);
     }
 
-    void deleteReservation(Long id) {
-        if (!existsById(id)) throw new NotFoundException("Reservation with id " + id + " was not found.");
+    void cancelReservation(Long id) {
+        Reservation reservation = reservationRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Reservation with id " + id + " was not found."));
+
+        userService.isAdminOrOwner(reservation.getUser().getId());
+
         reservationRepository.deleteById(id);
     }
 
-    private boolean existsById(Long id) {
-        return reservationRepository.existsById(id);
+    public List<ReservationDTO> getUserReservations(Long userId) {
+        userService.isAdminOrOwner(userId);
+
+        List<ReservationDTO> allByUserId = reservationRepository.findAllByUserId(userId)
+                .stream()
+                .sorted(Comparator.comparing(Reservation::getReservationDate))
+                .map(reservationDTOMapper)
+                .toList();
+
+        if (allByUserId.isEmpty())
+            throw new NotFoundException("There is no reservation assigned to user with id: " + userId);
+
+        return allByUserId;
+    }
+
+    public List<ReservationDTO> getAllByDateAndTableId(LocalDate date, Integer tableId) {
+        if (!diningTableService.existsById(tableId))
+            throw new NotFoundException("Dining table with id " + tableId + " was not found.");
+
+        final List<ReservationDTO> allByDateAndTableId = reservationRepository.findAllByDateAndTableId(date, tableId)
+                .stream()
+                .sorted(Comparator.comparing(Reservation::getReservationTime))
+                .map(reservationDTOMapper)
+                .toList();
+
+        return allByDateAndTableId;
     }
 
     List<ReservationDTO> findAllByDate(LocalDate date) {
@@ -118,117 +146,37 @@ public class ReservationService {
         return allByDate;
     }
 
-    public List<ReservationDTO> findAllByUserId(Long userId) {
-        List<ReservationDTO> allByUserId = reservationRepository.findAllByUserId(userId)
-                .stream()
-                .sorted(Comparator.comparing(Reservation::getId))
-                .map(reservationDTOMapper)
-                .toList();
-
-        return allByUserId;
-    }
-
-    List<ReservationDTO> findAllByUserLogin(String loginFragment) {
-        final List<ReservationDTO> allByUserLogin = reservationRepository.findAllByUserLogin(loginFragment)
-                .stream()
-                .map(reservationDTOMapper)
-                .toList();
-
-        if (allByUserLogin.isEmpty()) throw new NotFoundException("There is no reservation with user's login containing: " + loginFragment);
-
-        return allByUserLogin;
-    }
-
-    List<ReservationDTO> findAllByUserFirstName(String firstNameFragment) {
-        final List<ReservationDTO> allByUserName = reservationRepository.findAllByUserFirstName(firstNameFragment)
-                .stream()
-                .map(reservationDTOMapper)
-                .toList();
-
-        if (allByUserName.isEmpty()) throw new NotFoundException("There is no reservation with user's first name containing: " + firstNameFragment);
-
-        return allByUserName;
-    }
-
-    List<ReservationDTO> findAllByUserLastName(String lastNameFragment) {
-        final List<ReservationDTO> allByUserLastName = reservationRepository.findAllByUserLastName(lastNameFragment)
-                .stream()
-                .map(reservationDTOMapper)
-                .toList();
-
-        if (allByUserLastName.isEmpty()) throw new NotFoundException("There is no reservation with user's last name containing: " + lastNameFragment);
-
-        return allByUserLastName;
-    }
-
-    List<ReservationDTO> findAllByUserEmail(String emailFragment) {
-        final List<ReservationDTO> allByUserEmail = reservationRepository.findAllByUserEmail(emailFragment)
-                .stream()
-                .map(reservationDTOMapper)
-                .toList();
-
-        if (allByUserEmail.isEmpty()) throw new NotFoundException("There is no reservation with user's email containing: " + emailFragment);
-
-        return allByUserEmail;
-    }
-
-    List<ReservationDTO> findAllByUserPhoneNumber(String phoneNumberFragment) {
-        final List<ReservationDTO> allByUserPhoneNumber = reservationRepository.findAllByUserPhoneNumber(phoneNumberFragment)
-                .stream()
-                .map(reservationDTOMapper)
-                .toList();
-
-        if (allByUserPhoneNumber.isEmpty()) throw new NotFoundException("There is no reservation with user's phone number containing: " + phoneNumberFragment);
-
-        return allByUserPhoneNumber;
-    }
-
     public List<ReservationDTO> findAllByTableId(Integer tableId) {
         if (!diningTableService.existsById(tableId))
             throw new NotFoundException("Dining table with id " + tableId + " was not found.");
 
         final List<ReservationDTO> allByTableId = reservationRepository.findAllByTableId(tableId)
                 .stream()
+                .sorted(Comparator.comparing(Reservation::getReservationDate))
                 .map(reservationDTOMapper)
                 .toList();
 
         return allByTableId;
     }
 
-    List<ReservationDTO> findAllByDateAndTableId(LocalDate date, Integer tableId) {
-        if (!diningTableService.existsById(tableId))
-            throw new NotFoundException("Dining table with id " + tableId + " was not found.");
+    public List<ReservationDTO> searchReservations(String query) {
+        if (query.isBlank()) throw new InvalidInputException(INPUT_IS_MISSING);
 
-        final List<ReservationDTO> allByDateAndTableId = reservationRepository.findAllByDateAndTableId(date, tableId)
-                .stream()
-                .map(reservationDTOMapper)
-                .toList();
+        String[] terms = query.split("\\s+");
+        Set<ReservationDTO> resultSet = new HashSet<>();
 
-        if (allByDateAndTableId.isEmpty()) throw new NotFoundException("There is no reservation on date " + date + " at table with id " + tableId + ".");
+        for (String term : terms) {
+            List<ReservationDTO> reservations = reservationRepository.searchReservations(term)
+                    .stream()
+                    .map(reservationDTOMapper)
+                    .toList();
+            resultSet.addAll(reservations);
+        }
 
-        return allByDateAndTableId;
-    }
+        if (resultSet.isEmpty())
+            throw new NotFoundException("No reservation was found on query: " + query);
 
-    public List<ReservationDTO> findAllByAnyUserStringField(String anyString) {
-        final List<ReservationDTO> allByAnyUserString = reservationRepository.findAllByAnyUserStringField(anyString, anyString, anyString, anyString, anyString)
-                .stream()
-                .map(reservationDTOMapper)
-                .toList();
-
-        if (allByAnyUserString.isEmpty()) throw new NotFoundException("There is no reservation booked by user containing login, name, email or phone number: " + anyString);
-
-        return allByAnyUserString;
-    }
-
-    List<ReservationDTO> findAllByDateAndTime(LocalDate date, LocalTime time) {
-        final List<ReservationDTO> allByDateAndTime = reservationRepository.findAllByDateAndTime(date, time)
-                .stream()
-                .map(reservationDTOMapper)
-                .toList();
-
-        if (allByDateAndTime.isEmpty()) throw new NotFoundException("There is no reservation on date " + date + " and time " + time + ".");
-
-        return allByDateAndTime;
+        return new ArrayList<>(resultSet);
     }
 
     void validateReservation(Reservation reservation) {
@@ -241,22 +189,12 @@ public class ReservationService {
         if (!validationMessages.isEmpty()) throw new ValidationException(validationMessages);
     }
 
-    static Reservation updateReservation(Reservation reservation, Reservation updatingReservation) {
-        updatingReservation.setReservationDate(reservation.getReservationDate());
-        updatingReservation.setReservationTime(reservation.getReservationTime());
-        updatingReservation.setDuration(reservation.getDuration());
-        updatingReservation.setUser(reservation.getUser());
-        updatingReservation.setDiningTable(reservation.getDiningTable());
-
-        return updatingReservation;
-    }
-
-    private static Reservation partiallyUpdateReservation(Reservation reservation, Reservation updatingReservation) {
+    private static Reservation updateReservation(Reservation reservation, Reservation updatingReservation) {
         if (reservation.getReservationDate() != null) updatingReservation.setReservationDate(reservation.getReservationDate());
         if (reservation.getReservationTime() != null) updatingReservation.setReservationTime(reservation.getReservationTime());
         if (reservation.getDuration() != null) updatingReservation.setDuration(reservation.getDuration());
-        if (reservation.getUser().getId() != null) updatingReservation.setUser(reservation.getUser());
-        if (reservation.getDiningTable().getId() != null) updatingReservation.setDiningTable(reservation.getDiningTable());
+        if (reservation.getUser() != null) updatingReservation.setUser(reservation.getUser());
+        if (reservation.getDiningTable() != null) updatingReservation.setDiningTable(reservation.getDiningTable());
 
         return updatingReservation;
     }

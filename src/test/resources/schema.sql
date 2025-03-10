@@ -1,17 +1,20 @@
 CREATE TABLE IF NOT EXISTS dining_table (
     id INT PRIMARY KEY AUTO_INCREMENT,
     number INT,
-    seats INT
+    seats INT,
+    active BOOLEAN
 );
 
 CREATE TABLE IF NOT EXISTS user (
     id INT PRIMARY KEY AUTO_INCREMENT,
     login VARCHAR(45) NOT NULL,
-    password VARCHAR(45) NOT NULL,
+    password VARCHAR(60) NOT NULL,
     first_name VARCHAR(45),
     last_name VARCHAR(45),
     email VARCHAR(320) NOT NULL,
-    phone_number VARCHAR(20) NOT NULL
+    phone_number VARCHAR(20) NOT NULL,
+    active BOOLEAN,
+    role VARCHAR(20)
 );
 
 CREATE TABLE IF NOT EXISTS reservation (

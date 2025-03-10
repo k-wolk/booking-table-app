@@ -20,6 +20,7 @@ public class DiningTable {
     @Column(unique = true)
     private Integer number;
     private Integer seats;
+    private boolean active = true;
 
     @OneToMany(mappedBy = "diningTable")
     @JsonIgnore

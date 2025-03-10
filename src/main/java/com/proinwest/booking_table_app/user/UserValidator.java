@@ -18,20 +18,7 @@ public class UserValidator {
         this.userService = userService;
     }
 
-    Map<String, String> validateUser(User user, Long userId) {
-        final Map<String, String> errors = new HashMap<>();
-
-        validateLogin(user.getLogin(), errors, userId);
-        validatePassword(user.getPassword(), errors);
-        validateFirstName(user.getFirstName(), errors);
-        validateLastName(user.getLastName(), errors);
-        validateEmail(user.getEmail(), errors, userId);
-        validatePhoneNumber(user.getPhoneNumber(), errors);
-
-        return errors;
-    }
-
-    final Map<String, String> validateUser(User user) {
+    final Map<String, String> validateNewUser(User user) {
         final Map<String, String> errors = new HashMap<>();
 
         validateLogin(user.getLogin(), errors);
@@ -44,7 +31,7 @@ public class UserValidator {
         return errors;
     }
 
-    Map<String, String> validatePartialUser(User user, Long userId) {
+    Map<String, String> validateUserToUpdate(User user, Long userId) {
         final Map<String, String> errors = new HashMap<>();
 
         if (user.getLogin() != null) validateLogin(user.getLogin(), errors, userId);

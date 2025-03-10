@@ -4,15 +4,20 @@ import com.proinwest.booking_table_app.exceptions.InvalidInputException;
 import com.proinwest.booking_table_app.exceptions.NotFoundException;
 import com.proinwest.booking_table_app.exceptions.ValidationException;
 import com.proinwest.booking_table_app.reservation.Reservation;
+import com.proinwest.booking_table_app.reservation.ReservationDTO;
 import com.proinwest.booking_table_app.reservation.ReservationService;
+import com.proinwest.booking_table_app.user.UserService;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class DiningTableService {
@@ -28,29 +33,45 @@ public class DiningTableService {
     public static final String TABLE_ID_IS_REQUIRED = "Dining table id is required.";
     private final DiningTableRepository tableRepository;
     private final ReservationService reservationService;
+    private final UserService userService;
     private final DiningTableValidator tableValidator;
 
-    public DiningTableService(DiningTableRepository tableRepository,
-                              @Lazy ReservationService reservationService, DiningTableValidator tableValidator)
-    {
+    public DiningTableService(
+            DiningTableRepository tableRepository,
+            @Lazy ReservationService reservationService,
+            UserService userService,
+            DiningTableValidator tableValidator
+    ) {
         this.tableRepository = tableRepository;
         this.reservationService = reservationService;
+        this.userService = userService;
         this.tableValidator = tableValidator;
     }
 
     public List<DiningTable> getAllTables() {
-        final List<DiningTable> allTables = tableRepository.findAll();
+        List<DiningTable> allTables = new ArrayList<>();
+        if (userService.isAdmin()) {
+            allTables = tableRepository.allTablesOrderByActive();
+        } else if (userService.isUser()) {
+            allTables = tableRepository.allActiveTables();
+        }
+
         if (allTables.isEmpty()) throw new NotFoundException(NO_TABLES_IN_DATABASE);
 
         return allTables;
     }
 
     DiningTable getTable(Integer tableId) {
-        return tableRepository.findById(tableId)
+        DiningTable table = tableRepository.findById(tableId)
                 .orElseThrow(() -> new NotFoundException("Table with id " + tableId + " was not found."));
+
+        if (!userService.isAdmin() && !table.isActive())
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied: table is inactive");
+
+        return table;
     }
 
-    DiningTable addTable(DiningTable table) {
+    DiningTable createTable(DiningTable table) {
         validateTable(table);
 
         return tableRepository.save(table);
@@ -63,19 +84,25 @@ public class DiningTableService {
                 .toUri();
     }
 
+    public void deactivateTable(Integer tableId) {
+        DiningTable table = tableRepository.findById(tableId)
+                .orElseThrow(() -> new NotFoundException("Table with id " + tableId + " was not found."));
+
+        table.setActive(false);
+        tableRepository.save(table);
+    }
+
+    public void activateTable(Integer tableId) {
+        DiningTable table = tableRepository.findById(tableId)
+                .orElseThrow(() -> new NotFoundException("Table with id " + tableId + " was not found."));
+
+        table.setActive(true);
+        tableRepository.save(table);
+    }
+
     DiningTable updateTable(Integer tableId, DiningTable table) {
         final DiningTable tableToUpdate = tableRepository.findById(tableId)
                 .map(updatingTable -> updateTable(table, updatingTable))
-                .orElseThrow(() -> new NotFoundException("Table with id " + tableId + " was not found."));
-
-        validateTable(tableToUpdate);
-
-        return tableRepository.save(tableToUpdate);
-    }
-
-    DiningTable partiallyUpdateTable(Integer tableId, DiningTable table) {
-        final DiningTable tableToUpdate = tableRepository.findById(tableId)
-                .map(updatingTable -> partiallyUpdateTable(table, updatingTable))
                 .orElseThrow(() -> new NotFoundException("Table with id " + tableId + " was not found."));
 
         validateTable(tableToUpdate);
@@ -88,12 +115,13 @@ public class DiningTableService {
             throw new NotFoundException("Table with " + tableId + " was not found.");
 
         if (!reservationService.findAllByTableId(tableId).isEmpty())
-            throw new InvalidInputException("Table with " + tableId + " can not be deleted because it has at least one reservation assigned.");
+            throw new InvalidInputException("Table with " + tableId + " can not be deleted " +
+                    "because it has at least one reservation assigned.");
 
         tableRepository.deleteById(tableId);
     }
 
-    List<DiningTable> getFreeTables(Reservation reservation) {
+    List<DiningTable> getAvailableTables(Reservation reservation) {
         reservationService.validateDateTimeDurationAndSeats(reservation);
 
         final Iterable<DiningTable> allTablesWithMinSeats = getAllTablesWithMinSeats(reservation.getDiningTable().getSeats());
@@ -118,13 +146,58 @@ public class DiningTableService {
 
     List<DiningTable> getAllTablesWithMinSeats(Integer seats) {
         final List<DiningTable> allTablesWithMinSeats = tableRepository.allTablesWithMinSeats(seats);
-        if (allTablesWithMinSeats.isEmpty()) throw new NotFoundException("There are no tables with the required number of seats (" + seats + ").");
+        if (allTablesWithMinSeats.isEmpty())
+            throw new NotFoundException("There are no tables with the required number of seats (" + seats + ").");
 
         return allTablesWithMinSeats;
     }
 
     List<DiningTable> getBookedTables(LocalDate date, LocalTime time, int duration) {
         return tableRepository.bookedTablesByDateTimeAndDuration(date, time, duration);
+    }
+
+    public List<String> whenTableIsAvailable(Integer tableId, Reservation reservation) {
+        List<ReservationDTO> allByTableAndDate = reservationService.getAllByDateAndTableId(
+                reservation.getReservationDate(), tableId);
+
+        Map<LocalTime, Integer> timeAndDuration = allByTableAndDate
+                .stream()
+                .sorted(Comparator.comparing(ReservationDTO::time))
+                .collect(Collectors.toMap(
+                        ReservationDTO::time,
+                        ReservationDTO::duration,
+                        (existing, replacement) -> existing,
+                        LinkedHashMap::new
+                ));
+
+        return getWhenTableIsFree(timeAndDuration);
+    }
+
+    private static List<String> getWhenTableIsFree(Map<LocalTime, Integer> timeAndDuration) {
+        List<String> whenTableIsFree = new ArrayList<>();
+
+        LocalTime previousEndTime = ReservationService.OPENING_TIME;
+
+        for (Map.Entry<LocalTime, Integer> entry : timeAndDuration.entrySet()) {
+            LocalTime reservationStart = entry.getKey();
+            LocalTime reservationEnd = reservationStart.plusHours(entry.getValue());
+
+            if (previousEndTime.plusHours(ReservationService.MIN_DURATION)
+                    .minusSeconds(1)
+                    .isBefore(reservationStart))
+            {
+                whenTableIsFree.add(previousEndTime + " - " + reservationStart);
+            }
+
+            previousEndTime = reservationEnd;
+        }
+
+        if (!previousEndTime.isBefore(ReservationService.OPENING_TIME)) {
+            if (previousEndTime.isBefore(ReservationService.CLOSING_TIME)) {
+                whenTableIsFree.add(previousEndTime + " - " + ReservationService.CLOSING_TIME);
+            }
+        }
+        return whenTableIsFree;
     }
 
     Integer findNumberByTableId(Integer tableId) {
@@ -146,13 +219,6 @@ public class DiningTableService {
     }
 
     static DiningTable updateTable(DiningTable table, DiningTable updatingTable) {
-        updatingTable.setNumber(table.getNumber());
-        updatingTable.setSeats(table.getSeats());
-
-        return updatingTable;
-    }
-
-    static DiningTable partiallyUpdateTable(DiningTable table, DiningTable updatingTable) {
         if (table.getNumber() != null) updatingTable.setNumber(table.getNumber());
         if (table.getSeats() != null) updatingTable.setSeats(table.getSeats());
 

@@ -9,9 +9,9 @@ import java.time.LocalTime;
 
 public record ReservationDTO(
         Long id,
-        LocalDate reservationDate,
+        LocalDate date,
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "HH:mm")
-        LocalTime reservationTime,
+        LocalTime time,
         Integer duration,
         UserDTO user,
         DiningTable diningTable

@@ -39,6 +39,10 @@ public class JwtUtils {
     public String generateTokenFromUsername(UserDetails userDetails) {
         return Jwts.builder()
                 .subject(userDetails.getUsername())
+                .claim("role", userDetails.getAuthorities().stream()
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException("User has no role!"))
+                        .getAuthority())
                 .issuedAt(new Date())
                 .expiration(new Date((new Date()).getTime() + jwtExpirationMs))
                 .signWith(key())

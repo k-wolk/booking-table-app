@@ -4,6 +4,7 @@ import com.proinwest.booking_table_app.exceptions.InvalidInputException;
 import com.proinwest.booking_table_app.exceptions.NotFoundException;
 import com.proinwest.booking_table_app.exceptions.ValidationException;
 import com.proinwest.booking_table_app.reservation.*;
+import com.proinwest.booking_table_app.user.UserService;
 import org.instancio.Instancio;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,6 +32,8 @@ class DiningTableServiceTest {
     private DiningTableValidator tableValidator;
     @Mock
     private ReservationService reservationService;
+    @Mock
+    private UserService userService;
     @InjectMocks
     private DiningTableService tableService;
 
@@ -38,11 +41,14 @@ class DiningTableServiceTest {
     void shouldReturnAllTables() {
         // given
         final DiningTable table = Instancio.create(DiningTable.class);
+        table.setActive(true);
 
         final List<DiningTable> tables = new ArrayList<>();
         tables.add(table);
 
-        when(tableRepository.findAll())
+        when(userService.isAdmin()).thenReturn(false);
+        when(userService.isUser()).thenReturn(true);
+        when(tableRepository.allActiveTables())
                 .thenReturn(tables);
 
         // when
@@ -51,18 +57,24 @@ class DiningTableServiceTest {
         // then
         assertNotNull(result);
         assertEquals(tables, result);
-        verify(tableRepository, times(1)).findAll();
+        verify(userService, times(1)).isAdmin();
+        verify(userService, times(1)).isUser();
+        verify(tableRepository, times(1)).allActiveTables();
     }
 
     @Test
     void whenTablesListIsEmpty_shouldThrowException() {
         // given
-        when(tableRepository.findAll())
+        when(userService.isAdmin()).thenReturn(false);
+        when(userService.isUser()).thenReturn(true);
+        when(tableRepository.allActiveTables())
                 .thenReturn(Collections.emptyList());
 
         // when & then
         assertThrows(NotFoundException.class, tableService::getAllTables);
-        verify(tableRepository, times(1)).findAll();
+        verify(userService, times(1)).isAdmin();
+        verify(userService, times(1)).isUser();
+        verify(tableRepository, times(1)).allActiveTables();
     }
 
     @Test
@@ -70,8 +82,10 @@ class DiningTableServiceTest {
         // given
         final DiningTable table = Instancio.create(DiningTable.class);
         final int tableId = table.getId();
+        table.setActive(true);
 
         when(tableRepository.findById(tableId)).thenReturn(Optional.of(table));
+        when(userService.isAdmin()).thenReturn(true);
 
         // when
         final DiningTable result = tableService.getTable(tableId);
@@ -80,6 +94,7 @@ class DiningTableServiceTest {
         assertNotNull(result);
         assertEquals(table, result);
         verify(tableRepository, times(1)).findById(tableId);
+        verify(userService, times(1)).isAdmin();
     }
 
     @Test
@@ -108,7 +123,7 @@ class DiningTableServiceTest {
                 .thenReturn(savedTable);
 
         // when
-        final DiningTable result = tableService.addTable(table);
+        final DiningTable result = tableService.createTable(table);
 
         // then
         assertNotNull(result);
@@ -137,7 +152,7 @@ class DiningTableServiceTest {
     }
 
     @Test
-    void shouldUpdateTable() {
+    void shouldPartiallyUpdateTable() {
         // given
         final DiningTable table = Instancio.create(DiningTable.class);
         final int tableId = table.getId();
@@ -156,38 +171,6 @@ class DiningTableServiceTest {
     }
 
     @Test
-    void update_whenTableNotFoundById_shouldThrowException() {
-        // given
-        final DiningTable table = Instancio.create(DiningTable.class);
-        final int tableId = table.getId();
-
-        when(tableRepository.findById(tableId)).thenReturn(Optional.empty());
-
-        // when & then
-        assertThrows(NotFoundException.class, () -> tableService.updateTable(tableId, table));
-        verify(tableRepository, times(1)).findById(tableId);
-    }
-
-    @Test
-    void shouldPartiallyUpdateTable() {
-        // given
-        final DiningTable table = Instancio.create(DiningTable.class);
-        final int tableId = table.getId();
-
-        when(tableRepository.findById(tableId)).thenReturn(Optional.of(table));
-        when(tableRepository.save(table)).thenReturn(table);
-
-        // when
-        final DiningTable result = tableService.partiallyUpdateTable(tableId, table);
-
-        // then
-        assertNotNull(result);
-        assertEquals(table, result);
-        verify(tableRepository, times(1)).findById(tableId);
-        verify(tableRepository, times(1)).save(table);
-    }
-
-    @Test
     void partiallyUpdate_whenTableNotFoundById_shouldThrowException() {
         // given
         final DiningTable table = Instancio.create(DiningTable.class);
@@ -196,7 +179,7 @@ class DiningTableServiceTest {
         when(tableRepository.findById(tableId)).thenReturn(Optional.empty());
 
         // when & then
-        assertThrows(NotFoundException.class, () -> tableService.partiallyUpdateTable(tableId, table));
+        assertThrows(NotFoundException.class, () -> tableService.updateTable(tableId, table));
         verify(tableRepository, times(1)).findById(tableId);
     }
 
@@ -261,7 +244,7 @@ class DiningTableServiceTest {
                 .thenReturn(bookedDiningTables);
 
         // when
-        final List<DiningTable> result = tableService.getFreeTables(reservation);
+        final List<DiningTable> result = tableService.getAvailableTables(reservation);
 
         // then
         assertNotNull(result);
@@ -292,7 +275,7 @@ class DiningTableServiceTest {
                 .thenReturn(bookedDiningTables);
 
         // when & then
-        assertThrows(NotFoundException.class, () -> tableService.getFreeTables(reservation));
+        assertThrows(NotFoundException.class, () -> tableService.getAvailableTables(reservation));
         verify(tableRepository, times(1)).allTablesWithMinSeats(table.getSeats());
     }
 

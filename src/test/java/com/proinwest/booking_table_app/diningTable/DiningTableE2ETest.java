@@ -384,8 +384,8 @@ public class DiningTableE2ETest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(reservation)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.reservationDate").value(DATE_MESSAGE))
-                .andExpect(jsonPath("$.reservationTime").value(OPENING_HOURS_MESSAGE
+                .andExpect(jsonPath("$.date").value(DATE_MESSAGE))
+                .andExpect(jsonPath("$.time").value(OPENING_HOURS_MESSAGE
                         + " Try change reservation time and/or duration."))
                 .andExpect(jsonPath("$.duration").value(DURATION_MESSAGE))
                 .andExpect(jsonPath("$.seats").value(SEATS_MESSAGE));

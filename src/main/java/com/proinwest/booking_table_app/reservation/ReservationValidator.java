@@ -25,7 +25,11 @@ public class ReservationValidator {
     private final DiningTableValidator tableValidator;
     private final ReservationRepository reservationRepository;
 
-    public ReservationValidator(UserService userService, DiningTableService tableService, DiningTableValidator tableValidator, ReservationRepository reservationRepository) {
+    public ReservationValidator(UserService userService,
+                                DiningTableService tableService,
+                                DiningTableValidator tableValidator,
+                                ReservationRepository reservationRepository)
+    {
         this.userService = userService;
         this.tableService = tableService;
         this.tableValidator = tableValidator;
@@ -80,21 +84,22 @@ public class ReservationValidator {
 
     private void validateDate(LocalDate date, Map<String, String> errors) {
         if (date == null) {
-            errors.put("reservationDate", FIELD_REQUIRED + DATE_MESSAGE);
+            errors.put("date", FIELD_REQUIRED + DATE_MESSAGE);
         } else if (date.isBefore(LocalDate.now())) {
-            errors.put("reservationDate", DATE_MESSAGE);
+            errors.put("date", DATE_MESSAGE);
         }
     }
 
     private void validateTime(LocalTime time, LocalDate date, Integer duration, Map<String, String> errors) {
         if (time == null) {
-            errors.put("reservationTime", FIELD_REQUIRED + TIME_MESSAGE);
+            errors.put("time", FIELD_REQUIRED + TIME_MESSAGE);
         } else if (date == null || duration == null) {
-            errors.put("reservationTime", "Make sure reservation date and duration are not null.");
+            errors.put("time", "Make sure reservation date and duration are not null.");
         } else if (date.isEqual(LocalDate.now()) && time.isBefore(LocalTime.now())) {
-            errors.put("reservationTime", TIME_MESSAGE + OPENING_HOURS_MESSAGE);
-        } else if (time.isBefore(OPENING_TIME) || time.plusHours(duration).isAfter(CLOSING_TIME) || time.plusHours(duration).isBefore(OPENING_TIME)) {
-            errors.put("reservationTime", OPENING_HOURS_MESSAGE + " Try change reservation time and/or duration.");
+            errors.put("time", TIME_MESSAGE + OPENING_HOURS_MESSAGE);
+        } else if (time.isBefore(OPENING_TIME) || time.plusHours(duration).isAfter(CLOSING_TIME)
+                || time.plusHours(duration).isBefore(OPENING_TIME)) {
+            errors.put("time", OPENING_HOURS_MESSAGE + " Try change reservation time and/or duration.");
         }
     }
 
@@ -122,7 +127,6 @@ public class ReservationValidator {
     }
 
     private static boolean isReservationColliding(Reservation requestedReservation, Reservation currentReservation) {
-
         final LocalDateTime currentReservationBegin = LocalDateTime.of(currentReservation.getReservationDate(), currentReservation.getReservationTime());
         final LocalDateTime currentReservationEnd = currentReservationBegin.plusHours(currentReservation.getDuration());
 

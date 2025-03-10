@@ -43,7 +43,7 @@ class UserValidatorTest {
         when(userService.findEmailByUserId(userId)).thenReturn(user.getEmail());
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user, userId);
+        final Map<String, String> result = userValidator.validateUserToUpdate(user, userId);
 
         // then
         assertTrue(result.isEmpty());
@@ -52,26 +52,7 @@ class UserValidatorTest {
     }
 
     @Test
-    void validateUserWithUserIdParam_whenLoginIsNull_shouldReturnError() {
-        // given
-        user.setLogin(null);
-
-        when(userService.findEmailByUserId(userId)).thenReturn(user.getEmail());
-
-        final Map<String, String> expected = new HashMap<>();
-        expected.put("login", FIELD_REQUIRED + LOGIN_MESSAGE);
-
-        // when
-        final Map<String, String> result = userValidator.validateUser(user, userId);
-
-        // then
-        assertNotNull(result);
-        assertEquals(expected, result);
-        verify(userService, times(1)).findEmailByUserId(userId);
-    }
-
-    @Test
-    void validateUserWithUserIdParam_whenLoginIsBlank_shouldReturnError() {
+    void validateUserToUpdate_whenLoginIsBlank_shouldReturnError() {
         // given
         user.setLogin(" ");
 
@@ -81,7 +62,7 @@ class UserValidatorTest {
         expected.put("login", FIELD_REQUIRED + LOGIN_MESSAGE);
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user, userId);
+        final Map<String, String> result = userValidator.validateUserToUpdate(user, userId);
 
         // then
         assertNotNull(result);
@@ -90,7 +71,7 @@ class UserValidatorTest {
     }
 
     @Test
-    void validateUserWithUserIdParam_whenLoginExists_shouldReturnError() {
+    void validateUserToUpdate_whenLoginExists_shouldReturnError() {
         // given
         final String login = user.getLogin();
 
@@ -102,7 +83,7 @@ class UserValidatorTest {
         expected.put("login", "Login " + login + " already exists. It should be unique.");
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user, userId);
+        final Map<String, String> result = userValidator.validateUserToUpdate(user, userId);
 
         // then
         assertNotNull(result);
@@ -113,7 +94,7 @@ class UserValidatorTest {
     }
 
     @Test
-    void validateUserWithUserIdParam_whenLoginIsTooShort_shouldReturnError() {
+    void validateUserToUpdate_whenLoginIsTooShort_shouldReturnError() {
         // given
         user.setLogin("aa");
 
@@ -124,7 +105,7 @@ class UserValidatorTest {
         expected.put("login", LOGIN_MESSAGE);
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user, userId);
+        final Map<String, String> result = userValidator.validateUserToUpdate(user, userId);
 
         // then
         assertNotNull(result);
@@ -134,26 +115,7 @@ class UserValidatorTest {
     }
 
     @Test
-    void validateUserWithUserIdParam_whenEmailIsNull_shouldReturnError() {
-        // given
-        user.setEmail(null);
-
-        when(userService.findLoginByUserId(userId)).thenReturn(user.getLogin());
-
-        final Map<String, String> expected = new HashMap<>();
-        expected.put("email", FIELD_REQUIRED + EMAIL_MESSAGE);
-
-        // when
-        final Map<String, String> result = userValidator.validateUser(user, userId);
-
-        // then
-        assertNotNull(result);
-        assertEquals(expected, result);
-        verify(userService, times(1)).findLoginByUserId(userId);
-    }
-
-    @Test
-    void validateUserWithUserIdParam_whenEmailIsBlank_shouldReturnError() {
+    void validateUserToUpdate_whenEmailIsBlank_shouldReturnError() {
         // given
         user.setEmail(" ");
 
@@ -163,7 +125,7 @@ class UserValidatorTest {
         expected.put("email", FIELD_REQUIRED + EMAIL_MESSAGE);
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user, userId);
+        final Map<String, String> result = userValidator.validateUserToUpdate(user, userId);
 
         // then
         assertNotNull(result);
@@ -172,7 +134,7 @@ class UserValidatorTest {
     }
 
     @Test
-    void validateUserWithUserIdParam_whenEmailExists_shouldReturnError() {
+    void validateUserToUpdate_whenEmailExists_shouldReturnError() {
         // given
         final String email = user.getEmail();
 
@@ -184,7 +146,7 @@ class UserValidatorTest {
         expected.put("email", "Email address " + email + " already exists. It should be unique.");
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user, userId);
+        final Map<String, String> result = userValidator.validateUserToUpdate(user, userId);
 
         // then
         assertNotNull(result);
@@ -195,7 +157,7 @@ class UserValidatorTest {
     }
 
     @Test
-    void validateUserWithUserIdParam_whenEmailIsTooLong_shouldReturnError() {
+    void validateUserToUpdate_whenEmailIsTooLong_shouldReturnError() {
         // given
         user.setEmail("1234567890.1234567890.1234567890.1234567890.1234567890.1234567890@x.com");
 
@@ -206,7 +168,7 @@ class UserValidatorTest {
         expected.put("email", EMAIL_MESSAGE);
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user, userId);
+        final Map<String, String> result = userValidator.validateUserToUpdate(user, userId);
 
         // then
         assertNotNull(result);
@@ -216,7 +178,7 @@ class UserValidatorTest {
     }
 
     @Test
-    void validateUserWithUserIdParam_whenEmailNotMatchPattern_shouldReturnError() {
+    void validateUserToUpdate_whenEmailNotMatchPattern_shouldReturnError() {
         // given
         user.setEmail("mail@mail");
 
@@ -227,7 +189,7 @@ class UserValidatorTest {
         expected.put("email", WRONG_EMAIL);
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user, userId);
+        final Map<String, String> result = userValidator.validateUserToUpdate(user, userId);
 
         // then
         assertNotNull(result);
@@ -239,7 +201,7 @@ class UserValidatorTest {
     @Test
     void whenUserIsValid_shouldReturnEmptyErrorsMap() {
         // when
-        final Map<String, String> result = userValidator.validateUser(user);
+        final Map<String, String> result = userValidator.validateNewUser(user);
 
         // then
         assertTrue(result.isEmpty());
@@ -254,7 +216,7 @@ class UserValidatorTest {
         expected.put("login", FIELD_REQUIRED + LOGIN_MESSAGE);
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user);
+        final Map<String, String> result = userValidator.validateNewUser(user);
 
         // then
         assertNotNull(result);
@@ -270,7 +232,7 @@ class UserValidatorTest {
         expected.put("login", FIELD_REQUIRED + LOGIN_MESSAGE);
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user);
+        final Map<String, String> result = userValidator.validateNewUser(user);
 
         // then
         assertNotNull(result);
@@ -288,7 +250,7 @@ class UserValidatorTest {
         expected.put("login", "Login " + login + " already exists. It should be unique.");
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user);
+        final Map<String, String> result = userValidator.validateNewUser(user);
 
         // then
         assertNotNull(result);
@@ -305,7 +267,7 @@ class UserValidatorTest {
         expected.put("login", LOGIN_MESSAGE);
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user);
+        final Map<String, String> result = userValidator.validateNewUser(user);
 
         // then
         assertNotNull(result);
@@ -321,7 +283,7 @@ class UserValidatorTest {
         expected.put("email", FIELD_REQUIRED + EMAIL_MESSAGE);
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user);
+        final Map<String, String> result = userValidator.validateNewUser(user);
 
         // then
         assertNotNull(result);
@@ -337,7 +299,7 @@ class UserValidatorTest {
         expected.put("email", FIELD_REQUIRED + EMAIL_MESSAGE);
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user);
+        final Map<String, String> result = userValidator.validateNewUser(user);
 
         // then
         assertNotNull(result);
@@ -355,7 +317,7 @@ class UserValidatorTest {
         expected.put("email", "Email address " + email + " already exists. It should be unique.");
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user);
+        final Map<String, String> result = userValidator.validateNewUser(user);
 
         // then
         assertNotNull(result);
@@ -372,7 +334,7 @@ class UserValidatorTest {
         expected.put("email", EMAIL_MESSAGE);
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user);
+        final Map<String, String> result = userValidator.validateNewUser(user);
 
         // then
         assertNotNull(result);
@@ -388,7 +350,7 @@ class UserValidatorTest {
         expected.put("email", WRONG_EMAIL);
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user);
+        final Map<String, String> result = userValidator.validateNewUser(user);
 
         // then
         assertNotNull(result);
@@ -404,7 +366,7 @@ class UserValidatorTest {
         expected.put("password", FIELD_REQUIRED + PASSWORD_MESSAGE);
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user);
+        final Map<String, String> result = userValidator.validateNewUser(user);
 
         // then
         assertNotNull(result);
@@ -420,7 +382,7 @@ class UserValidatorTest {
         expected.put("password", FIELD_REQUIRED + PASSWORD_MESSAGE);
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user);
+        final Map<String, String> result = userValidator.validateNewUser(user);
 
         // then
         assertNotNull(result);
@@ -436,7 +398,7 @@ class UserValidatorTest {
         expected.put("password", PASSWORD_MESSAGE);
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user);
+        final Map<String, String> result = userValidator.validateNewUser(user);
 
         // then
         assertNotNull(result);
@@ -452,7 +414,7 @@ class UserValidatorTest {
         expected.put("firstName", FIELD_REQUIRED);
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user);
+        final Map<String, String> result = userValidator.validateNewUser(user);
 
         // then
         assertNotNull(result);
@@ -468,7 +430,7 @@ class UserValidatorTest {
         expected.put("firstName", FIELD_REQUIRED);
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user);
+        final Map<String, String> result = userValidator.validateNewUser(user);
 
         // then
         assertNotNull(result);
@@ -484,7 +446,7 @@ class UserValidatorTest {
         expected.put("lastName", FIELD_REQUIRED);
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user);
+        final Map<String, String> result = userValidator.validateNewUser(user);
 
         // then
         assertNotNull(result);
@@ -500,7 +462,7 @@ class UserValidatorTest {
         expected.put("lastName", FIELD_REQUIRED);
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user);
+        final Map<String, String> result = userValidator.validateNewUser(user);
 
         // then
         assertNotNull(result);
@@ -516,7 +478,7 @@ class UserValidatorTest {
         expected.put("phoneNumber", FIELD_REQUIRED + PHONE_MESSAGE);
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user);
+        final Map<String, String> result = userValidator.validateNewUser(user);
 
         // then
         assertNotNull(result);
@@ -532,7 +494,7 @@ class UserValidatorTest {
         expected.put("phoneNumber", FIELD_REQUIRED + PHONE_MESSAGE);
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user);
+        final Map<String, String> result = userValidator.validateNewUser(user);
 
         // then
         assertNotNull(result);
@@ -548,7 +510,7 @@ class UserValidatorTest {
         expected.put("phoneNumber", PHONE_MESSAGE);
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user);
+        final Map<String, String> result = userValidator.validateNewUser(user);
 
         // then
         assertNotNull(result);
@@ -564,7 +526,7 @@ class UserValidatorTest {
         expected.put("phoneNumber", PHONE_MESSAGE + VALID_PHONE_NUMBER);
 
         // when
-        final Map<String, String> result = userValidator.validateUser(user);
+        final Map<String, String> result = userValidator.validateNewUser(user);
 
         // then
         assertNotNull(result);
@@ -578,7 +540,7 @@ class UserValidatorTest {
         when(userService.findEmailByUserId(userId)).thenReturn(user.getEmail());
 
         // when
-        final Map<String, String> result = userValidator.validatePartialUser(user, userId);
+        final Map<String, String> result = userValidator.validateUserToUpdate(user, userId);
 
         // then
         assertTrue(result.isEmpty());
@@ -598,7 +560,7 @@ class UserValidatorTest {
         user.setPhoneNumber(null);
 
         // when
-        final Map<String, String> result = userValidator.validatePartialUser(user, userId);
+        final Map<String, String> result = userValidator.validateUserToUpdate(user, userId);
 
         // then
         assertTrue(result.isEmpty());
