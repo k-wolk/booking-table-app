@@ -58,7 +58,7 @@ The app will be available at http://localhost:8080.
 
 Authentication is based on JWT tokens.
 
-First, sign in to receive a token:
+After creating a user account, sign in to receive a token:
 
 POST /signin
 
@@ -83,23 +83,31 @@ Authorization: Bearer YOUR_JWT_TOKEN
 |:------:|-----------------------------------------------|:---------------:|-----------------------------------------------------|
 | POST   | `/signin`                                     | Public          | Authenticate and receive JWT                        |
 | POST   | `/users`                                      | Public          | Register a new user                                 |
-| GET    | `/users`                                      | Admin           | List of all users                                   |
-| GET    | `/users/{userId}`                             | Admin or owner  | View user's details                                 |
-| PATCH  | `/users/{userId}`                             | User            | Update user's own details                           |
-| PUT    | `/users/role/{userId}`                        | Admin           | Update user's role                                  |
-| PATCH  | `/users/deactivate/{userId}`                  | Admin or owner  | Deactivate user                                     |
+| GET    | `/users`                                      | Admin           | View a list of all users                            |
+| GET    | `/users/{userId}`                             | Admin / resource owner | View a user's details                        |
+| PATCH  | `/users/{userId}`                             | User            | Update own user details                             |
+| PUT    | `/users/role/{userId}`                        | Admin           | Update a user's role                                |
+| PATCH  | `/users/deactivate/{userId}`                  | Admin / resource owner | Deactivate a user                            |
 | GET    | `/users/search`                               | Admin           | Search users by query                               |
-| GET    | `/reservations`                               | Admin           | List all reservations                               |
-| GET    | `/reservations/{id}`                          | Admin or owner  | View reservation's details                          |
-| POST   | `/reservations`                               | Admin or user   | Create a new reservation                            |
-| GET    | `/reservations/users/{userId}`                | User            | View all user's own reservations                    |
-| PATCH  | `/reservations/{id}`                          | Admin or owner  | Update reservation                                  |
-| DELETE | `/reservations/{id}`                          | Admin or owner  | Delete reservation                                  |
-| GET    | `/reservations/date/{date}/table/{tableId}`   | Admin           | View all reservations for a specific date and table |
-| GET    | `/reservations/date/{date}`                   | Admin           | View all reservations for a specific date           |
+| GET    | `/reservations`                               | Admin           | View a list of all reservations                     |
+| GET    | `/reservations/{id}`                          | Admin / resource owner | View reservation details                     |
+| POST   | `/reservations`                               | Admin / resource user  | Create a new reservation                     |
+| GET    | `/reservations/users/{userId}`                | User            | View own reservations                               |
+| PATCH  | `/reservations/{id}`                          | Admin / resource owner | Update a reservation                         |
+| DELETE | `/reservations/{id}`                          | Admin / resource owner | Delete a reservation                         |
+| GET    | `/reservations/date/{date}/table/{tableId}`   | Admin           | View reservations for a specific date and table     |
+| GET    | `/reservations/date/{date}`                   | Admin           | View reservations for a specific date               |
 | GET    | `/reservations/search`                        | Admin           | Search reservations by query                        |
-| GET    | `/tables/available`                           | Public          | View available dining tables for a specific date, time, duration and number of seats |                       |
-| POST   | `/tables`                | Admin  | Add a new dining table           |
+| GET    | `/tables/available`                           | Public          | View available dining tables for a specific date, time, duration and number of seats | 
+| GET    | `/tables/getactive`                           | Public          | View a list of all active dining tables             |
+| GET    | `/tables`                                     | Admin           | View a list of all dining tables                    | 
+| GET    | `/tables/{tableId}`                           | Public (active) / Admin (all) | View details of a specific dining table | 
+| POST   | `/tables`                                     | Admin           | Add a new dining table                              |
+| POST   | `/tables/deactivate/{tableId}`                | Admin           | Deactivate a dining table                           |
+| POST   | `/tables/activate/{tableId}`                  | Admin           | Activate a dining table                             |
+| PATCH  | `/tables/{tableId}`                           | Admin           | Update a dining table                               |
+| DELETE | `/tables/{tableId}`                           | Admin           | Delete a dining table                               |
+| GET    | `/tables/{tableId}/date/{date}`               | Public          | View available hours for specific dining table and date |
 
 ---
 
@@ -128,7 +136,7 @@ Testing technologies:
 ```
 src/main/java/com/proinwest/booking_table_app/
 │
-├── auth/                # Authentication and JWT handling
+├── auth/                 # Authentication and JWT handling
 ├── diningTable/          # Dining tables management
 ├── reservation/          # Reservation management
 ├── user/                 # User management
