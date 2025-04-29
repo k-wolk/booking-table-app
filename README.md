@@ -136,11 +136,20 @@ Testing technologies:
 ```
 src/main/java/com/proinwest/booking_table_app/
 │
-├── auth/                 # Authentication and JWT handling
-├── diningTable/          # Dining tables management
-├── reservation/          # Reservation management
-├── user/                 # User management
-├── jwt/                  # JWT security filters, utils
+├── diningTable/ # Dining tables management (controllers, services, entities, repositories, validators)
+├── reservation/ # Reservation management
+├── user/ # User management
+│
+├── security/
+│    ├── auth/ # Login logic (LoginController, LoginRequest, LoginResponse)
+│    ├── config/ # Spring Security config (SecurityConfig, AuthEntryPointJwt, filters)
+│    ├── jwt/ # JWT utilities (JwtUtils, SecurityUtils)
+│    └── userdetails/ # CustomUserDetails and UserDetailsService
+│
+├── exception/
+│    ├── handler/ # Global exception handler
+│    └── types/ # Custom exception classes (e.g., NotFoundException, InvalidInputException)
+│
 └── BookingTableApplication.java
 ```
 
