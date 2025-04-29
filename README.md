@@ -35,7 +35,7 @@ cd booking-table-app
 
 ### 2. Configure the database
 Edit src/main/resources/application.properties:
-```
+```properties
 spring.datasource.url=jdbc:mysql://localhost:3306/booking_table
 spring.datasource.username=root
 spring.datasource.password=yourpassword
@@ -43,14 +43,64 @@ spring.jpa.hibernate.ddl-auto=update
 jwt.secret=your_secret_key
 jwt.expirationMs=86400000
 ```
+⚠️ Make sure to create tables before running the application. You can find schemas below.
+
 ⚠️ Make sure your local MySQL server is running.
 
 ### 3. Build and run the application
-```
+```bash
 mvn clean install
 mvn spring-boot:run
 ```
 The app will be available at http://localhost:8080.
+
+---
+
+## 🗄️ Database
+
+This application requires a relational database MySQL with the following three tables:
+
+- `dining_table` – stores information about dining tables, such as table number and number of seats.
+- `user` – stores user data including login credentials, personal information, role, and account status.
+- `reservation` – stores reservation records, each linked to a specific user and dining table, with date, time, and duration.
+
+### 💾 SQL Schema
+
+```sql
+CREATE TABLE IF NOT EXISTS dining_table (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    number INT,
+    seats INT,
+    active BOOLEAN
+);
+```
+```sql
+CREATE TABLE IF NOT EXISTS user (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    login VARCHAR(45) NOT NULL,
+    password VARCHAR(60) NOT NULL,
+    first_name VARCHAR(45),
+    last_name VARCHAR(45),
+    email VARCHAR(320) NOT NULL,
+    phone_number VARCHAR(20) NOT NULL,
+    active BOOLEAN,
+    role VARCHAR(20)
+);
+```
+```sql
+CREATE TABLE IF NOT EXISTS reservation (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    table_id INT NOT NULL,
+    user_id INT NOT NULL,
+    reservation_date DATE NOT NULL,
+    reservation_time TIME NOT NULL,
+    duration INT NOT NULL,
+    FOREIGN KEY (table_id) REFERENCES dining_table(id),
+    FOREIGN KEY (user_id) REFERENCES user(id)
+);
+```
+
+
 
 ---
 
@@ -62,7 +112,7 @@ After creating a user account, sign in to receive a token:
 
 POST /signin
 
-```
+```json
 {
   "login": "john",
   "password": "yourpassword"
@@ -71,7 +121,7 @@ POST /signin
 
 Example Authorization Header for requests:
 
-```
+```bash
 Authorization: Bearer YOUR_JWT_TOKEN
 ```
 
@@ -117,7 +167,7 @@ The project includes unit and integration tests.
 
 Run all tests:
 
-```
+```bash
 mvn test
 ```
 
@@ -133,7 +183,7 @@ Testing technologies:
 
 ## 🛠️ Project Structure
 
-```
+```bash
 src/main/java/com/proinwest/booking_table_app/
 │
 ├── diningTable/ # Dining tables management (controllers, services, entities, repositories, validators)
