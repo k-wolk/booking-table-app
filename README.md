@@ -40,8 +40,8 @@ spring.datasource.url=jdbc:mysql://localhost:3306/tables_db
 spring.datasource.username=root
 spring.datasource.password=YOUR_PASSWORD
 spring.jpa.hibernate.ddl-auto=update
-jwt.secret=your_secret_key
-jwt.expirationMs=86400000
+spring.app.jwtSecret=your_secret_key
+spring.app.jwtExpirationMs=86400000
 ```
 ⚠️ Make sure to create tables before running the application. You can find schemas below.
 
