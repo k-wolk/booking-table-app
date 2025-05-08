@@ -18,7 +18,7 @@ It supports user authentication and authorization using JWT tokens and role-base
 - Spring Security + JWT
 - Spring Data JPA (Hibernate)
 - MySQL
-- Testcontainers (Integration and end-to-end Testing)
+- Testcontainers (Integration and end-to-end testing)
 - JUnit 5 & MockMvc
 - Maven
 
