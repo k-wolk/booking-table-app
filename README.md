@@ -174,6 +174,8 @@ mvn test
 Testing technologies:
 
 - JUnit 5
+  
+- Mockito
 
 - MockMvc
 
