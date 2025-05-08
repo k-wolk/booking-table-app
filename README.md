@@ -29,7 +29,7 @@ It supports user authentication and authorization using JWT tokens and role-base
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/booking-table-app.git
+git clone https://github.com/k-wolk/booking-table-app
 cd booking-table-app
 ```
 
