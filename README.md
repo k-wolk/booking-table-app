@@ -18,7 +18,7 @@ It supports user authentication and authorization using JWT tokens and role-base
 - Spring Security + JWT
 - Spring Data JPA (Hibernate)
 - MySQL
-- Testcontainers (Integration Testing)
+- Testcontainers (Integration and end-to-end Testing)
 - JUnit 5 & MockMvc
 - Maven
 
@@ -40,7 +40,7 @@ spring.datasource.url=jdbc:mysql://localhost:3306/tables_db
 spring.datasource.username=root
 spring.datasource.password=YOUR_PASSWORD
 spring.jpa.hibernate.ddl-auto=update
-spring.app.jwtSecret=your_secret_key
+spring.app.jwtSecret=YOUR_SECRET_KEY
 spring.app.jwtExpirationMs=86400000
 ```
 ⚠️ Make sure to create tables before running the application. You can find schemas below.
