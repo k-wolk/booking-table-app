@@ -142,7 +142,7 @@ Authorization: Bearer YOUR_JWT_TOKEN
 | GET    | `/reservations`                               | Admin           | View a list of all reservations                     |
 | GET    | `/reservations/{id}`                          | Admin / resource owner | View reservation details                     |
 | POST   | `/reservations`                               | Admin / user    | Create a new reservation                            |
-| GET    | `/reservations/users/{userId}`                | Resource user   | View own reservations                               |
+| GET    | `/reservations/users/{userId}`                | Resource owner  | View own reservations                               |
 | PATCH  | `/reservations/{id}`                          | Admin / resource owner | Update a reservation                         |
 | DELETE | `/reservations/{id}`                          | Admin / resource owner | Delete a reservation                         |
 | GET    | `/reservations/date/{date}/table/{tableId}`   | Admin           | View reservations for a specific date and table     |
