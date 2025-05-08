@@ -1,9 +1,9 @@
 package com.proinwest.booking_table_app.user;
 
-import com.proinwest.booking_table_app.exceptions.InvalidInputException;
-import com.proinwest.booking_table_app.exceptions.NotFoundException;
-import com.proinwest.booking_table_app.exceptions.ValidationException;
-import com.proinwest.booking_table_app.jwt.CustomUserDetails;
+import com.proinwest.booking_table_app.exceptions.types.InvalidInputException;
+import com.proinwest.booking_table_app.exceptions.types.NotFoundException;
+import com.proinwest.booking_table_app.exceptions.types.ValidationException;
+import com.proinwest.booking_table_app.security.userDetails.CustomUserDetails;
 import com.proinwest.booking_table_app.reservation.ReservationService;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpStatus;
@@ -182,22 +182,20 @@ public class UserService {
 
     public boolean isAdmin() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        return userDetails.getAuthorities().stream()
+        return authentication.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
     }
 
     public boolean isUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        return userDetails.getAuthorities().stream()
+        return authentication.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_USER"));
     }
 
     public void isAdminOrOwner(Long userId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        boolean isAdmin = userDetails.getAuthorities().stream()
+        boolean isAdmin = authentication.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
 
         if (!isAdmin && !userDetails.getId().equals(userId))

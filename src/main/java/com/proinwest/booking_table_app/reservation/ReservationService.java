@@ -1,9 +1,10 @@
 package com.proinwest.booking_table_app.reservation;
 
 import com.proinwest.booking_table_app.diningTable.DiningTableService;
-import com.proinwest.booking_table_app.exceptions.InvalidInputException;
-import com.proinwest.booking_table_app.exceptions.NotFoundException;
-import com.proinwest.booking_table_app.exceptions.ValidationException;
+import com.proinwest.booking_table_app.exceptions.types.InvalidInputException;
+import com.proinwest.booking_table_app.exceptions.types.NotFoundException;
+import com.proinwest.booking_table_app.exceptions.types.ValidationException;
+import com.proinwest.booking_table_app.security.jwt.SecurityUtils;
 import com.proinwest.booking_table_app.user.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -21,8 +22,8 @@ public class ReservationService {
     public static final LocalTime OPENING_TIME = LocalTime.of(11,0);
     public static final LocalTime CLOSING_TIME = LocalTime.of(23,0);
     public static final String OPENING_HOURS_MESSAGE = "Our place is open from " + OPENING_TIME + " to " + CLOSING_TIME + ".";
-    public static final String DATE_MESSAGE = "Reservation date should be present or future.";
-    public static final String TIME_MESSAGE = "Reservation time should be present of future.";
+    public static final String DATE_MESSAGE = "Reservation reservationDate should be present or future.";
+    public static final String TIME_MESSAGE = "Reservation reservationTime should be present of future.";
     public static final int MIN_DURATION = 1;
     public static final int MAX_DURATION = 6;
     public static final String DURATION_MESSAGE = "Duration should be between " + MIN_DURATION + " and " + MAX_DURATION + " hours.";
@@ -33,18 +34,20 @@ public class ReservationService {
     private final ReservationValidator reservationValidator;
     private final DiningTableService diningTableService;
     private final UserService userService;
+    private final SecurityUtils securityUtils;
 
     public ReservationService(ReservationRepository reservationRepository,
                               ReservationDTOMapper reservationDTOMapper,
                               ReservationValidator reservationValidator,
                               DiningTableService tableService,
-                              UserService userService)
+                              UserService userService, SecurityUtils securityUtils)
     {
         this.reservationRepository = reservationRepository;
         this.reservationDTOMapper = reservationDTOMapper;
         this.reservationValidator = reservationValidator;
         this.diningTableService = tableService;
         this.userService = userService;
+        this.securityUtils = securityUtils;
     }
 
     List<ReservationDTO> getAllReservations() {
@@ -65,7 +68,7 @@ public class ReservationService {
                 .map(reservationDTOMapper)
                 .orElseThrow(() -> new NotFoundException("Reservation with id " + id + " was not found."));
 
-        userService.isAdminOrOwner(reservationDTO.user().id());
+        securityUtils.isAdminOrOwner(reservationDTO.user().id());
 
         return reservationDTO;
     }
@@ -85,7 +88,7 @@ public class ReservationService {
     }
 
     ReservationDTO updateReservation(final Long id, final Reservation reservation) {
-        userService.isAdminOrOwner(reservation.getUser().getId());
+        securityUtils.isAdminOrOwner(reservation.getUser().getId());
 
         final Reservation reservationToUpdate = reservationRepository.findById(id)
                 .map(updatingReservation -> updateReservation(reservation, updatingReservation))
@@ -101,13 +104,13 @@ public class ReservationService {
         Reservation reservation = reservationRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Reservation with id " + id + " was not found."));
 
-        userService.isAdminOrOwner(reservation.getUser().getId());
+        securityUtils.isAdminOrOwner(reservation.getUser().getId());
 
         reservationRepository.deleteById(id);
     }
 
     public List<ReservationDTO> getUserReservations(Long userId) {
-        userService.isAdminOrOwner(userId);
+        securityUtils.isAdminOrOwner(userId);
 
         List<ReservationDTO> allByUserId = reservationRepository.findAllByUserId(userId)
                 .stream()
@@ -123,7 +126,7 @@ public class ReservationService {
 
     public List<ReservationDTO> getAllByDateAndTableId(LocalDate date, Integer tableId) {
         if (!diningTableService.existsById(tableId))
-            throw new NotFoundException("Dining table with id " + tableId + " was not found.");
+            throw new NotFoundException("Table with id " + tableId + " was not found.");
 
         final List<ReservationDTO> allByDateAndTableId = reservationRepository.findAllByDateAndTableId(date, tableId)
                 .stream()
@@ -141,7 +144,7 @@ public class ReservationService {
                 .map(reservationDTOMapper)
                 .toList();
 
-        if (allByDate.isEmpty()) throw new NotFoundException("There is no reservation on date " + date + ".");
+        if (allByDate.isEmpty()) throw new NotFoundException("There is no reservation on reservationDate " + date + ".");
 
         return allByDate;
     }
@@ -184,6 +187,7 @@ public class ReservationService {
         if (!validationMessages.isEmpty()) throw new ValidationException(validationMessages);
     }
 
+    // todo: tide up validator classes. Seats should be validated by tableValidator etc.
     public void validateDateTimeDurationAndSeats(Reservation reservation) {
         Map<String, String> validationMessages = reservationValidator.validateDateTimeDurationAndSeats(reservation);
         if (!validationMessages.isEmpty()) throw new ValidationException(validationMessages);

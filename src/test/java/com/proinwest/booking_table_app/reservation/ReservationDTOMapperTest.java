@@ -33,8 +33,8 @@ class ReservationDTOMapperTest {
 
         // then
         assertEquals(reservation.getId(), reservationDTO.id());
-        assertEquals(reservation.getReservationDate(), reservationDTO.date());
-        assertEquals(reservation.getReservationTime(), reservationDTO.time());
+        assertEquals(reservation.getReservationDate(), reservationDTO.reservationDate());
+        assertEquals(reservation.getReservationTime(), reservationDTO.reservationTime());
         assertEquals(reservation.getDuration(), reservationDTO.duration());
 
         assertEquals(reservation.getUser().getId(), reservationDTO.user().id());

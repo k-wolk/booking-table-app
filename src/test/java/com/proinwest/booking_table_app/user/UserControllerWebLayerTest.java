@@ -1,10 +1,10 @@
 package com.proinwest.booking_table_app.user;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.proinwest.booking_table_app.jwt.AuthEntryPointJwt;
-import com.proinwest.booking_table_app.jwt.CustomUserDetailsService;
-import com.proinwest.booking_table_app.jwt.JwtUtils;
-import com.proinwest.booking_table_app.jwt.SecurityConfig;
+import com.proinwest.booking_table_app.security.config.AuthEntryPointJwt;
+import com.proinwest.booking_table_app.security.userDetails.CustomUserDetailsService;
+import com.proinwest.booking_table_app.security.jwt.JwtUtils;
+import com.proinwest.booking_table_app.security.config.SecurityConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

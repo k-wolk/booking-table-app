@@ -94,8 +94,8 @@ public class ReservationE2ETest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")          .value(1))
                 .andExpect(jsonPath("$[0].id")              .value(reservation.getId()))
-                .andExpect(jsonPath("$[0].date") .value(reservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$[0].time") .value(reservation.getReservationTime().toString()))
+                .andExpect(jsonPath("$[0].reservationDate") .value(reservation.getReservationDate().toString()))
+                .andExpect(jsonPath("$[0].reservationTime") .value(reservation.getReservationTime().toString()))
                 .andExpect(jsonPath("$[0].duration")        .value(reservation.getDuration()))
                 .andExpect(jsonPath("$[0].user.id")         .value(user.getId()))
                 .andExpect(jsonPath("$[0].user.login")      .value(user.getLogin()))
@@ -128,8 +128,8 @@ public class ReservationE2ETest {
         mockMvc.perform(get("/reservations/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id")              .value(id))
-                .andExpect(jsonPath("$.date") .value(reservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$.time") .value(reservation.getReservationTime().toString()))
+                .andExpect(jsonPath("$.reservationDate") .value(reservation.getReservationDate().toString()))
+                .andExpect(jsonPath("$.reservationTime") .value(reservation.getReservationTime().toString()))
                 .andExpect(jsonPath("$.duration")        .value(reservation.getDuration()))
                 .andExpect(jsonPath("$.user.id")         .value(user.getId()))
                 .andExpect(jsonPath("$.user.login")      .value(user.getLogin()))
@@ -168,8 +168,8 @@ public class ReservationE2ETest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(reservation)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.date").value(FIELD_REQUIRED + DATE_MESSAGE))
-                .andExpect(jsonPath("$.time").value(FIELD_REQUIRED + TIME_MESSAGE))
+                .andExpect(jsonPath("$.reservationDate").value(FIELD_REQUIRED + DATE_MESSAGE))
+                .andExpect(jsonPath("$.reservationTime").value(FIELD_REQUIRED + TIME_MESSAGE))
                 .andExpect(jsonPath("$.duration")       .value(FIELD_REQUIRED + DURATION_MESSAGE))
                 .andExpect(jsonPath("$.user")           .value(USER_ID_IS_REQUIRED))
                 .andExpect(jsonPath("$.diningTable")    .value(TABLE_ID_IS_REQUIRED));
@@ -209,8 +209,8 @@ public class ReservationE2ETest {
                         .content(mapper.writeValueAsString(updatedReservation)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id")              .value(id))
-                .andExpect(jsonPath("$.date") .value(updatedReservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$.time") .value(updatedReservation.getReservationTime().toString()))
+                .andExpect(jsonPath("$.reservationDate") .value(updatedReservation.getReservationDate().toString()))
+                .andExpect(jsonPath("$.reservationTime") .value(updatedReservation.getReservationTime().toString()))
                 .andExpect(jsonPath("$.duration")        .value(updatedReservation.getDuration()))
                 .andExpect(jsonPath("$.user.id")         .value(newUser.getId()))
                 .andExpect(jsonPath("$.user.login")      .value(newUser.getLogin()))
@@ -262,9 +262,9 @@ public class ReservationE2ETest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(reservation)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.date").value(DATE_MESSAGE))
-                .andExpect(jsonPath("$.time")
-                        .value(OPENING_HOURS_MESSAGE + " Try change reservation time and/or duration."))
+                .andExpect(jsonPath("$.reservationDate").value(DATE_MESSAGE))
+                .andExpect(jsonPath("$.reservationTime")
+                        .value(OPENING_HOURS_MESSAGE + " Try change reservation reservationTime and/or duration."))
                 .andExpect(jsonPath("$.duration").value(DURATION_MESSAGE))
                 .andExpect(jsonPath("$.user")
                         .value("User with id " + invalidUserId + " was not found."))
@@ -291,8 +291,8 @@ public class ReservationE2ETest {
                         .content(mapper.writeValueAsString(updatedReservation)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id")              .value(id))
-                .andExpect(jsonPath("$.date") .value(updatedReservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$.time") .value(reservation.getReservationTime().toString()))
+                .andExpect(jsonPath("$.reservationDate") .value(updatedReservation.getReservationDate().toString()))
+                .andExpect(jsonPath("$.reservationTime") .value(reservation.getReservationTime().toString()))
                 .andExpect(jsonPath("$.duration")        .value(updatedReservation.getDuration()))
                 .andExpect(jsonPath("$.user.id")         .value(user.getId()))
                 .andExpect(jsonPath("$.user.login")      .value(user.getLogin()))
@@ -344,9 +344,9 @@ public class ReservationE2ETest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(reservation)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.date").value(DATE_MESSAGE))
-                .andExpect(jsonPath("$.time")
-                        .value(OPENING_HOURS_MESSAGE + " Try change reservation time and/or duration."))
+                .andExpect(jsonPath("$.reservationDate").value(DATE_MESSAGE))
+                .andExpect(jsonPath("$.reservationTime")
+                        .value(OPENING_HOURS_MESSAGE + " Try change reservation reservationTime and/or duration."))
                 .andExpect(jsonPath("$.duration").value(DURATION_MESSAGE))
                 .andExpect(jsonPath("$.user")
                         .value("User with id " + invalidUserId + " was not found."))
@@ -398,12 +398,12 @@ public class ReservationE2ETest {
         final LocalDate date = reservation.getReservationDate();
 
         // when & then
-        mockMvc.perform(get("/reservations/search/date/{date}", date))
+        mockMvc.perform(get("/reservations/search/reservationDate/{reservationDate}", date))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")             .value(1))
                 .andExpect(jsonPath("$[0].id")              .value(reservation.getId()))
-                .andExpect(jsonPath("$[0].date") .value(reservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$[0].time") .value(reservation.getReservationTime().toString()))
+                .andExpect(jsonPath("$[0].reservationDate") .value(reservation.getReservationDate().toString()))
+                .andExpect(jsonPath("$[0].reservationTime") .value(reservation.getReservationTime().toString()))
                 .andExpect(jsonPath("$[0].duration")        .value(reservation.getDuration()))
                 .andExpect(jsonPath("$[0].user.id")         .value(user.getId()))
                 .andExpect(jsonPath("$[0].user.login")      .value(user.getLogin()))
@@ -422,10 +422,10 @@ public class ReservationE2ETest {
         final LocalDate date = LocalDate.now();
 
         // when & then
-        mockMvc.perform(get("/reservations/search/date/{date}", date))
+        mockMvc.perform(get("/reservations/search/reservationDate/{reservationDate}", date))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("There is no reservation on date " + date + "."));
+                        .value("There is no reservation on reservationDate " + date + "."));
     }
 
     @Test
@@ -441,8 +441,8 @@ public class ReservationE2ETest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")             .value(1))
                 .andExpect(jsonPath("$[0].id")              .value(reservation.getId()))
-                .andExpect(jsonPath("$[0].date") .value(reservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$[0].time") .value(reservation.getReservationTime().toString()))
+                .andExpect(jsonPath("$[0].reservationDate") .value(reservation.getReservationDate().toString()))
+                .andExpect(jsonPath("$[0].reservationTime") .value(reservation.getReservationTime().toString()))
                 .andExpect(jsonPath("$[0].duration")        .value(reservation.getDuration()))
                 .andExpect(jsonPath("$[0].user.id")         .value(user.getId()))
                 .andExpect(jsonPath("$[0].user.login")      .value(user.getLogin()))
@@ -481,8 +481,8 @@ public class ReservationE2ETest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")             .value(1))
                 .andExpect(jsonPath("$[0].id")              .value(reservation.getId()))
-                .andExpect(jsonPath("$[0].date") .value(reservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$[0].time") .value(reservation.getReservationTime().toString()))
+                .andExpect(jsonPath("$[0].reservationDate") .value(reservation.getReservationDate().toString()))
+                .andExpect(jsonPath("$[0].reservationTime") .value(reservation.getReservationTime().toString()))
                 .andExpect(jsonPath("$[0].duration")        .value(reservation.getDuration()))
                 .andExpect(jsonPath("$[0].user.id")         .value(user.getId()))
                 .andExpect(jsonPath("$[0].user.login")      .value(user.getLogin()))
@@ -521,8 +521,8 @@ public class ReservationE2ETest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")             .value(1))
                 .andExpect(jsonPath("$[0].id")              .value(reservation.getId()))
-                .andExpect(jsonPath("$[0].date") .value(reservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$[0].time") .value(reservation.getReservationTime().toString()))
+                .andExpect(jsonPath("$[0].reservationDate") .value(reservation.getReservationDate().toString()))
+                .andExpect(jsonPath("$[0].reservationTime") .value(reservation.getReservationTime().toString()))
                 .andExpect(jsonPath("$[0].duration")        .value(reservation.getDuration()))
                 .andExpect(jsonPath("$[0].user.id")         .value(user.getId()))
                 .andExpect(jsonPath("$[0].user.login")      .value(user.getLogin()))
@@ -561,8 +561,8 @@ public class ReservationE2ETest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")             .value(1))
                 .andExpect(jsonPath("$[0].id")              .value(reservation.getId()))
-                .andExpect(jsonPath("$[0].date") .value(reservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$[0].time") .value(reservation.getReservationTime().toString()))
+                .andExpect(jsonPath("$[0].reservationDate") .value(reservation.getReservationDate().toString()))
+                .andExpect(jsonPath("$[0].reservationTime") .value(reservation.getReservationTime().toString()))
                 .andExpect(jsonPath("$[0].duration")        .value(reservation.getDuration()))
                 .andExpect(jsonPath("$[0].user.id")         .value(user.getId()))
                 .andExpect(jsonPath("$[0].user.login")      .value(user.getLogin()))
@@ -601,8 +601,8 @@ public class ReservationE2ETest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")             .value(1))
                 .andExpect(jsonPath("$[0].id")              .value(reservation.getId()))
-                .andExpect(jsonPath("$[0].date") .value(reservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$[0].time") .value(reservation.getReservationTime().toString()))
+                .andExpect(jsonPath("$[0].reservationDate") .value(reservation.getReservationDate().toString()))
+                .andExpect(jsonPath("$[0].reservationTime") .value(reservation.getReservationTime().toString()))
                 .andExpect(jsonPath("$[0].duration")        .value(reservation.getDuration()))
                 .andExpect(jsonPath("$[0].user.id")         .value(user.getId()))
                 .andExpect(jsonPath("$[0].user.login")      .value(user.getLogin()))
@@ -641,8 +641,8 @@ public class ReservationE2ETest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")             .value(1))
                 .andExpect(jsonPath("$[0].id")              .value(reservation.getId()))
-                .andExpect(jsonPath("$[0].date") .value(reservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$[0].time") .value(reservation.getReservationTime().toString()))
+                .andExpect(jsonPath("$[0].reservationDate") .value(reservation.getReservationDate().toString()))
+                .andExpect(jsonPath("$[0].reservationTime") .value(reservation.getReservationTime().toString()))
                 .andExpect(jsonPath("$[0].duration")        .value(reservation.getDuration()))
                 .andExpect(jsonPath("$[0].user.id")         .value(user.getId()))
                 .andExpect(jsonPath("$[0].user.login")      .value(user.getLogin()))
@@ -680,8 +680,8 @@ public class ReservationE2ETest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")             .value(1))
                 .andExpect(jsonPath("$[0].id")              .value(reservation.getId()))
-                .andExpect(jsonPath("$[0].date") .value(reservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$[0].time") .value(reservation.getReservationTime().toString()))
+                .andExpect(jsonPath("$[0].reservationDate") .value(reservation.getReservationDate().toString()))
+                .andExpect(jsonPath("$[0].reservationTime") .value(reservation.getReservationTime().toString()))
                 .andExpect(jsonPath("$[0].duration")        .value(reservation.getDuration()))
                 .andExpect(jsonPath("$[0].user.id")         .value(user.getId()))
                 .andExpect(jsonPath("$[0].user.login")      .value(user.getLogin()))
@@ -730,12 +730,12 @@ public class ReservationE2ETest {
         final LocalDate date = reservation.getReservationDate();
 
         // when & then
-        mockMvc.perform(get("/reservations/search/date/{date}/table/{tableId}", date, tableId))
+        mockMvc.perform(get("/reservations/search/reservationDate/{reservationDate}/table/{tableId}", date, tableId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")             .value(1))
                 .andExpect(jsonPath("$[0].id")              .value(reservation.getId()))
-                .andExpect(jsonPath("$[0].date") .value(reservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$[0].time") .value(reservation.getReservationTime().toString()))
+                .andExpect(jsonPath("$[0].reservationDate") .value(reservation.getReservationDate().toString()))
+                .andExpect(jsonPath("$[0].reservationTime") .value(reservation.getReservationTime().toString()))
                 .andExpect(jsonPath("$[0].duration")        .value(reservation.getDuration()))
                 .andExpect(jsonPath("$[0].user.id")         .value(user.getId()))
                 .andExpect(jsonPath("$[0].user.login")      .value(user.getLogin()))
@@ -755,7 +755,7 @@ public class ReservationE2ETest {
         final Integer tableId = 1;
 
         // when & then
-        mockMvc.perform(get("/reservations/search/date/{date}/table/{tableId}", date, tableId))
+        mockMvc.perform(get("/reservations/search/reservationDate/{reservationDate}/table/{tableId}", date, tableId))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
                         .value("Dining table with id " + tableId + " was not found."));
@@ -770,10 +770,10 @@ public class ReservationE2ETest {
         final LocalDate date = LocalDate.now();
 
         // when & then
-        mockMvc.perform(get("/reservations/search/date/{date}/table/{tableId}", date, tableId))
+        mockMvc.perform(get("/reservations/search/reservationDate/{reservationDate}/table/{tableId}", date, tableId))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("There is no reservation on date " + date + " at table with id " + tableId + "."));
+                        .value("There is no reservation on reservationDate " + date + " at table with id " + tableId + "."));
     }
 
     @Test
@@ -787,12 +787,12 @@ public class ReservationE2ETest {
         final LocalTime time = reservation.getReservationTime();
 
         // when & then
-        mockMvc.perform(get("/reservations/search/date/{date}/time/{time}", date, time))
+        mockMvc.perform(get("/reservations/search/reservationDate/{reservationDate}/reservationTime/{reservationTime}", date, time))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")             .value(1))
                 .andExpect(jsonPath("$[0].id")              .value(reservation.getId()))
-                .andExpect(jsonPath("$[0].date") .value(reservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$[0].time") .value(reservation.getReservationTime().toString()))
+                .andExpect(jsonPath("$[0].reservationDate") .value(reservation.getReservationDate().toString()))
+                .andExpect(jsonPath("$[0].reservationTime") .value(reservation.getReservationTime().toString()))
                 .andExpect(jsonPath("$[0].duration")        .value(reservation.getDuration()))
                 .andExpect(jsonPath("$[0].user.id")         .value(user.getId()))
                 .andExpect(jsonPath("$[0].user.login")      .value(user.getLogin()))
@@ -812,10 +812,10 @@ public class ReservationE2ETest {
         final LocalTime time = OPENING_TIME;
 
         // when & then
-        mockMvc.perform(get("/reservations/search/date/{date}/time/{time}", date, time))
+        mockMvc.perform(get("/reservations/search/reservationDate/{reservationDate}/reservationTime/{reservationTime}", date, time))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("There is no reservation on date " + date + " and time " + time + "."));
+                        .value("There is no reservation on reservationDate " + date + " and reservationTime " + time + "."));
     }
 
     private Integer createTable(DiningTable table) throws Exception {

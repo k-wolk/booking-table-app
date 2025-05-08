@@ -1,10 +1,10 @@
 package com.proinwest.booking_table_app.diningTable;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.proinwest.booking_table_app.jwt.CustomUserDetailsService;
-import com.proinwest.booking_table_app.jwt.JwtUtils;
+import com.proinwest.booking_table_app.security.jwt.JwtUtils;
 import com.proinwest.booking_table_app.reservation.Reservation;
 import com.proinwest.booking_table_app.reservation.ReservationRepository;
+import com.proinwest.booking_table_app.reservation.ReservationService;
 import com.proinwest.booking_table_app.user.User;
 import com.proinwest.booking_table_app.user.UserRepository;
 import org.junit.jupiter.api.AfterAll;
@@ -16,12 +16,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.security.test.context.support.WithUserDetails;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -31,8 +27,11 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
-import static com.proinwest.booking_table_app.diningTable.DiningTableService.*;
-import static org.junit.jupiter.api.Assertions.*;
+import static com.proinwest.booking_table_app.diningTable.DiningTableService.NO_FREE_TABLES_WAS_FOUND;
+import static com.proinwest.booking_table_app.diningTable.DiningTableService.NO_TABLES_FOUND;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -55,45 +54,17 @@ public class DiningTableControllerIntegrationTest {
     private MockMvc mockMvc;
     @Autowired
     private ObjectMapper mapper;
-    private User admin = new User();
 
     @BeforeEach
     void setup() {
         reservationRepository.deleteAll();
         tableRepository.deleteAll();
         userRepository.deleteAll();
-
-        admin.setLogin("admin");
-        admin.setPassword(new BCryptPasswordEncoder().encode("secretpassword"));
-        admin.setFirstName("John");
-        admin.setLastName("Doe");
-        admin.setEmail("john@mail.com");
-        admin.setPhoneNumber("111222333");
-        admin.setRole("ADMIN");
-        userRepository.save(admin);
-        userRepository.flush();
-
-        System.out.println("Users in DB: " + userRepository.findByLogin("admin"));
     }
 
     @AfterAll
     static void stopContainer() {
         mySQLContainer.stop();
-    }
-
-    @Autowired
-    private CustomUserDetailsService customUserDetailsService;
-
-    @Test
-    void shouldLoadUserByUsername() {
-        UserDetails userDetails = customUserDetailsService.loadUserByUsername("admin");
-        assertNotNull(userDetails);
-        assertEquals("admin", userDetails.getUsername());
-    }
-
-    @Test
-    void sh() {
-        assertTrue(userRepository.findByLogin("admin").isPresent());
     }
 
     @Test
@@ -103,9 +74,8 @@ public class DiningTableControllerIntegrationTest {
     }
 
     @Test
-//    @WithUserDetails(value = "admin", userDetailsServiceBeanName = "customUserDetailsService")
-    @WithMockUser(username = "admin", roles = "ADMIN")
-    void shouldGetAllDiningTables() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void getAllTables_whenUserIsAdmin_shouldReturnAllTables() throws Exception {
         // given
         final DiningTable table1 = new DiningTable();
         table1.setNumber(1);
@@ -117,18 +87,10 @@ public class DiningTableControllerIntegrationTest {
         table2.setSeats(4);
         table2.setActive(true);
 
-//        User admin = new User();
-//        admin.setLogin("admin");
-//        admin.setPassword(new BCryptPasswordEncoder().encode("password")); // jeśli hasła są hashowane
-//        admin.setRole("ROLE_ADMIN");
-//        admin.setActive(true);
-//        userRepository.save(admin);
-
         tableRepository.saveAll(List.of(table1, table2));
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/tables"))
+        mockMvc.perform(get("/tables"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()")   .value(2))
                 .andExpect(jsonPath("$[0].id")      .value(table1.getId()))
@@ -140,28 +102,62 @@ public class DiningTableControllerIntegrationTest {
     }
 
     @Test
-    void whenTablesNotFound_shouldThrowException() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void getAllTables_whenTableNotExists_shouldThrowException() throws Exception {
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/tables"))
+        mockMvc.perform(get("/tables"))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message").value(NO_TABLES_IN_DATABASE));
+                .andExpect(jsonPath("$.message").value(NO_TABLES_FOUND));
     }
 
     @Test
     @WithMockUser
-    void shouldGetTableById() throws Exception {
+    void getAllActiveTables_whenUserIsAuthenticated_shouldReturnAllActiveTables() throws Exception {
+        // given
+        final DiningTable table1 = new DiningTable();
+        table1.setNumber(1);
+        table1.setSeats(2);
+        table1.setActive(false);
+
+        final DiningTable table2 = new DiningTable();
+        table2.setNumber(2);
+        table2.setSeats(4);
+        table2.setActive(true);
+
+        tableRepository.saveAll(List.of(table1, table2));
+
+        // when & then
+        mockMvc.perform(get("/tables/getactive"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()")   .value(1))
+                .andExpect(jsonPath("$[0].id")      .value(table2.getId()))
+                .andExpect(jsonPath("$[0].number")  .value(table2.getNumber()))
+                .andExpect(jsonPath("$[0].seats")   .value(table2.getSeats()));
+    }
+
+    @Test
+    @WithMockUser
+    void getAllActiveTables_whenTableNotExists_shouldThrowException() throws Exception {
+        // when & then
+        mockMvc.perform(get("/tables/getactive"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value(NO_TABLES_FOUND));
+    }
+
+    @Test
+    @WithMockUser
+    void getTable_whenTableIsActive_shouldReturnTable() throws Exception {
         // given
         final DiningTable table = new DiningTable();
         table.setNumber(1);
         table.setSeats(2);
+        table.setActive(true);
 
         tableRepository.save(table);
         final Integer tableId = table.getId();
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/tables/{id}", tableId))
+        mockMvc.perform(get("/tables/{tableId}", tableId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id")     .value(tableId))
                 .andExpect(jsonPath("$.number") .value(table.getNumber()))
@@ -169,28 +165,66 @@ public class DiningTableControllerIntegrationTest {
     }
 
     @Test
-    void whenTableNotFoundById_shouldThrowException() throws Exception {
+    @WithMockUser
+    void getTable_whenTableIsInactive_shouldThrowException() throws Exception {
+        // given
+        final DiningTable table = new DiningTable();
+        table.setNumber(1);
+        table.setSeats(2);
+        table.setActive(false);
+
+        tableRepository.save(table);
+        final Integer tableId = table.getId();
+
+        // when & then
+        mockMvc.perform(get("/tables/{tableId}", tableId))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Access denied: table is inactive"));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void getTable_userIsAdmin_whenTableIsInactive_shouldReturnTable() throws Exception {
+        // given
+        final DiningTable table = new DiningTable();
+        table.setNumber(1);
+        table.setSeats(2);
+        table.setActive(false);
+
+        tableRepository.save(table);
+        final Integer tableId = table.getId();
+
+        // when & then
+        mockMvc.perform(get("/tables/{tableId}", tableId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id")     .value(tableId))
+                .andExpect(jsonPath("$.number") .value(table.getNumber()))
+                .andExpect(jsonPath("$.seats")  .value(table.getSeats()));    }
+
+
+    @Test
+    @WithMockUser
+    void getTable_whenTableExists_shouldThrowException() throws Exception {
         // given
         final Integer tableId = 7;
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/tables/{tableId}", tableId))
+        mockMvc.perform(get("/tables/{tableId}", tableId))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
                         .value("Table with id " + tableId + " was not found."));
     }
 
     @Test
-    void shouldAddTable() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void createTable_whenUserIsAdmin_shouldAddTable() throws Exception {
         // given
         final DiningTable table = new DiningTable();
         table.setNumber(1);
         table.setSeats(2);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .post("/tables")
+        mockMvc.perform(post("/tables")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(table)))
                 .andExpect(status().isCreated())
@@ -199,55 +233,73 @@ public class DiningTableControllerIntegrationTest {
     }
 
     @Test
-    void shouldUpdateTable() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void deactivateTable_whenUserIsAdmin_shouldDeactivateTable() throws Exception {
         // given
-        final DiningTable tableToUpdate = new DiningTable();
-        tableToUpdate.setNumber(1);
-        tableToUpdate.setSeats(2);
-
-        tableRepository.save(tableToUpdate);
-
-        final DiningTable newTable = new DiningTable();
-        newTable.setNumber(2);
-        newTable.setSeats(4);
-
-        final DiningTable updatedTable = new DiningTable();
-        updatedTable.setId(tableToUpdate.getId());
-        updatedTable.setNumber(newTable.getNumber());
-        updatedTable.setSeats(newTable.getSeats());
+        final DiningTable table = new DiningTable();
+        table.setNumber(1);
+        table.setSeats(2);
+        table.setActive(true);
+        tableRepository.save(table);
+        Integer tableId = table.getId();
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .put("/tables/{tableId}", tableToUpdate.getId())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(newTable)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id")     .value(updatedTable.getId()))
-                .andExpect(jsonPath("$.number") .value(updatedTable.getNumber()))
-                .andExpect(jsonPath("$.seats")  .value(updatedTable.getSeats()));
+        mockMvc.perform(post("/tables/deactivate/{tableId}", tableId))
+                .andExpect(status().isNoContent());
+
+        Optional<DiningTable> deactivatedTable = tableRepository.findById(tableId);
+        assertTrue(deactivatedTable.isPresent());
+        assertFalse(deactivatedTable.get().isActive());
     }
 
     @Test
-    void updateTable_whenTableNotFoundById_shouldThrowException() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void deactivateTable_whenTableNotExists_shouldThrowException() throws Exception {
         // given
-        final Integer tableId = 7;
-
-        final DiningTable newTable = new DiningTable();
-        newTable.setNumber(2);
-        newTable.setSeats(4);
+        Integer tableId = 7;
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .put("/tables/{tableId}", tableId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(newTable)))
+        mockMvc.perform(post("/tables/deactivate/{tableId}", tableId))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message")
-                        .value("Table with id " + tableId + " was not found."));
+                .andExpect(jsonPath("$.message").value("Table with id " + tableId + " was not found."));
     }
 
     @Test
-    void shouldPartiallyUpdateTable() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void activateTable_whenUserIsAdmin_shouldActivateTable() throws Exception {
+        // given
+        final DiningTable table = new DiningTable();
+        table.setNumber(1);
+        table.setSeats(2);
+        table.setActive(false);
+        tableRepository.save(table);
+        Integer tableId = table.getId();
+
+        // when & then
+        mockMvc.perform(post("/tables/activate/{tableId}", tableId))
+                .andExpect(status().isNoContent());
+
+        Optional<DiningTable> activatedTable = tableRepository.findById(tableId);
+        assertTrue(activatedTable.isPresent());
+        assertTrue(activatedTable.get().isActive());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void activateTable_whenTableNotExists_shouldThrowException() throws Exception {
+        // given
+        Integer tableId = 7;
+
+        // when & then
+        mockMvc.perform(post("/tables/activate/{tableId}", tableId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Table with id " + tableId + " was not found."));
+    }
+
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void updateTable_whenUserIsAdmin_shouldUpdateTable() throws Exception {
         // given
         final DiningTable tableToUpdate = new DiningTable();
         tableToUpdate.setNumber(1);
@@ -262,8 +314,7 @@ public class DiningTableControllerIntegrationTest {
         updatedTable.setNumber(newTable.getNumber());
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .patch("/tables/{tableId}", tableToUpdate.getId())
+        mockMvc.perform(patch("/tables/{tableId}", tableToUpdate.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(newTable)))
                 .andExpect(status().isOk())
@@ -273,7 +324,8 @@ public class DiningTableControllerIntegrationTest {
     }
 
     @Test
-    void partiallyUpdateTable_whenTableNotFoundById_shouldThrowException() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void updateTable_whenTableNotExists_shouldThrowException() throws Exception {
         // given
         final Integer tableId = 7;
 
@@ -282,8 +334,7 @@ public class DiningTableControllerIntegrationTest {
         newTable.setSeats(4);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .patch("/tables/{tableId}", tableId)
+        mockMvc.perform(patch("/tables/{tableId}", tableId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(newTable)))
                 .andExpect(status().isNotFound())
@@ -292,7 +343,8 @@ public class DiningTableControllerIntegrationTest {
     }
 
     @Test
-    void shouldDeleteTable() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void deleteTable_whenUserIsAdmin_shouldDeleteTable() throws Exception {
         // given
         final DiningTable table = new DiningTable();
         table.setNumber(1);
@@ -302,8 +354,7 @@ public class DiningTableControllerIntegrationTest {
         final Integer tableId = table.getId();
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .delete("/tables/{tableId}", tableId))
+        mockMvc.perform(delete("/tables/{tableId}", tableId))
                 .andExpect(status().isNoContent());
 
         Optional<DiningTable> deletedTable = tableRepository.findById(tableId);
@@ -311,20 +362,21 @@ public class DiningTableControllerIntegrationTest {
     }
 
     @Test
-    void whenTableNotExistsById_shouldThrowException() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void deleteTable_whenTableNotExists_shouldThrowException() throws Exception {
         // given
         final Integer tableId = 7;
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .delete("/tables/{tableId}", tableId))
+        mockMvc.perform(delete("/tables/{tableId}", tableId))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
                         .value("Table with " + tableId + " was not found."));
     }
 
     @Test
-    void whenTableHasAssignedReservation_shouldThrowException() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void deleteTable_whenTableHasAssignedReservation_shouldThrowException() throws Exception {
         // given
         final DiningTable table = new DiningTable();
         table.setNumber(1);
@@ -351,8 +403,7 @@ public class DiningTableControllerIntegrationTest {
         reservationRepository.save(reservation);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .delete("/tables/{tableId}", tableId))
+        mockMvc.perform(delete("/tables/{tableId}", tableId))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message")
                         .value("Table with " + tableId
@@ -360,7 +411,64 @@ public class DiningTableControllerIntegrationTest {
     }
 
     @Test
-    void shouldGetListOfFreeTables() throws Exception {
+    @WithMockUser
+    void availableTimes_whenAreReservations_shouldReturnAvailableTimes() throws Exception {
+        // given
+        final DiningTable table = new DiningTable();
+        table.setNumber(1);
+        table.setSeats(2);
+
+        tableRepository.save(table);
+        final Integer tableId = table.getId();
+
+        final User user = new User();
+        user.setLogin("john");
+        user.setEmail("john@mail.com");
+        user.setPassword("secret");
+        user.setPhoneNumber("123456789");
+
+        userRepository.save(user);
+
+        final Reservation reservation = new Reservation();
+        reservation.setReservationDate(LocalDate.now().plusDays(1));
+        reservation.setReservationTime(LocalTime.of(17,0));
+        reservation.setDuration(2);
+        reservation.setDiningTable(table);
+        reservation.setUser(user);
+
+        reservationRepository.save(reservation);
+
+        // when & then
+        mockMvc.perform(get("/tables/{tableId}/available/date/{date}", tableId,
+                        reservation.getReservationDate()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0]").value(ReservationService.OPENING_TIME + " - 17:00"))
+                .andExpect(jsonPath("$[1]").value("19:00 - " + ReservationService.CLOSING_TIME));
+    }
+
+    @Test
+    @WithMockUser
+    void availableTimes_whenNoReservation_shouldReturnFullTime() throws Exception {
+        // given
+        final DiningTable table = new DiningTable();
+        table.setNumber(1);
+        table.setSeats(2);
+
+        tableRepository.save(table);
+        final Integer tableId = table.getId();
+
+        LocalDate date = LocalDate.now().plusDays(1);
+
+        // when & then
+        mockMvc.perform(get("/tables/{tableId}/available/date/{date}", tableId, date))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0]").value(ReservationService.OPENING_TIME + " - "
+                        + ReservationService.CLOSING_TIME));
+    }
+
+    @Test
+    @WithMockUser
+    void availableTables_whenUserIsAuthenticated_shouldGetListOfAvailableTables() throws Exception {
         // given
         final DiningTable table = new DiningTable();
         table.setNumber(1);
@@ -370,8 +478,7 @@ public class DiningTableControllerIntegrationTest {
         freeTable.setNumber(2);
         freeTable.setSeats(4);
 
-        tableRepository.save(table);
-        tableRepository.save(freeTable);
+        tableRepository.saveAll(List.of(table, freeTable));
 
         final User user = new User();
         user.setFirstName("John");
@@ -402,10 +509,10 @@ public class DiningTableControllerIntegrationTest {
         reservationRepository.save(reservation);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/tables/freetables")
+        mockMvc.perform(get("/tables/available")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(newReservation)))
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")     .value(1))
                 .andExpect(jsonPath("$[0].id")      .value(freeTable.getId()))
                 .andExpect(jsonPath("$[0].number")  .value(freeTable.getNumber()))
@@ -413,7 +520,8 @@ public class DiningTableControllerIntegrationTest {
     }
 
     @Test
-    void whenThereAreNoFreeTablesWithMinSeats_shouldThrowException() throws Exception {
+    @WithMockUser
+    void availableTables_whenThereAreNoFreeTablesWithMinSeats_shouldThrowException() throws Exception {
         // given
         final DiningTable table1 = new DiningTable();
         table1.setNumber(1);
@@ -423,8 +531,7 @@ public class DiningTableControllerIntegrationTest {
         table2.setNumber(2);
         table2.setSeats(6);
 
-        tableRepository.save(table1);
-        tableRepository.save(table2);
+        tableRepository.saveAll(List.of(table1, table2));
 
         final User user = new User();
         user.setLogin("john");
@@ -451,12 +558,43 @@ public class DiningTableControllerIntegrationTest {
         newReservation.setUser(user);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/tables/freetables")
+        mockMvc.perform(get("/tables/available")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(newReservation)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value(NO_FREE_TABLES_WAS_FOUND));
+    }
+
+    @Test
+    @WithMockUser
+    void availableTables_whenNoTableWithMinSeats_shouldThrowException() throws Exception {
+        // given
+        final DiningTable table = new DiningTable();
+        table.setNumber(2);
+        table.setSeats(6);
+
+        final User user = new User();
+        user.setLogin("john");
+        user.setEmail("john@mail.com");
+        user.setPassword("secretpassword");
+        user.setPhoneNumber("123-456-789");
+
+        userRepository.save(user);
+
+        final Reservation newReservation = new Reservation();
+        newReservation.setReservationDate(LocalDate.now().plusDays(1));
+        newReservation.setReservationTime(LocalTime.of(17,0));
+        newReservation.setDuration(2);
+        newReservation.setDiningTable(table);
+        newReservation.setUser(user);
+
+        // when & then
+        mockMvc.perform(get("/tables/available")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(newReservation)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value(NO_FREE_TABLES_WAS_FOUND));
+                        .value("There are no tables with the required number of seats ("
+                                + table.getSeats() + ")."));
     }
 }

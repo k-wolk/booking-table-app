@@ -1,5 +1,6 @@
-package com.proinwest.booking_table_app.jwt;
+package com.proinwest.booking_table_app.security.auth;
 
+import com.proinwest.booking_table_app.security.jwt.JwtUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

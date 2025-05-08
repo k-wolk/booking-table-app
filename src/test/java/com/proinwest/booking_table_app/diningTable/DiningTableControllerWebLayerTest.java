@@ -1,65 +1,65 @@
 package com.proinwest.booking_table_app.diningTable;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.proinwest.booking_table_app.jwt.*;
+import com.proinwest.booking_table_app.security.config.AuthEntryPointJwt;
+import com.proinwest.booking_table_app.security.userDetails.CustomUserDetailsService;
+import com.proinwest.booking_table_app.security.jwt.JwtUtils;
 import com.proinwest.booking_table_app.reservation.Reservation;
 import org.instancio.Instancio;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 import java.net.URI;
-import java.util.ArrayList;
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(DiningTableController.class)
-@ExtendWith(MockitoExtension.class)
-@Import(SecurityConfig.class)
+//@ExtendWith(MockitoExtension.class)
+//@Import(SecurityConfig.class)
 class DiningTableControllerWebLayerTest {
     @MockBean
     private DiningTableService tableService;
     @MockBean
     private JwtUtils jwtUtils;
+//    @MockBean
+//    private UserDetailsService userDetailsService;
     @MockBean
     private CustomUserDetailsService customUserDetailsService;
     @MockBean
     private AuthEntryPointJwt authEntryPointJwt;
+    @MockBean
+    private SecurityFilterChain securityFilterChain;
     @Autowired
     private MockMvc mockMvc;
     @Autowired
     private ObjectMapper mapper;
 
     @Test
-    @WithMockUser
-    void shouldGetAllTables() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void getAllTables_whenUserIsAdmin_shouldReturnOk() throws Exception {
         // given
         final DiningTable table1 = Instancio.create(DiningTable.class);
         final DiningTable table2 = Instancio.create(DiningTable.class);
+        table2.setActive(false);
 
-        final List<DiningTable> tablesList = new ArrayList<>();
-        tablesList.add(table1);
-        tablesList.add(table2);
-
-        when(tableService.getAllTables()).thenReturn(tablesList);
+        when(tableService.getAllTables()).thenReturn(List.of(table1, table2));
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/tables")
+        mockMvc.perform(get("/tables")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.size()")     .value(tablesList.size()))
+                .andExpect(jsonPath("$.size()")     .value(2))
                 .andExpect(jsonPath("$[0].id")      .value(table1.getId()))
                 .andExpect(jsonPath("$[0].number")  .value(table1.getNumber()))
                 .andExpect(jsonPath("$[0].seats")   .value(table1.getSeats()))
@@ -69,19 +69,48 @@ class DiningTableControllerWebLayerTest {
     }
 
     @Test
-    @WithMockUser
-    void shouldGetTableById() throws Exception {
-        // given
-        final Integer tableId = 1;
+    @WithMockUser(roles = "USER")
+    void getAllTables_whenUserIsNotAdmin_shouldReturnForbidden() throws Exception {
+        // when & then
+        mockMvc.perform(get("/tables"))
+                .andExpect(status().isForbidden());
+    }
 
+    @Test
+    @WithMockUser
+    void getAllActiveTables_whenUserIsAuthenticated_shouldReturnOk() throws Exception {
+        // given
+        DiningTable table = Instancio.create(DiningTable.class);
+        when(tableService.getAllActiveTables()).thenReturn(List.of(table));
+
+        // when & then
+        mockMvc.perform(get("/tables/getactive"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size()").value(1))
+                .andExpect(jsonPath("$[0].id").value(table.getId()))
+                .andExpect(jsonPath("$[0].number").value(table.getNumber()))
+                .andExpect(jsonPath("$[0].seats").value(table.getSeats()));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void getAllActiveTables_whenUserIsAdmin_shouldReturnForbidden() throws Exception {
+        // when & then
+        mockMvc.perform(get("/tables/getactive"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser
+    void getTable_whenUserIsAuthenticated_shouldReturnOk() throws Exception {
+        // given
         final DiningTable table = Instancio.create(DiningTable.class);
-        table.setId(tableId);
+        Integer tableId = table.getId();
 
         when(tableService.getTable(tableId)).thenReturn(table);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/tables/{tableId}", tableId)
+        mockMvc.perform(get("/tables/{tableId}", tableId)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id")     .value(table.getId()))
@@ -91,7 +120,7 @@ class DiningTableControllerWebLayerTest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    void shouldCreateTable() throws Exception {
+    void createTable_whenUserIsAdmin_shouldReturnCreated() throws Exception {
         // given
         final Integer tableId =  1;
 
@@ -107,8 +136,7 @@ class DiningTableControllerWebLayerTest {
         when(tableService.location(savedTable)).thenReturn(URI.create("/tables/" + tableId));
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .post("/tables")
+        mockMvc.perform(post("/tables")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(table)))
                 .andExpect(status().isCreated())
@@ -122,8 +150,53 @@ class DiningTableControllerWebLayerTest {
     }
 
     @Test
+    @WithMockUser(roles = "USER")
+    void createTable_whenIsNotAdmin_shouldReturnForbidden() throws Exception {
+        // given
+        DiningTable table = Instancio.create(DiningTable.class);
+
+        // when & then
+        mockMvc.perform(post("/tables")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(table)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     @WithMockUser(roles = "ADMIN")
-    void shouldUpdateTable() throws Exception {
+    void deactivateTable_whenUserIsAdmin_shouldReturnNoContent() throws Exception {
+        // when & then
+        mockMvc.perform(post("/tables/deactivate/{tableId}", 1))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @WithMockUser(roles = "USER")
+    void deactivateTable_whenUserIsNotAdmin_shouldReturnForbidden() throws Exception {
+        // when & then
+        mockMvc.perform(post("/tables/deactivate/{tableId}", 1))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void activateTable_whenUserIsAdmin_shouldReturnNoContent() throws Exception {
+        // when & then
+        mockMvc.perform(post("/tables/activate/{tableId}", 1))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @WithMockUser(roles = "USER")
+    void activateTable_whenUserIsNotAdmin_shouldReturnForbidden() throws Exception {
+        // when & then
+        mockMvc.perform(post("/tables/activate/{tableId}", 1))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void updateTable_whenUserIsAdmin_shouldReturnOk() throws Exception {
         // given
         final Integer tableId = 1;
 
@@ -142,10 +215,9 @@ class DiningTableControllerWebLayerTest {
         when(tableService.updateTable(eq(tableId), any(DiningTable.class))).thenReturn(updatedTable);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                .patch("/tables/{tableId}", tableId)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(mapper.writeValueAsString(tableToUpdate)))
+        mockMvc.perform(patch("/tables/{tableId}", tableId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(tableToUpdate)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id")     .value(updatedTable.getId()))
                 .andExpect(jsonPath("$.number") .value(updatedTable.getNumber()))
@@ -155,39 +227,71 @@ class DiningTableControllerWebLayerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
-    void shouldDeleteTable() throws Exception {
+    @WithMockUser(roles = "USER")
+    void updateTable_whenUserIsNotAdmin_shouldReturnForbidden() throws Exception {
         // given
-        final Integer tableId = 1;
+        DiningTable table = Instancio.create(DiningTable.class);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                .delete("/tables/{tableId}", tableId))
-                .andExpect(status().isNoContent());
+        mockMvc.perform(patch("/tables/{tableId}", table.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(table)))
+                .andExpect(status().isForbidden());
+    }
 
-        verify(tableService, times(1)).deleteTable(tableId);
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void deleteTable_whenUserIsAdmin_shouldReturnNoContent() throws Exception {
+        // when & then
+        mockMvc.perform(delete("/tables/{tableId}", 1))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @WithMockUser(roles = "USER")
+    void deleteTable_whenUserIsNotAdmin_shouldReturnForbidden() throws Exception {
+        // when & then
+        mockMvc.perform(delete("/tables/{tableId}", 1))
+                .andExpect(status().isForbidden());
     }
 
     @Test
     @WithMockUser
-    void shouldReturnListOfFreeTables() throws Exception {
+    void availableTimes_whenUserIsAuthenticated_shouldReturnOk() throws Exception {
+        // given
+        Integer tableId = 1;
+        LocalDate date = LocalDate.now().plusDays(1);
+        List<String> availableTimes = List.of("11:00 - 15:00", "17:30 - 23:00");
+
+        when(tableService.whenTableIsAvailable(tableId, date)).thenReturn(availableTimes);
+
+        // when & then
+        mockMvc.perform(get("/tables/{tableId}/date/{date}", tableId, date))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size()").value(availableTimes.size()))
+                .andExpect(jsonPath("$[0]").value("11:00 - 15:00"))
+                .andExpect(jsonPath("$[1]").value("17:30 - 23:00"));
+
+        verify(tableService, times(1)).whenTableIsAvailable(tableId, date);
+    }
+
+    @Test
+    @WithMockUser
+    void availableTables_whenUserIsAuthenticated_shouldReturnListOfFreeTables() throws Exception {
         // given
         final Reservation reservation = Instancio.create(Reservation.class);
 
         final DiningTable table1 = Instancio.create(DiningTable.class);
         final DiningTable table2 = Instancio.create(DiningTable.class);
 
-        final List<DiningTable> freeTables = new ArrayList<>();
-        freeTables.add(table1);
-        freeTables.add(table2);
+        final List<DiningTable> freeTables = List.of(table1, table2);
 
         when(tableService.getAvailableTables(any(Reservation.class))).thenReturn(freeTables);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                .get("/tables/available")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(mapper.writeValueAsString(reservation)))
+        mockMvc.perform(get("/tables/available")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(reservation)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id")      .value(table1.getId()))
                 .andExpect(jsonPath("$[0].number")  .value(table1.getNumber()))

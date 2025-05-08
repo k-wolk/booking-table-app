@@ -3,6 +3,8 @@ package com.proinwest.booking_table_app.reservation;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.proinwest.booking_table_app.diningTable.DiningTable;
 import com.proinwest.booking_table_app.diningTable.DiningTableRepository;
+import com.proinwest.booking_table_app.security.userDetails.CustomUserDetails;
+import com.proinwest.booking_table_app.security.jwt.JwtUtils;
 import com.proinwest.booking_table_app.user.User;
 import com.proinwest.booking_table_app.user.UserRepository;
 import org.junit.jupiter.api.AfterAll;
@@ -11,10 +13,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -25,9 +31,9 @@ import java.util.Optional;
 
 import static com.proinwest.booking_table_app.diningTable.DiningTableService.TABLE_ID_IS_REQUIRED;
 import static com.proinwest.booking_table_app.reservation.ReservationService.*;
-
 import static com.proinwest.booking_table_app.user.UserService.USER_ID_IS_REQUIRED;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -38,8 +44,8 @@ class ReservationControllerIntegrationTest {
     @Container
     @ServiceConnection
     private static final MySQLContainer mySQLContainer = new MySQLContainer<>("mysql:8.4.0");
-    @Autowired
-    private ReservationService reservationService;
+    @MockBean
+    private JwtUtils jwtUtils;
     @Autowired
     private ReservationRepository reservationRepository;
     @Autowired
@@ -67,6 +73,7 @@ class ReservationControllerIntegrationTest {
         user.setEmail("ann@mail.com");
         user.setPhoneNumber("123-456-789");
         user.setPassword("secretpassword");
+        userRepository.save(user);
 
         table = new DiningTable();
         table.setNumber(33);
@@ -85,6 +92,13 @@ class ReservationControllerIntegrationTest {
         mySQLContainer.stop();
     }
 
+    void authenticateAsUser(User user) {
+        CustomUserDetails userDetails = new CustomUserDetails(user);
+        Authentication authentication =
+                new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+    }
+
     @Test
     void connectionEstablished() {
         mySQLContainer.isCreated();
@@ -92,20 +106,19 @@ class ReservationControllerIntegrationTest {
     }
 
     @Test
-    void shouldGetAllReservations() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void getAllReservations_whenUserIsAdmin_shouldReturnAllReservations() throws Exception {
         // given
-        userRepository.save(user);
         tableRepository.save(table);
         reservationRepository.save(reservation);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations"))
+        mockMvc.perform(get("/reservations"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")                 .value(1))
                 .andExpect(jsonPath("$[0].id")                  .value(reservation.getId()))
-                .andExpect(jsonPath("$[0].date")     .value(reservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$[0].time")     .value(reservation.getReservationTime().toString()))
+                .andExpect(jsonPath("$[0].reservationDate")     .value(reservation.getReservationDate().toString()))
+                .andExpect(jsonPath("$[0].reservationTime")     .value(reservation.getReservationTime().toString()))
                 .andExpect(jsonPath("$[0].duration")            .value(reservation.getDuration()))
                 .andExpect(jsonPath("$[0].user.id")             .value(user.getId()))
                 .andExpect(jsonPath("$[0].user.login")          .value(user.getLogin()))
@@ -119,28 +132,27 @@ class ReservationControllerIntegrationTest {
     }
 
     @Test
-    void whenReservationsNotFound_shouldThrowException() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void getAllReservations_whenReservationsNotExists_shouldThrowException() throws Exception {
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations"))
+        mockMvc.perform(get("/reservations"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value(NO_RESERVATIONS_IN_DATABASE));
     }
 
     @Test
-    void shouldGetReservationById() throws Exception {
+    void getReservation_whenUserIsAuthenticated_shouldFetchReservationById() throws Exception {
         // given
-        userRepository.save(user);
+        authenticateAsUser(user);
         tableRepository.save(table);
         reservationRepository.save(reservation);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/{id}", reservation.getId()))
+        mockMvc.perform(get("/reservations/{id}", reservation.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id")                 .value(reservation.getId()))
-                .andExpect(jsonPath("$.date")    .value(reservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$.time")    .value(reservation.getReservationTime().toString()))
+                .andExpect(jsonPath("$.reservationDate")    .value(reservation.getReservationDate().toString()))
+                .andExpect(jsonPath("$.reservationTime")    .value(reservation.getReservationTime().toString()))
                 .andExpect(jsonPath("$.duration")           .value(reservation.getDuration()))
                 .andExpect(jsonPath("$.user.id")            .value(user.getId()))
                 .andExpect(jsonPath("$.user.login")         .value(user.getLogin()))
@@ -154,32 +166,31 @@ class ReservationControllerIntegrationTest {
     }
 
     @Test
-    void whenReservationNotFoundById_shouldThrowException() throws Exception {
+    @WithMockUser
+    void getReservation_whenReservationNotExists_shouldThrowException() throws Exception {
         // given
         final Long id = 111L;
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                .get("/reservations/{id}", id))
+        mockMvc.perform(get("/reservations/{id}", id))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
                         .value("Reservation with id " + id + " was not found."));
     }
 
     @Test
-    void shouldAddReservation() throws Exception {
+    @WithMockUser
+    void createReservation_whenUserIsAuthenticated_shouldAddReservation() throws Exception {
         // given
-        userRepository.save(user);
         tableRepository.save(table);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .post("/reservations")
+        mockMvc.perform(post("/reservations")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(reservation)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.date")    .value(reservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$.time")    .value(reservation.getReservationTime().toString()))
+                .andExpect(jsonPath("$.reservationDate")    .value(reservation.getReservationDate().toString()))
+                .andExpect(jsonPath("$.reservationTime")    .value(reservation.getReservationTime().toString()))
                 .andExpect(jsonPath("$.duration")           .value(reservation.getDuration()))
                 .andExpect(jsonPath("$.user.id")            .value(user.getId()))
                 .andExpect(jsonPath("$.user.login")         .value(user.getLogin()))
@@ -193,7 +204,8 @@ class ReservationControllerIntegrationTest {
     }
 
     @Test
-    void addReservation_whenReservationParamsAreNotValid_shouldReturnErrorsMessage() throws Exception {
+    @WithMockUser
+    void createReservation_whenReservationParamsAreNotValid_shouldReturnErrorsMessage() throws Exception {
         // given
         user.setId(null);
         table.setId(null);
@@ -206,40 +218,38 @@ class ReservationControllerIntegrationTest {
         notValidReservation.setDiningTable(table);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .post("/reservations")
+        mockMvc.perform(post("/reservations")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(notValidReservation)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.user")           .value(USER_ID_IS_REQUIRED))
                 .andExpect(jsonPath("$.diningTable")    .value(TABLE_ID_IS_REQUIRED))
                 .andExpect(jsonPath("$.duration")       .value(FIELD_REQUIRED + DURATION_MESSAGE))
-                .andExpect(jsonPath("$.date").value(FIELD_REQUIRED + DATE_MESSAGE))
-                .andExpect(jsonPath("$.time").value(FIELD_REQUIRED + TIME_MESSAGE));
+                .andExpect(jsonPath("$.reservationDate").value(FIELD_REQUIRED + DATE_MESSAGE))
+                .andExpect(jsonPath("$.reservationTime").value(FIELD_REQUIRED + TIME_MESSAGE));
     }
 
     @Test
-    void addReservation_whenReservationCollide_shouldThrowException() throws Exception {
+    @WithMockUser
+    void createReservation_whenReservationCollide_shouldThrowException() throws Exception {
         // given
-        userRepository.save(user);
         tableRepository.save(table);
         reservationRepository.save(reservation);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .post("/reservations")
+        mockMvc.perform(post("/reservations")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(reservation)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message")
                         .value("Dining table with id " + reservation.getDiningTable().getId()
-                                + " is not available at the time."));
+                                + " is not available at the reservationTime."));
     }
 
     @Test
-    void shouldUpdateReservation() throws Exception {
+    void updateReservation_whenAllParamsProvided_shouldUpdateReservation() throws Exception {
         // given
-        userRepository.save(user);
+        authenticateAsUser(user);
         tableRepository.save(table);
         reservationRepository.save(reservation);
 
@@ -266,14 +276,13 @@ class ReservationControllerIntegrationTest {
         newReservation.setUser(newUser);
 
         // when &  then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .put("/reservations/{id}", reservation.getId())
+        mockMvc.perform(patch("/reservations/{id}", reservation.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(newReservation)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id")                 .value(reservation.getId()))
-                .andExpect(jsonPath("$.date")    .value(newReservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$.time")    .value(newReservation.getReservationTime().toString()))
+                .andExpect(jsonPath("$.reservationDate")    .value(newReservation.getReservationDate().toString()))
+                .andExpect(jsonPath("$.reservationTime")    .value(newReservation.getReservationTime().toString()))
                 .andExpect(jsonPath("$.duration")           .value(newReservation.getDuration()))
                 .andExpect(jsonPath("$.user.id")            .value(user.getId()))
                 .andExpect(jsonPath("$.user.login")         .value(newUser.getLogin()))
@@ -286,54 +295,35 @@ class ReservationControllerIntegrationTest {
                 .andExpect(jsonPath("$.diningTable.seats")  .value(newTable.getSeats()));
     }
 
-
-    @Test
-    void updateReservation_whenReservationNotFoundById_shouldThrowException() throws Exception {
-        // given
-        final Long id = 111L;
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .put("/reservations/{id}", id)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(reservation)))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message")
-                        .value("Reservation with id " + id + " was not found."));
-    }
-
     @Test
     void updateReservation_whenReservationParamsAreNotValid_shouldReturnErrorsMessage() throws Exception {
         // given
-        userRepository.save(user);
+        authenticateAsUser(user);
         tableRepository.save(table);
         reservationRepository.save(reservation);
 
         final User notValidUser = new User();
-        notValidUser.setId(111L);
+        notValidUser.setId(user.getId());
 
         final DiningTable notValidTable = new DiningTable();
         notValidTable.setId(222);
 
         final Reservation notValidReservation = new Reservation();
-        notValidReservation.setReservationDate(LocalDate.now().minusDays(1));
+        notValidReservation.setReservationDate(LocalDate.now().minusDays(2));
         notValidReservation.setReservationTime(CLOSING_TIME.plusHours(1));
         notValidReservation.setDuration(MAX_DURATION + 1);
         notValidReservation.setUser(notValidUser);
         notValidReservation.setDiningTable(notValidTable);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .put("/reservations/{id}", reservation.getId())
+        mockMvc.perform(patch("/reservations/{id}", reservation.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(notValidReservation)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.duration")       .value(DURATION_MESSAGE))
-                .andExpect(jsonPath("$.date").value(DATE_MESSAGE))
-                .andExpect(jsonPath("$.time")
-                        .value(OPENING_HOURS_MESSAGE + " Try change reservation time and/or duration."))
-                .andExpect(jsonPath("$.user")
-                        .value("User with id " + notValidUser.getId() + " was not found."))
+                .andExpect(jsonPath("$.reservationDate").value(DATE_MESSAGE))
+                .andExpect(jsonPath("$.reservationTime")
+                        .value(OPENING_HOURS_MESSAGE + " Try change reservation reservationTime and/or duration."))
                 .andExpect(jsonPath("$.diningTable")
                         .value("Dining table with id " + notValidTable.getId() + " was not found."));
     }
@@ -341,6 +331,8 @@ class ReservationControllerIntegrationTest {
     @Test
     void updateReservation_whenReservationCollide_shouldThrowException() throws Exception {
         // given
+        authenticateAsUser(user);
+
         final Reservation reservation2 = new Reservation();
         reservation2.setReservationDate(reservation.getReservationDate());
         reservation2.setReservationTime(reservation.getReservationTime().plusHours(reservation.getDuration()));
@@ -356,24 +348,23 @@ class ReservationControllerIntegrationTest {
         newReservation.setUser(user);
         newReservation.setDiningTable(table);
 
-        userRepository.save(user);
         tableRepository.save(table);
         reservationRepository.save(reservation);
         reservationRepository.save(reservation2);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .put("/reservations/{id}", reservation.getId())
+        mockMvc.perform(patch("/reservations/{id}", reservation.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(newReservation)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message")
                         .value("Dining table with id " + reservation.getDiningTable().getId()
-                                + " is not available at the time."));
+                                + " is not available at the reservationTime."));
     }
 
+
     @Test
-    void shouldPartiallyUpdateReservation() throws Exception {
+    void updateReservation_whenSomeParamsProvided_shouldPartiallyUpdateReservation() throws Exception {
         // given
         final User newUser = new User();
         newUser.setLogin("ann");
@@ -382,6 +373,8 @@ class ReservationControllerIntegrationTest {
         newUser.setEmail("smith@mail.pl");
         newUser.setPhoneNumber("987 654-321");
         newUser.setPassword("qwerty123456");
+        userRepository.save(newUser);
+        authenticateAsUser(newUser);
 
         final DiningTable newTable = new DiningTable();
         newTable.setNumber(table.getNumber() + 1);
@@ -393,21 +386,18 @@ class ReservationControllerIntegrationTest {
         newReservation.setDiningTable(newTable);
         newReservation.setUser(newUser);
 
-        userRepository.save(user);
-        userRepository.save(newUser);
         tableRepository.save(table);
         tableRepository.save(newTable);
         reservationRepository.save(reservation);
 
         // when &  then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .patch("/reservations/{id}", reservation.getId())
+        mockMvc.perform(patch("/reservations/{id}", reservation.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(newReservation)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id")                 .value(reservation.getId()))
-                .andExpect(jsonPath("$.date")    .value(newReservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$.time")    .value(newReservation.getReservationTime().toString()))
+                .andExpect(jsonPath("$.reservationDate")    .value(newReservation.getReservationDate().toString()))
+                .andExpect(jsonPath("$.reservationTime")    .value(newReservation.getReservationTime().toString()))
                 .andExpect(jsonPath("$.duration")           .value(reservation.getDuration()))
                 .andExpect(jsonPath("$.user.id")            .value(newUser.getId()))
                 .andExpect(jsonPath("$.user.login")         .value(newUser.getLogin()))
@@ -421,100 +411,15 @@ class ReservationControllerIntegrationTest {
     }
 
     @Test
-    void partiallyUpdateReservation_whenReservationNotFoundById_shouldThrowException() throws Exception {
+    void cancelReservation_whenReservationExists_shouldDeleteReservation() throws Exception {
         // given
-        final Long id = 111L;
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .patch("/reservations/{id}", id)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(reservation)))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message").value("Reservation with id " + id + " was not found."));
-    }
-
-    @Test
-    void partiallyUpdateReservation_whenReservationParamsAreNotValid_shouldReturnErrorsMessage() throws Exception {
-        // given
-        userRepository.save(user);
-        tableRepository.save(table);
-        reservationRepository.save(reservation);
-
-        final User notValidUser = new User();
-        notValidUser.setId(111L);
-
-        final DiningTable notValidTable = new DiningTable();
-        notValidTable.setId(222);
-
-        final Reservation notValidReservation = new Reservation();
-        notValidReservation.setReservationDate(LocalDate.now().minusDays(1));
-        notValidReservation.setReservationTime(CLOSING_TIME.plusHours(1));
-        notValidReservation.setDuration(MAX_DURATION + 1);
-        notValidReservation.setUser(notValidUser);
-        notValidReservation.setDiningTable(notValidTable);
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .patch("/reservations/{id}", reservation.getId())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(notValidReservation)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.duration")       .value(DURATION_MESSAGE))
-                .andExpect(jsonPath("$.date").value(DATE_MESSAGE))
-                .andExpect(jsonPath("$.time")
-                        .value(OPENING_HOURS_MESSAGE + " Try change reservation time and/or duration."))
-                .andExpect(jsonPath("$.user")
-                        .value("User with id " + notValidUser.getId() + " was not found."))
-                .andExpect(jsonPath("$.diningTable")
-                        .value("Dining table with id " + notValidTable.getId() + " was not found."));
-    }
-
-    @Test
-    void partiallyUpdateReservation_whenReservationCollide_shouldThrowException() throws Exception {
-        // given
-        final Reservation reservation2 = new Reservation();
-        reservation2.setReservationDate(reservation.getReservationDate());
-        reservation2.setReservationTime(reservation.getReservationTime().plusHours(reservation.getDuration()));
-        reservation2.setDuration(reservation.getDuration());
-        reservation2.setUser(user);
-        reservation2.setDiningTable(table);
-
-        final Reservation newReservation = new Reservation();
-        newReservation.setId(null);
-        newReservation.setReservationDate(reservation.getReservationDate());
-        newReservation.setReservationTime(reservation.getReservationTime().plusHours(reservation.getDuration()/2));
-        newReservation.setDuration(reservation.getDuration());
-        newReservation.setUser(user);
-        newReservation.setDiningTable(table);
-
-        userRepository.save(user);
-        tableRepository.save(table);
-        reservationRepository.save(reservation);
-        reservationRepository.save(reservation2);
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .patch("/reservations/{id}", reservation.getId())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(newReservation)))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.message")
-                        .value("Dining table with id " + reservation.getDiningTable().getId()
-                                + " is not available at the time."));
-    }
-
-    @Test
-    void shouldDeleteReservation() throws Exception {
-        // given
-        userRepository.save(user);
+        authenticateAsUser(user);
         tableRepository.save(table);
         reservationRepository.save(reservation);
         final Long id = reservation.getId();
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .delete("/reservations/{id}", id))
+        mockMvc.perform(delete("/reservations/{id}", id))
                 .andExpect(status().isNoContent());
 
         final Optional<Reservation> deletedById = reservationRepository.findById(id);
@@ -522,31 +427,30 @@ class ReservationControllerIntegrationTest {
     }
 
     @Test
-    void deleteReservation_whenReservationNotFoundById_shouldThrowException() throws Exception {
+    @WithMockUser
+    void cancelReservation_whenReservationNotExists_shouldThrowException() throws Exception {
         // given
         final Long id = 111L;
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .delete("/reservations/{id}", id))
+        mockMvc.perform(delete("/reservations/{id}", id))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Reservation with id " + id + " was not found."));
     }
 
     @Test
-    void shouldFindReservationByDate() throws Exception {
+    void getUserReservations_whenUserIsAuthenticated_shouldReturnUserReservation() throws Exception {
         // given
-        userRepository.save(user);
+        authenticateAsUser(user);
         tableRepository.save(table);
         reservationRepository.save(reservation);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/search/date/{date}", reservation.getReservationDate()))
+        mockMvc.perform(get("/reservations/user/{userId}", user.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id")                  .value(reservation.getId()))
-                .andExpect(jsonPath("$[0].date")     .value(reservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$[0].time")     .value(reservation.getReservationTime().toString()))
+                .andExpect(jsonPath("$[0].reservationDate")     .value(reservation.getReservationDate().toString()))
+                .andExpect(jsonPath("$[0].reservationTime")     .value(reservation.getReservationTime().toString()))
                 .andExpect(jsonPath("$[0].duration")            .value(reservation.getDuration()))
                 .andExpect(jsonPath("$[0].user.id")             .value(reservation.getUser().getId()))
                 .andExpect(jsonPath("$[0].user.login")          .value(reservation.getUser().getLogin()))
@@ -560,326 +464,32 @@ class ReservationControllerIntegrationTest {
     }
 
     @Test
-    void whenReservationNotFoundByDate_shouldThrowException() throws Exception {
+    void getUserReservations_whenReservationNotExists_shouldThrowException() throws Exception {
         // given
-        final LocalDate date = reservation.getReservationDate();
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/search/date/{date}", date))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message")
-                        .value("There is no reservation on date " + date + "."));
-    }
-
-    @Test
-    void shouldFindReservationByUserId() throws Exception {
-        // given
-        userRepository.save(user);
-        tableRepository.save(table);
-        reservationRepository.save(reservation);
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/search/userid/{id}", user.getId()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id")                  .value(reservation.getId()))
-                .andExpect(jsonPath("$[0].date")     .value(reservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$[0].time")     .value(reservation.getReservationTime().toString()))
-                .andExpect(jsonPath("$[0].duration")            .value(reservation.getDuration()))
-                .andExpect(jsonPath("$[0].user.id")             .value(reservation.getUser().getId()))
-                .andExpect(jsonPath("$[0].user.login")          .value(reservation.getUser().getLogin()))
-                .andExpect(jsonPath("$[0].user.firstName")      .value(reservation.getUser().getFirstName()))
-                .andExpect(jsonPath("$[0].user.lastName")       .value(reservation.getUser().getLastName()))
-                .andExpect(jsonPath("$[0].user.email")          .value(reservation.getUser().getEmail()))
-                .andExpect(jsonPath("$[0].user.phoneNumber")    .value(reservation.getUser().getPhoneNumber()))
-                .andExpect(jsonPath("$[0].diningTable.id")      .value(reservation.getDiningTable().getId()))
-                .andExpect(jsonPath("$[0].diningTable.number")  .value(reservation.getDiningTable().getNumber()))
-                .andExpect(jsonPath("$[0].diningTable.seats")   .value(reservation.getDiningTable().getSeats()));
-    }
-
-    @Test
-    void whenReservationNotFoundByUserId_shouldThrowException() throws Exception {
-        // given
-        userRepository.save(user);
+        authenticateAsUser(user);
         final Long userId = user.getId();
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/search/userid/{userId}", userId))
+        mockMvc.perform(get("/reservations/user/{userId}", userId))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("There is no reservation booked by user with id: " + userId + "."));
+                        .value("There is no reservation assigned to user with id: " + userId));
     }
 
     @Test
-    void shouldFindReservationByUserLogin() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void findAllByDateAndTableId_whenReservationExists_shouldReturnReservation() throws Exception {
         // given
-        userRepository.save(user);
         tableRepository.save(table);
         reservationRepository.save(reservation);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/search/login/{login}", user.getLogin()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id")                  .value(reservation.getId()))
-                .andExpect(jsonPath("$[0].date")     .value(reservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$[0].time")     .value(reservation.getReservationTime().toString()))
-                .andExpect(jsonPath("$[0].duration")            .value(reservation.getDuration()))
-                .andExpect(jsonPath("$[0].user.id")             .value(reservation.getUser().getId()))
-                .andExpect(jsonPath("$[0].user.login")          .value(reservation.getUser().getLogin()))
-                .andExpect(jsonPath("$[0].user.firstName")      .value(reservation.getUser().getFirstName()))
-                .andExpect(jsonPath("$[0].user.lastName")       .value(reservation.getUser().getLastName()))
-                .andExpect(jsonPath("$[0].user.email")          .value(reservation.getUser().getEmail()))
-                .andExpect(jsonPath("$[0].user.phoneNumber")    .value(reservation.getUser().getPhoneNumber()))
-                .andExpect(jsonPath("$[0].diningTable.id")      .value(reservation.getDiningTable().getId()))
-                .andExpect(jsonPath("$[0].diningTable.number")  .value(reservation.getDiningTable().getNumber()))
-                .andExpect(jsonPath("$[0].diningTable.seats")   .value(reservation.getDiningTable().getSeats()));
-    }
-
-    @Test
-    void whenReservationNotFoundByUserLogin_shouldThrowException() throws Exception {
-        // given
-        userRepository.save(user);
-        final String login = user.getLogin();
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/search/login/{login}", login))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message")
-                        .value("There is no reservation with user's login containing: " + login));
-    }
-
-    @Test
-    void shouldFindReservationByUserFirstName() throws Exception {
-        // given
-        userRepository.save(user);
-        tableRepository.save(table);
-        reservationRepository.save(reservation);
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/search/firstname/{firstName}", user.getFirstName()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id")                  .value(reservation.getId()))
-                .andExpect(jsonPath("$[0].date")     .value(reservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$[0].time")     .value(reservation.getReservationTime().toString()))
-                .andExpect(jsonPath("$[0].duration")            .value(reservation.getDuration()))
-                .andExpect(jsonPath("$[0].user.id")             .value(reservation.getUser().getId()))
-                .andExpect(jsonPath("$[0].user.login")          .value(reservation.getUser().getLogin()))
-                .andExpect(jsonPath("$[0].user.firstName")      .value(reservation.getUser().getFirstName()))
-                .andExpect(jsonPath("$[0].user.lastName")       .value(reservation.getUser().getLastName()))
-                .andExpect(jsonPath("$[0].user.email")          .value(reservation.getUser().getEmail()))
-                .andExpect(jsonPath("$[0].user.phoneNumber")    .value(reservation.getUser().getPhoneNumber()))
-                .andExpect(jsonPath("$[0].diningTable.id")      .value(reservation.getDiningTable().getId()))
-                .andExpect(jsonPath("$[0].diningTable.number")  .value(reservation.getDiningTable().getNumber()))
-                .andExpect(jsonPath("$[0].diningTable.seats")   .value(reservation.getDiningTable().getSeats()));
-    }
-
-    @Test
-    void whenReservationNotFoundByUserFirstName_shouldThrowException() throws Exception {
-        // given
-        userRepository.save(user);
-        final String firstName = user.getFirstName();
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/search/firstname/{firstName}", firstName))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message")
-                        .value("There is no reservation with user's first name containing: " + firstName));
-    }
-
-    @Test
-    void shouldFindReservationByUserLastName() throws Exception {
-        // given
-        userRepository.save(user);
-        tableRepository.save(table);
-        reservationRepository.save(reservation);
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/search/lastname/{lastName}", user.getLastName()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id")                  .value(reservation.getId()))
-                .andExpect(jsonPath("$[0].date")     .value(reservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$[0].time")     .value(reservation.getReservationTime().toString()))
-                .andExpect(jsonPath("$[0].duration")            .value(reservation.getDuration()))
-                .andExpect(jsonPath("$[0].user.id")             .value(reservation.getUser().getId()))
-                .andExpect(jsonPath("$[0].user.login")          .value(reservation.getUser().getLogin()))
-                .andExpect(jsonPath("$[0].user.firstName")      .value(reservation.getUser().getFirstName()))
-                .andExpect(jsonPath("$[0].user.lastName")       .value(reservation.getUser().getLastName()))
-                .andExpect(jsonPath("$[0].user.email")          .value(reservation.getUser().getEmail()))
-                .andExpect(jsonPath("$[0].user.phoneNumber")    .value(reservation.getUser().getPhoneNumber()))
-                .andExpect(jsonPath("$[0].diningTable.id")      .value(reservation.getDiningTable().getId()))
-                .andExpect(jsonPath("$[0].diningTable.number")  .value(reservation.getDiningTable().getNumber()))
-                .andExpect(jsonPath("$[0].diningTable.seats")   .value(reservation.getDiningTable().getSeats()));
-    }
-
-    @Test
-    void whenReservationNotFoundByUserLastName_shouldThrowException() throws Exception {
-        // given
-        userRepository.save(user);
-        final String lastName = user.getLastName();
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/search/lastname/{lastName}", lastName))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message")
-                        .value("There is no reservation with user's last name containing: " + lastName));
-    }
-
-    @Test
-    void shouldFindReservationByUserEmail() throws Exception {
-        // given
-        userRepository.save(user);
-        tableRepository.save(table);
-        reservationRepository.save(reservation);
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/search/email/{email}", user.getEmail()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id")                  .value(reservation.getId()))
-                .andExpect(jsonPath("$[0].date")     .value(reservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$[0].time")     .value(reservation.getReservationTime().toString()))
-                .andExpect(jsonPath("$[0].duration")            .value(reservation.getDuration()))
-                .andExpect(jsonPath("$[0].user.id")             .value(reservation.getUser().getId()))
-                .andExpect(jsonPath("$[0].user.login")          .value(reservation.getUser().getLogin()))
-                .andExpect(jsonPath("$[0].user.firstName")      .value(reservation.getUser().getFirstName()))
-                .andExpect(jsonPath("$[0].user.lastName")       .value(reservation.getUser().getLastName()))
-                .andExpect(jsonPath("$[0].user.email")          .value(reservation.getUser().getEmail()))
-                .andExpect(jsonPath("$[0].user.phoneNumber")    .value(reservation.getUser().getPhoneNumber()))
-                .andExpect(jsonPath("$[0].diningTable.id")      .value(reservation.getDiningTable().getId()))
-                .andExpect(jsonPath("$[0].diningTable.number")  .value(reservation.getDiningTable().getNumber()))
-                .andExpect(jsonPath("$[0].diningTable.seats")   .value(reservation.getDiningTable().getSeats()));
-    }
-
-    @Test
-    void whenReservationNotFoundByUserEmail_shouldThrowException() throws Exception {
-        // given
-        userRepository.save(user);
-        final String email = user.getEmail();
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/search/email/{email}", email))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message")
-                        .value("There is no reservation with user's email containing: " + email));
-    }
-
-    @Test
-    void shouldFindReservationByUserPhoneNumber() throws Exception {
-        // given
-        userRepository.save(user);
-        tableRepository.save(table);
-        reservationRepository.save(reservation);
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/search/phonenumber/{phoneNumber}", user.getPhoneNumber()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id")                  .value(reservation.getId()))
-                .andExpect(jsonPath("$[0].date")     .value(reservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$[0].time")     .value(reservation.getReservationTime().toString()))
-                .andExpect(jsonPath("$[0].duration")            .value(reservation.getDuration()))
-                .andExpect(jsonPath("$[0].user.id")             .value(reservation.getUser().getId()))
-                .andExpect(jsonPath("$[0].user.login")          .value(reservation.getUser().getLogin()))
-                .andExpect(jsonPath("$[0].user.firstName")      .value(reservation.getUser().getFirstName()))
-                .andExpect(jsonPath("$[0].user.lastName")       .value(reservation.getUser().getLastName()))
-                .andExpect(jsonPath("$[0].user.email")          .value(reservation.getUser().getEmail()))
-                .andExpect(jsonPath("$[0].user.phoneNumber")    .value(reservation.getUser().getPhoneNumber()))
-                .andExpect(jsonPath("$[0].diningTable.id")      .value(reservation.getDiningTable().getId()))
-                .andExpect(jsonPath("$[0].diningTable.number")  .value(reservation.getDiningTable().getNumber()))
-                .andExpect(jsonPath("$[0].diningTable.seats")   .value(reservation.getDiningTable().getSeats()));
-    }
-
-    @Test
-    void whenReservationNotFoundByUserPhoneNumber_shouldThrowException() throws Exception {
-        // given
-        userRepository.save(user);
-        final String phoneNumber = user.getPhoneNumber();
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/search/phonenumber/{phoneNumber}", phoneNumber))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message")
-                        .value("There is no reservation with user's phone number containing: " + phoneNumber));
-    }
-
-    @Test
-    void shouldFindReservationByTableId() throws Exception {
-        // given
-        userRepository.save(user);
-        tableRepository.save(table);
-        reservationRepository.save(reservation);
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/search/table/{tableId}", table.getId()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id")                  .value(reservation.getId()))
-                .andExpect(jsonPath("$[0].date")     .value(reservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$[0].time")     .value(reservation.getReservationTime().toString()))
-                .andExpect(jsonPath("$[0].duration")            .value(reservation.getDuration()))
-                .andExpect(jsonPath("$[0].user.id")             .value(reservation.getUser().getId()))
-                .andExpect(jsonPath("$[0].user.login")          .value(reservation.getUser().getLogin()))
-                .andExpect(jsonPath("$[0].user.firstName")      .value(reservation.getUser().getFirstName()))
-                .andExpect(jsonPath("$[0].user.lastName")       .value(reservation.getUser().getLastName()))
-                .andExpect(jsonPath("$[0].user.email")          .value(reservation.getUser().getEmail()))
-                .andExpect(jsonPath("$[0].user.phoneNumber")    .value(reservation.getUser().getPhoneNumber()))
-                .andExpect(jsonPath("$[0].diningTable.id")      .value(reservation.getDiningTable().getId()))
-                .andExpect(jsonPath("$[0].diningTable.number")  .value(reservation.getDiningTable().getNumber()))
-                .andExpect(jsonPath("$[0].diningTable.seats")   .value(reservation.getDiningTable().getSeats()));
-    }
-
-    @Test
-    void findAllByTableId_whenTableNotExists_shouldThrowException() throws Exception {
-        // given
-        final Integer tableId = 111;
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/search/table/{tableId}", tableId))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message")
-                        .value("Dining table with id " + tableId + " was not found."));
-    }
-
-    @Test
-    void whenReservationNotFoundByTableId_shouldThrowException() throws Exception {
-        // given
-        tableRepository.save(table);
-        final Integer tableId = table.getId();
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/search/table/{tableId}", tableId))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message")
-                        .value("There is no reservation with table id: " + tableId));
-    }
-
-    @Test
-    void shouldFindReservationByDateAndTableId() throws Exception {
-        // given
-        userRepository.save(user);
-        tableRepository.save(table);
-        reservationRepository.save(reservation);
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/search/date/{date}/table/{tableId}",
+        mockMvc.perform(get("/reservations/date/{date}/table/{tableId}",
                                 reservation.getReservationDate(), table.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id")                  .value(reservation.getId()))
-                .andExpect(jsonPath("$[0].date")     .value(reservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$[0].time")     .value(reservation.getReservationTime().toString()))
+                .andExpect(jsonPath("$[0].reservationDate")     .value(reservation.getReservationDate().toString()))
+                .andExpect(jsonPath("$[0].reservationTime")     .value(reservation.getReservationTime().toString()))
                 .andExpect(jsonPath("$[0].duration")            .value(reservation.getDuration()))
                 .andExpect(jsonPath("$[0].user.id")             .value(reservation.getUser().getId()))
                 .andExpect(jsonPath("$[0].user.login")          .value(reservation.getUser().getLogin()))
@@ -893,49 +503,48 @@ class ReservationControllerIntegrationTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void findAllByDateAndTableId_whenTableNotExists_shouldThrowException() throws Exception {
         // given
         final LocalDate date = LocalDate.now();
         final Integer tableId = 111;
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/search/date/{date}/table/{tableId}", date, tableId))
+        mockMvc.perform(get("/reservations/date/{date}/table/{tableId}", date, tableId))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("Dining table with id " + tableId + " was not found."));
+                        .value("Table with id " + tableId + " was not found."));
     }
 
     @Test
-    void whenReservationNotFoundByDateAndTableId_shouldThrowException() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void findAllByDateAndTableId_whenReservationNotExists_shouldThrowException() throws Exception {
         // given
         tableRepository.save(table);
         final Integer tableId = table.getId();
         final LocalDate date = LocalDate.now();
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/search/date/{date}/table/{tableId}", date, tableId))
+        mockMvc.perform(get("/reservations/date/{date}/table/{tableId}", date, tableId))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("There is no reservation on date " + date + " at table with id " + tableId + "."));
+                        .value("There is no reservation on reservationDate " + date + " at table with id " + tableId + "."));
     }
 
     @Test
-    void shouldFindReservationByDateAndTime() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void findAllByDate_whenReservationExists_shouldReturnReservation() throws Exception {
         // given
-        userRepository.save(user);
         tableRepository.save(table);
         reservationRepository.save(reservation);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/search/date/{date}/time/{time}",
-                                reservation.getReservationDate(), reservation.getReservationTime()))
+        mockMvc.perform(get("/reservations/date/{date}", reservation.getReservationDate()))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size()")                 .value(1))
                 .andExpect(jsonPath("$[0].id")                  .value(reservation.getId()))
-                .andExpect(jsonPath("$[0].date")     .value(reservation.getReservationDate().toString()))
-                .andExpect(jsonPath("$[0].time")     .value(reservation.getReservationTime().toString()))
+                .andExpect(jsonPath("$[0].reservationDate")     .value(reservation.getReservationDate().toString()))
+                .andExpect(jsonPath("$[0].reservationTime")     .value(reservation.getReservationTime().toString()))
                 .andExpect(jsonPath("$[0].duration")            .value(reservation.getDuration()))
                 .andExpect(jsonPath("$[0].user.id")             .value(reservation.getUser().getId()))
                 .andExpect(jsonPath("$[0].user.login")          .value(reservation.getUser().getLogin()))
@@ -949,17 +558,77 @@ class ReservationControllerIntegrationTest {
     }
 
     @Test
-    void whenReservationNotFoundByDateAndTime_shouldThrowException() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void findAllByDate_whenReservationNotExists_shouldThrowException() throws Exception {
         // given
         final LocalDate date = LocalDate.now().plusDays(1);
         final LocalTime time = LocalTime.of(17,0);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/search/date/{date}/time/{time}", date, time))
+        mockMvc.perform(get("/reservations/date/{date}", date))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("There is no reservation on date " + date + " and time " + time + "."));
+                        .value("There is no reservation on reservationDate " + date + "."));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void searchReservations_whenReservationExists_shouldThrowException() throws Exception {
+        // given
+        String searchQuery = "John";
+        tableRepository.save(table);
+        reservationRepository.save(reservation);
+
+        // when & then
+        mockMvc.perform(get("/reservations/search")
+                        .param("query", searchQuery)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size()") .value(1))
+                .andExpect(jsonPath("$[0].id")  .value(reservation.getId()));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void searchReservations_whenQueryIsBlank_shouldThrowException() throws Exception {
+        // given
+        String searchQuery = " ";
+
+        // when & then
+        mockMvc.perform(get("/reservations/search")
+                        .param("query", searchQuery)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(INPUT_IS_MISSING));
+    }
+
+    @Test
+    @WithMockUser
+    void searchReservations_whenLoggedAsUser_shouldReturnForbidden() throws Exception {
+        // given
+        String searchQuery = "John";
+
+        mockMvc.perform(get("/reservations/search")
+                        .param("query", searchQuery)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void searchReservation_whenReservationNotFound_shouldThrowException() throws Exception {
+        // given
+        tableRepository.save(table);
+        reservationRepository.save(reservation);
+        String searchQuery = "query";
+
+        // when & then
+        mockMvc.perform(get("/reservations/search")
+                .param("query", searchQuery)
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message")
+                        .value("No reservation was found on query: " + searchQuery));
     }
 
 }

@@ -1,4 +1,4 @@
-package com.proinwest.booking_table_app.exceptions;
+package com.proinwest.booking_table_app.exceptions.types;
 
 import lombok.Getter;
 

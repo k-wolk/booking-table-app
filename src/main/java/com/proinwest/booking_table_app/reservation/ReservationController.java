@@ -1,7 +1,7 @@
 package com.proinwest.booking_table_app.reservation;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
-import com.proinwest.booking_table_app.exceptions.NotFoundException;
+import com.proinwest.booking_table_app.exceptions.types.NotFoundException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -32,6 +32,7 @@ public class ReservationController {
     }
 
     @PostMapping()
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public ResponseEntity<ReservationDTO> createReservation(@RequestBody Reservation reservation) {
         ReservationDTO savedReservation = reservationService.createReservation(reservation);
         return ResponseEntity.created(reservationService.location(reservation))
@@ -63,7 +64,7 @@ public class ReservationController {
                                                                         @PathVariable Integer tableId) {
         List<ReservationDTO> allByDateAndTableId = reservationService.getAllByDateAndTableId(date, tableId);
         if (allByDateAndTableId.isEmpty())
-            throw new NotFoundException("There is no reservation on date " + date + " at table with id " + tableId + ".");
+            throw new NotFoundException("There is no reservation on reservationDate " + date + " at table with id " + tableId + ".");
         return ResponseEntity.ok(allByDateAndTableId);
     }
 

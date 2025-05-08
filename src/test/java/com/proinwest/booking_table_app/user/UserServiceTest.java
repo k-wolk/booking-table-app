@@ -1,7 +1,7 @@
 package com.proinwest.booking_table_app.user;
 
-import com.proinwest.booking_table_app.exceptions.InvalidInputException;
-import com.proinwest.booking_table_app.exceptions.NotFoundException;
+import com.proinwest.booking_table_app.exceptions.types.InvalidInputException;
+import com.proinwest.booking_table_app.exceptions.types.NotFoundException;
 import com.proinwest.booking_table_app.reservation.ReservationService;
 import org.instancio.Instancio;
 import org.junit.jupiter.api.Test;

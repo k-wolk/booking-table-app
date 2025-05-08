@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -17,9 +18,16 @@ public class DiningTableController {
     }
 
     @GetMapping()
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<DiningTable>> getAllTables() {
-        // todo: tutaj dodać sprawdzanie roli. Utworzyc nową klasę sprawdzającą w pakiecie security
         List<DiningTable> allTables = tableService.getAllTables();
+        return ResponseEntity.ok(allTables);
+    }
+
+    @GetMapping("/getactive")
+//    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<List<DiningTable>> getAllActiveTables() {
+        List<DiningTable> allTables = tableService.getAllActiveTables();
         return ResponseEntity.ok(allTables);
     }
 
@@ -65,16 +73,16 @@ public class DiningTableController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/{tableId}/available")
-    public ResponseEntity<List<String>> availableTimes(@PathVariable Integer tableId,
-                                                       @RequestBody Reservation reservation) {
-        List<String> availableTimes = tableService.whenTableIsAvailable(tableId, reservation);
+    @GetMapping("/{tableId}/date/{date}")
+    public ResponseEntity<List<String>> availableHours(@PathVariable Integer tableId,
+                                                       @PathVariable LocalDate date) {
+        List<String> availableTimes = tableService.whenTableIsAvailable(tableId, date);
         return ResponseEntity.ok(availableTimes);
     }
 
     @GetMapping("/available")
-    public ResponseEntity<List<DiningTable>> freeTables(@RequestBody Reservation reservation) {
-        List<DiningTable> freeTables =  tableService.getAvailableTables(reservation);
-        return ResponseEntity.ok(freeTables);
+    public ResponseEntity<List<DiningTable>> availableTables(@RequestBody Reservation reservation) {
+        List<DiningTable> availableTables =  tableService.getAvailableTables(reservation);
+        return ResponseEntity.ok(availableTables);
     }
 }

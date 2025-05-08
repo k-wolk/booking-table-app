@@ -1,8 +1,8 @@
 package com.proinwest.booking_table_app.reservation;
 
 import com.proinwest.booking_table_app.diningTable.DiningTableService;
-import com.proinwest.booking_table_app.exceptions.NotFoundException;
-import com.proinwest.booking_table_app.exceptions.ValidationException;
+import com.proinwest.booking_table_app.exceptions.types.NotFoundException;
+import com.proinwest.booking_table_app.exceptions.types.ValidationException;
 import com.proinwest.booking_table_app.user.UserDTO;
 import com.proinwest.booking_table_app.user.UserService;
 import org.instancio.Instancio;
@@ -434,7 +434,7 @@ class ReservationServiceTest {
         final Reservation reservation = Instancio.create(Reservation.class);
 
         final Map<String, String> validationMessages = new HashMap<>();
-        validationMessages.put("date", DATE_MESSAGE);
+        validationMessages.put("reservationDate", DATE_MESSAGE);
 
         when(reservationValidator.validateDateTimeDurationAndSeats(reservation)).thenReturn(validationMessages);
 

@@ -1,4 +1,4 @@
-package com.proinwest.booking_table_app.jwt;
+package com.proinwest.booking_table_app.security.jwt;
 
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;

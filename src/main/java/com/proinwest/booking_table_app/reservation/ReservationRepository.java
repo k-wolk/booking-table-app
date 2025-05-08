@@ -19,8 +19,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
         return findAllByDiningTableId(tableId);
     }
 
-//    @Query(value = "SELECT * FROM reservation r WHERE r.reservation_date = :date", nativeQuery = true)
-//    List<Reservation> findAllByDate(LocalDate date);
+//    @Query(value = "SELECT * FROM reservation r WHERE r.reservation_date = :reservationDate", nativeQuery = true)
+//    List<Reservation> findAllByDate(LocalDate reservationDate);
 
     @Query(value = "SELECT r.* FROM reservation r " +
             "JOIN user u ON r.user_id = u.id " +

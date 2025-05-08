@@ -2,10 +2,10 @@ package com.proinwest.booking_table_app.reservation;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.proinwest.booking_table_app.diningTable.DiningTable;
-import com.proinwest.booking_table_app.jwt.AuthEntryPointJwt;
-import com.proinwest.booking_table_app.jwt.CustomUserDetailsService;
-import com.proinwest.booking_table_app.jwt.JwtUtils;
-import com.proinwest.booking_table_app.jwt.SecurityConfig;
+import com.proinwest.booking_table_app.security.config.AuthEntryPointJwt;
+import com.proinwest.booking_table_app.security.userDetails.CustomUserDetailsService;
+import com.proinwest.booking_table_app.security.jwt.JwtUtils;
+import com.proinwest.booking_table_app.security.config.SecurityConfig;
 import com.proinwest.booking_table_app.user.User;
 import com.proinwest.booking_table_app.user.UserDTO;
 import org.instancio.Instancio;
@@ -109,8 +109,8 @@ class ReservationControllerWebLayerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")                 .value(1))
                 .andExpect(jsonPath("$[0].id")                  .value(reservationDTO.id()))
-                .andExpect(jsonPath("$[0].date")     .value(reservationDTO.date().toString()))
-                .andExpect(jsonPath("$[0].time")     .value(reservationDTO.time().toString()))
+                .andExpect(jsonPath("$[0].reservationDate")     .value(reservationDTO.reservationDate().toString()))
+                .andExpect(jsonPath("$[0].reservationTime")     .value(reservationDTO.reservationTime().toString()))
                 .andExpect(jsonPath("$[0].duration")            .value(reservationDTO.duration()))
                 .andExpect(jsonPath("$[0].user.id")             .value(user.getId()))
                 .andExpect(jsonPath("$[0].user.login")          .value(user.getLogin()))
@@ -138,8 +138,8 @@ class ReservationControllerWebLayerTest {
                         .get("/reservations/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id")                 .value(id))
-                .andExpect(jsonPath("$.date")    .value(reservationDTO.date().toString()))
-                .andExpect(jsonPath("$.time")    .value(reservationDTO.time().toString()))
+                .andExpect(jsonPath("$.reservationDate")    .value(reservationDTO.reservationDate().toString()))
+                .andExpect(jsonPath("$.reservationTime")    .value(reservationDTO.reservationTime().toString()))
                 .andExpect(jsonPath("$.duration")           .value(reservationDTO.duration()))
                 .andExpect(jsonPath("$.user.id")            .value(user.getId()))
                 .andExpect(jsonPath("$.user.login")         .value(user.getLogin()))
@@ -173,8 +173,8 @@ class ReservationControllerWebLayerTest {
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", "/reservations/" + id))
                 .andExpect(jsonPath("$.id")                 .value(reservationDTO.id()))
-                .andExpect(jsonPath("$.date")    .value(reservationDTO.date().toString()))
-                .andExpect(jsonPath("$.time")    .value(reservationDTO.time().toString()))
+                .andExpect(jsonPath("$.reservationDate")    .value(reservationDTO.reservationDate().toString()))
+                .andExpect(jsonPath("$.reservationTime")    .value(reservationDTO.reservationTime().toString()))
                 .andExpect(jsonPath("$.duration")           .value(reservationDTO.duration()))
                 .andExpect(jsonPath("$.user.id")            .value(user.getId()))
                 .andExpect(jsonPath("$.user.login")         .value(user.getLogin()))
@@ -205,8 +205,8 @@ class ReservationControllerWebLayerTest {
                         .content(mapper.writeValueAsString(reservation)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id")                 .value(reservationDTO.id()))
-                .andExpect(jsonPath("$.date")    .value(reservationDTO.date().toString()))
-                .andExpect(jsonPath("$.time")    .value(reservationDTO.time().toString()))
+                .andExpect(jsonPath("$.reservationDate")    .value(reservationDTO.reservationDate().toString()))
+                .andExpect(jsonPath("$.reservationTime")    .value(reservationDTO.reservationTime().toString()))
                 .andExpect(jsonPath("$.duration")           .value(reservationDTO.duration()))
                 .andExpect(jsonPath("$.user.id")            .value(user.getId()))
                 .andExpect(jsonPath("$.user.login")         .value(user.getLogin()))
@@ -245,12 +245,12 @@ class ReservationControllerWebLayerTest {
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/date/{date}", date))
+                        .get("/reservations/reservationDate/{reservationDate}", date))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")                 .value(1))
                 .andExpect(jsonPath("$[0].id")                  .value(reservationDTO.id()))
-                .andExpect(jsonPath("$[0].date")     .value(reservationDTO.date().toString()))
-                .andExpect(jsonPath("$[0].time")     .value(reservationDTO.time().toString()))
+                .andExpect(jsonPath("$[0].reservationDate")     .value(reservationDTO.reservationDate().toString()))
+                .andExpect(jsonPath("$[0].reservationTime")     .value(reservationDTO.reservationTime().toString()))
                 .andExpect(jsonPath("$[0].duration")            .value(reservationDTO.duration()))
                 .andExpect(jsonPath("$[0].user.id")             .value(user.getId()))
                 .andExpect(jsonPath("$[0].user.login")          .value(user.getLogin()))
@@ -279,8 +279,8 @@ class ReservationControllerWebLayerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")                 .value(1))
                 .andExpect(jsonPath("$[0].id")                  .value(reservationDTO.id()))
-                .andExpect(jsonPath("$[0].date")     .value(reservationDTO.date().toString()))
-                .andExpect(jsonPath("$[0].time")     .value(reservationDTO.time().toString()))
+                .andExpect(jsonPath("$[0].reservationDate")     .value(reservationDTO.reservationDate().toString()))
+                .andExpect(jsonPath("$[0].reservationTime")     .value(reservationDTO.reservationTime().toString()))
                 .andExpect(jsonPath("$[0].duration")            .value(reservationDTO.duration()))
                 .andExpect(jsonPath("$[0].user.id")             .value(user.getId()))
                 .andExpect(jsonPath("$[0].user.login")          .value(user.getLogin()))
@@ -306,12 +306,12 @@ class ReservationControllerWebLayerTest {
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/date/{date}/table/{tableId}", date, tableId))
+                        .get("/reservations/reservationDate/{reservationDate}/table/{tableId}", date, tableId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")                 .value(1))
                 .andExpect(jsonPath("$[0].id")                  .value(reservationDTO.id()))
-                .andExpect(jsonPath("$[0].date")     .value(reservationDTO.date().toString()))
-                .andExpect(jsonPath("$[0].time")     .value(reservationDTO.time().toString()))
+                .andExpect(jsonPath("$[0].reservationDate")     .value(reservationDTO.reservationDate().toString()))
+                .andExpect(jsonPath("$[0].reservationTime")     .value(reservationDTO.reservationTime().toString()))
                 .andExpect(jsonPath("$[0].duration")            .value(reservationDTO.duration()))
                 .andExpect(jsonPath("$[0].user.id")             .value(user.getId()))
                 .andExpect(jsonPath("$[0].user.login")          .value(user.getLogin()))

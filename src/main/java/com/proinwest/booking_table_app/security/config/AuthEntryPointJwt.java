@@ -1,4 +1,4 @@
-package com.proinwest.booking_table_app.jwt;
+package com.proinwest.booking_table_app.security.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;

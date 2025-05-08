@@ -1,6 +1,7 @@
-package com.proinwest.booking_table_app.exceptionHandler;
+package com.proinwest.booking_table_app.exceptions.handler;
 
-import com.proinwest.booking_table_app.exceptions.*;
+import com.proinwest.booking_table_app.exceptions.types.*;
+import com.proinwest.booking_table_app.exceptions.types.SecurityException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -64,6 +65,13 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.CONFLICT)
     public ExceptionResponse handleDisableException(DisableException exception) {
         return new ExceptionResponse(HttpStatus.CONFLICT.value(),
+                exception.getMessage(), now);
+    }
+
+    @ExceptionHandler(SecurityException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ExceptionResponse handleSecurityException(SecurityException exception) {
+        return new ExceptionResponse(HttpStatus.FORBIDDEN.value(),
                 exception.getMessage(), now);
     }
 }

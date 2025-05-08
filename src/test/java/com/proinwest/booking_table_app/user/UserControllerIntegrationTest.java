@@ -3,6 +3,7 @@ package com.proinwest.booking_table_app.user;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.proinwest.booking_table_app.diningTable.DiningTable;
 import com.proinwest.booking_table_app.diningTable.DiningTableRepository;
+import com.proinwest.booking_table_app.security.jwt.JwtUtils;
 import com.proinwest.booking_table_app.reservation.Reservation;
 import com.proinwest.booking_table_app.reservation.ReservationRepository;
 import com.proinwest.booking_table_app.reservation.ReservationService;
@@ -12,8 +13,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.http.MediaType;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.testcontainers.containers.MySQLContainer;
@@ -36,6 +40,8 @@ class UserControllerIntegrationTest {
     @Container
     @ServiceConnection
     private static final MySQLContainer mySQLContainer = new MySQLContainer<>("mysql:8.4.0");
+    @MockBean
+    private JwtUtils jwtUtils;
     @Autowired
     private UserRepository userRepository;
     @Autowired
@@ -62,7 +68,8 @@ class UserControllerIntegrationTest {
         user.setLastName("Doe");
         user.setEmail("ann@mail.com");
         user.setPhoneNumber("123-456-789");
-        user.setPassword("secretpassword");
+        user.setPassword(new BCryptPasswordEncoder().encode("secretpassword"));
+        user.setRole("ADMIN");
     }
 
     @AfterAll
@@ -77,6 +84,7 @@ class UserControllerIntegrationTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void shouldReturnAllUsers() throws Exception {
         // given
         userRepository.save(user);
