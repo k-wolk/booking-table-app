@@ -27,8 +27,8 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
-import static com.proinwest.booking_table_app.diningTable.DiningTableService.NO_FREE_TABLES_WAS_FOUND;
-import static com.proinwest.booking_table_app.diningTable.DiningTableService.NO_TABLES_FOUND;
+import static com.proinwest.booking_table_app.diningTable.DiningTableService.*;
+import static com.proinwest.booking_table_app.user.UserService.ACCESS_DENIED;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -112,7 +112,16 @@ public class DiningTableControllerIntegrationTest {
 
     @Test
     @WithMockUser
-    void getAllActiveTables_whenUserIsAuthenticated_shouldReturnAllActiveTables() throws Exception {
+    void getAllTables_whenUserIsNotAdmin_shouldThrowException() throws Exception {
+        // when & then
+        mockMvc.perform(get("/tables"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value(ACCESS_DENIED));
+    }
+
+    @Test
+    @WithMockUser
+    void getAllActiveTables_shouldReturnAllActiveTables() throws Exception {
         // given
         final DiningTable table1 = new DiningTable();
         table1.setNumber(1);
@@ -136,7 +145,6 @@ public class DiningTableControllerIntegrationTest {
     }
 
     @Test
-    @WithMockUser
     void getAllActiveTables_whenTableNotExists_shouldThrowException() throws Exception {
         // when & then
         mockMvc.perform(get("/tables/getactive"))
@@ -145,7 +153,6 @@ public class DiningTableControllerIntegrationTest {
     }
 
     @Test
-    @WithMockUser
     void getTable_whenTableIsActive_shouldReturnTable() throws Exception {
         // given
         final DiningTable table = new DiningTable();
@@ -165,7 +172,6 @@ public class DiningTableControllerIntegrationTest {
     }
 
     @Test
-    @WithMockUser
     void getTable_whenTableIsInactive_shouldThrowException() throws Exception {
         // given
         final DiningTable table = new DiningTable();
@@ -179,7 +185,7 @@ public class DiningTableControllerIntegrationTest {
         // when & then
         mockMvc.perform(get("/tables/{tableId}", tableId))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.message").value("Access denied: table is inactive"));
+                .andExpect(jsonPath("$.message").value(ACCESS_DENIED_TABLE_INACTIVE));
     }
 
     @Test
@@ -203,7 +209,6 @@ public class DiningTableControllerIntegrationTest {
 
 
     @Test
-    @WithMockUser
     void getTable_whenTableExists_shouldThrowException() throws Exception {
         // given
         final Integer tableId = 7;
@@ -212,7 +217,7 @@ public class DiningTableControllerIntegrationTest {
         mockMvc.perform(get("/tables/{tableId}", tableId))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("Table with id " + tableId + " was not found."));
+                        .value("Table not found for ID: " + tableId + "."));
     }
 
     @Test
@@ -261,7 +266,7 @@ public class DiningTableControllerIntegrationTest {
         // when & then
         mockMvc.perform(post("/tables/deactivate/{tableId}", tableId))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message").value("Table with id " + tableId + " was not found."));
+                .andExpect(jsonPath("$.message").value("Table not found for ID: " + tableId + "."));
     }
 
     @Test
@@ -293,7 +298,7 @@ public class DiningTableControllerIntegrationTest {
         // when & then
         mockMvc.perform(post("/tables/activate/{tableId}", tableId))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message").value("Table with id " + tableId + " was not found."));
+                .andExpect(jsonPath("$.message").value("Table not found for ID: " + tableId + "."));
     }
 
 
@@ -339,7 +344,7 @@ public class DiningTableControllerIntegrationTest {
                         .content(mapper.writeValueAsString(newTable)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("Table with id " + tableId + " was not found."));
+                        .value("Table not found for ID: " + tableId + "."));
     }
 
     @Test
@@ -371,7 +376,7 @@ public class DiningTableControllerIntegrationTest {
         mockMvc.perform(delete("/tables/{tableId}", tableId))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("Table with " + tableId + " was not found."));
+                        .value("Table not found for ID: " + tableId + "."));
     }
 
     @Test
@@ -439,11 +444,17 @@ public class DiningTableControllerIntegrationTest {
         reservationRepository.save(reservation);
 
         // when & then
-        mockMvc.perform(get("/tables/{tableId}/available/date/{date}", tableId,
+//        mockMvc.perform(get("/tables/{tableId}/date/{date}", tableId,
+//                        reservation.getReservationDate()))
+//                .andExpect(status().isOk())
+//                .andExpect(jsonPath("$[0]").value(ReservationService.OPENING_TIME + " - 17:00"))
+//                .andExpect(jsonPath("$[1]").value("19:00 - " + ReservationService.CLOSING_TIME));
+
+        mockMvc.perform(get("/tables/{tableId}/date/{date}", tableId,
                         reservation.getReservationDate()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0]").value(ReservationService.OPENING_TIME + " - 17:00"))
-                .andExpect(jsonPath("$[1]").value("19:00 - " + ReservationService.CLOSING_TIME));
+                .andExpect(jsonPath("$[0]").value(ReservationService.OPENING_TIME + " - " + reservation.getReservationTime()))
+                .andExpect(jsonPath("$[1]").value(reservation.getReservationTime().plusHours(reservation.getDuration()) + " - " + ReservationService.CLOSING_TIME));
     }
 
     @Test
@@ -460,7 +471,7 @@ public class DiningTableControllerIntegrationTest {
         LocalDate date = LocalDate.now().plusDays(1);
 
         // when & then
-        mockMvc.perform(get("/tables/{tableId}/available/date/{date}", tableId, date))
+        mockMvc.perform(get("/tables/{tableId}/date/{date}", tableId, date))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0]").value(ReservationService.OPENING_TIME + " - "
                         + ReservationService.CLOSING_TIME));

@@ -2,17 +2,24 @@ package com.proinwest.booking_table_app.diningTable;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.proinwest.booking_table_app.security.config.AuthEntryPointJwt;
+import com.proinwest.booking_table_app.security.config.SecurityConfig;
 import com.proinwest.booking_table_app.security.userDetails.CustomUserDetailsService;
 import com.proinwest.booking_table_app.security.jwt.JwtUtils;
 import com.proinwest.booking_table_app.reservation.Reservation;
+import com.proinwest.booking_table_app.user.UserRepository;
 import org.instancio.Instancio;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.net.URI;
@@ -26,20 +33,23 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(DiningTableController.class)
 //@ExtendWith(MockitoExtension.class)
-//@Import(SecurityConfig.class)
+@Import(SecurityConfig.class)
+@ActiveProfiles("test")
 class DiningTableControllerWebLayerTest {
     @MockBean
     private DiningTableService tableService;
     @MockBean
     private JwtUtils jwtUtils;
+    @MockBean
+    private UserRepository userRepository;
 //    @MockBean
 //    private UserDetailsService userDetailsService;
     @MockBean
     private CustomUserDetailsService customUserDetailsService;
     @MockBean
     private AuthEntryPointJwt authEntryPointJwt;
-    @MockBean
-    private SecurityFilterChain securityFilterChain;
+//    @MockBean
+//    private SecurityFilterChain securityFilterChain;
     @Autowired
     private MockMvc mockMvc;
     @Autowired
@@ -231,6 +241,7 @@ class DiningTableControllerWebLayerTest {
     void updateTable_whenUserIsNotAdmin_shouldReturnForbidden() throws Exception {
         // given
         DiningTable table = Instancio.create(DiningTable.class);
+        table.setId(1);
 
         // when & then
         mockMvc.perform(patch("/tables/{tableId}", table.getId())

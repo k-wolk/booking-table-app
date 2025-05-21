@@ -1,5 +1,6 @@
 package com.proinwest.booking_table_app.security.jwt;
 
+import com.proinwest.booking_table_app.exceptions.types.CustomSecurityException;
 import com.proinwest.booking_table_app.security.userDetails.CustomUserDetails;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -7,6 +8,8 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class SecurityUtils {
+
+    public static final String ACCESS_DENIED_AN_ADMIN_OR_THE_OWNER = "Access denied: You must be an admin or the owner.";
 
     public boolean isAdmin() {
         return hasRole("ROLE_ADMIN");
@@ -18,7 +21,7 @@ public class SecurityUtils {
 
     public void isAdminOrOwner(Long userId) {
         if (!isAdmin() && !isCurrentUser(userId))
-            throw new SecurityException("Access denied: You must be an admin or the owner.");
+            throw new CustomSecurityException(ACCESS_DENIED_AN_ADMIN_OR_THE_OWNER);
     }
 
     public boolean isCurrentUser(Long userId) {
@@ -41,17 +44,14 @@ public class SecurityUtils {
         System.out.println("DEBUG: Principal: " + authentication.getPrincipal());
         System.out.println("DEBUG: Principal class: " + authentication.getPrincipal().getClass().getName());
 
-        if (authentication == null || authentication.getPrincipal() == null) {
-            throw new SecurityException("No authenticated user found.");
-        }
+        if (authentication == null || authentication.getPrincipal() == null)
+            throw new CustomSecurityException("No authenticated user found.");
 
         Object principal = authentication.getPrincipal();
 
-        if (principal instanceof CustomUserDetails userDetails) {
-            return userDetails.getId();
-        }
+        if (principal instanceof CustomUserDetails userDetails) return userDetails.getId();
 
-        throw new SecurityException("Expected CustomUserDetails, but got: " + principal.getClass().getName());
+        throw new CustomSecurityException("Expected CustomUserDetails, but got: " + principal.getClass().getName());
     }
 
 

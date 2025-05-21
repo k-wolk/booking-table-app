@@ -64,7 +64,8 @@ public class ReservationController {
                                                                         @PathVariable Integer tableId) {
         List<ReservationDTO> allByDateAndTableId = reservationService.getAllByDateAndTableId(date, tableId);
         if (allByDateAndTableId.isEmpty())
-            throw new NotFoundException("There is no reservation on reservationDate " + date + " at table with id " + tableId + ".");
+            throw new NotFoundException("There is no reservation on " + date + " for the table with ID "
+                    + tableId + ".");
         return ResponseEntity.ok(allByDateAndTableId);
     }
 

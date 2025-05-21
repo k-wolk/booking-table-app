@@ -79,6 +79,8 @@ public class ReservationValidator {
             errors.put("diningTable", TABLE_ID_IS_REQUIRED);
         } else if (!tableService.existsById(tableId)) {
             errors.put("diningTable", "Dining table with id " + tableId + " was not found.");
+        } else if (!tableService.isActive(tableId)) {
+            errors.put("diningTable", "Dining table with id " + tableId + " is not active.#111");
         }
     }
 
@@ -94,12 +96,12 @@ public class ReservationValidator {
         if (time == null) {
             errors.put("reservationTime", FIELD_REQUIRED + TIME_MESSAGE);
         } else if (date == null || duration == null) {
-            errors.put("reservationTime", "Make sure reservation reservationDate and duration are not null.");
+            errors.put("reservationTime", "Make sure reservation date and duration are not null.");
         } else if (date.isEqual(LocalDate.now()) && time.isBefore(LocalTime.now())) {
             errors.put("reservationTime", TIME_MESSAGE + OPENING_HOURS_MESSAGE);
         } else if (time.isBefore(OPENING_TIME) || time.plusHours(duration).isAfter(CLOSING_TIME)
                 || time.plusHours(duration).isBefore(OPENING_TIME)) {
-            errors.put("reservationTime", OPENING_HOURS_MESSAGE + " Try change reservation reservationTime and/or duration.");
+            errors.put("reservationTime", OPENING_HOURS_MESSAGE + " Try change reservation time and/or duration.");
         }
     }
 
@@ -121,7 +123,7 @@ public class ReservationValidator {
         for (Reservation savedReservation : allByDateAndTableId) {
             if (isReservationColliding(reservation, savedReservation))
             {
-                throw new TableNotAvailableException("Dining table with id " + tableId + " is not available at the reservationTime.");
+                throw new TableNotAvailableException("Dining table with id " + tableId + " is not available at the time.");
             }
         }
     }

@@ -1,17 +1,17 @@
 package com.proinwest.booking_table_app.user;
 
+import com.proinwest.booking_table_app.exceptions.types.CustomSecurityException;
 import com.proinwest.booking_table_app.exceptions.types.InvalidInputException;
 import com.proinwest.booking_table_app.exceptions.types.NotFoundException;
 import com.proinwest.booking_table_app.exceptions.types.ValidationException;
-import com.proinwest.booking_table_app.security.userDetails.CustomUserDetails;
 import com.proinwest.booking_table_app.reservation.ReservationService;
+import com.proinwest.booking_table_app.security.jwt.SecurityUtils;
+import com.proinwest.booking_table_app.security.userDetails.CustomUserDetails;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
@@ -37,24 +37,28 @@ public class UserService {
     public static final String USER_ID_IS_REQUIRED = "User id is required.";
     public static final String VALID_PHONE_NUMBER = "Examples of valid number are: "
             + "123456789, " + "123 456 789, " + "123-456-7890, " + "+48 123 456 789, " + "+123-123-456-7890";
+    public static final String ROLE_IS_REQUIRED = "Role is required.";
+    public static final String INVALID_ROLE = "Invalid role.";
 
     private final UserRepository userRepository;
     private final UserDTOMapper userDTOMapper;
     private final ReservationService reservationService;
     private final UserValidator userValidator;
     private final PasswordEncoder passwordEncoder;
+    private final SecurityUtils securityUtils;
 
     public UserService(UserRepository userRepository,
                        UserDTOMapper userDTOMapper,
                        @Lazy ReservationService reservationService,
                        UserValidator userValidator,
-                       PasswordEncoder passwordEncoder)
+                       PasswordEncoder passwordEncoder, SecurityUtils securityUtils)
     {
         this.userRepository = userRepository;
         this.userDTOMapper = userDTOMapper;
         this.reservationService = reservationService;
         this.userValidator = userValidator;
         this.passwordEncoder = passwordEncoder;
+        this.securityUtils = securityUtils;
     }
 
     List<UserDTO> getAllUsers() {
@@ -69,15 +73,17 @@ public class UserService {
     }
 
     UserDTO getUser(Long userId) {
-        isAdminOrOwner(userId);
-
-        return userRepository.findById(userId)
+        securityUtils.isAdminOrOwner(userId);
+        UserDTO userDTO = userRepository.findById(userId)
                 .map(userDTOMapper)
                 .orElseThrow(() -> new NotFoundException("User with id " + userId + " was not found."));
+
+        return userDTO;
     }
 
     UserDTO registerUser(User user) {
         validateNewUser(user);
+        if (user.getRole() == null) user.setRole("ROLE_USER");
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         final User savedUser = userRepository.save(user);
         return userDTOMapper.apply(savedUser);
@@ -108,8 +114,8 @@ public class UserService {
                 .orElseThrow(() -> new NotFoundException("User with id " + userId + " was not found."));
 
         String newRole = role.get("role");
-        if (newRole == null || newRole.isBlank())   throw new InvalidInputException("Role cannot be empty.");
-        if (!isValidRole(newRole))                  throw new InvalidInputException("Invalid role.");
+        if (newRole == null || newRole.isBlank())   throw new InvalidInputException(ROLE_IS_REQUIRED);
+        if (!isValidRole(newRole))                  throw new InvalidInputException(INVALID_ROLE);
 
         userToUpdate.setRole(newRole);
         final User savedUser = userRepository.save(userToUpdate);
@@ -199,7 +205,7 @@ public class UserService {
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
 
         if (!isAdmin && !userDetails.getId().equals(userId))
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, ACCESS_DENIED);
+            throw new CustomSecurityException(ACCESS_DENIED);
     }
 
     void isCurrentUser(Long userId) {
@@ -207,7 +213,7 @@ public class UserService {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 
         if (!userDetails.getId().equals(userId))
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, ACCESS_DENIED);
+            throw new CustomSecurityException(ACCESS_DENIED);
     }
 
     private static User updateUser(User user, User updatingUser) {

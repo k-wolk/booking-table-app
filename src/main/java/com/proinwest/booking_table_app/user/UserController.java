@@ -16,17 +16,17 @@ public class UserController {
         this.userService = userService;
     }
 
-    @GetMapping("{userId}")
-    public ResponseEntity<UserDTO> getUser(@PathVariable Long userId) {
-        UserDTO user = userService.getUser(userId);
-        return ResponseEntity.ok(user);
-    }
-
     @GetMapping()
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserDTO>> getAllUsers() {
         List<UserDTO> allUsers = userService.getAllUsers();
         return ResponseEntity.ok(allUsers);
+    }
+
+    @GetMapping("{userId}")
+    public ResponseEntity<UserDTO> getUser(@PathVariable Long userId) {
+        UserDTO user = userService.getUser(userId);
+        return ResponseEntity.ok(user);
     }
 
     @PostMapping()
@@ -50,9 +50,9 @@ public class UserController {
     }
 
     @PatchMapping("/deactivate/{userId}")
-    public ResponseEntity<String> deactivateUser(@PathVariable Long userId) {
+    public ResponseEntity<Map<String, String>> deactivateUser(@PathVariable Long userId) {
         userService.deactivateUser(userId);
-        return ResponseEntity.ok("User with id " + userId + " deactivated successfully.");
+        return ResponseEntity.ok(Map.of("message", "User with id " + userId + " deactivated successfully."));
     }
 
     @GetMapping("/search")

@@ -32,4 +32,12 @@ public class User {
     @OneToMany (mappedBy = "user")
     @JsonIgnore
     List<Reservation> reservations;
+
+    @PrePersist
+    @PreUpdate
+    public void ensureRoleIsSet() {
+        if (role == null || role.isBlank()) {
+            this.role = "USER";
+        }
+    }
 }

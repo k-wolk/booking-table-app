@@ -60,6 +60,7 @@ class ReservationValidatorTest {
         // given
         when(userService.existsById(user.getId())).thenReturn(true);
         when(tableService.existsById(table.getId())).thenReturn(true);
+        when(tableService.isActive(table.getId())).thenReturn(true);
 
         // when
         final Map<String, String> result = reservationValidator.validateReservation(reservation);
@@ -68,6 +69,7 @@ class ReservationValidatorTest {
         assertTrue(result.isEmpty());
         verify(userService, times(1)).existsById(user.getId());
         verify(tableService, times(1)).existsById(table.getId());
+        verify(tableService, times(1)).isActive(table.getId());
     }
 
     @Test
@@ -79,6 +81,7 @@ class ReservationValidatorTest {
         expected.put("user", USER_ID_IS_REQUIRED);
 
         when(tableService.existsById(table.getId())).thenReturn(true);
+        when(tableService.isActive(table.getId())).thenReturn(true);
 
         // when
         final Map<String, String> result = reservationValidator.validateReservation(reservation);
@@ -99,6 +102,7 @@ class ReservationValidatorTest {
 
         when(userService.existsById(userId)).thenReturn(false);
         when(tableService.existsById(table.getId())).thenReturn(true);
+        when(tableService.isActive(table.getId())).thenReturn(true);
 
         // when
         final Map<String, String> result = reservationValidator.validateReservation(reservation);
@@ -155,10 +159,11 @@ class ReservationValidatorTest {
 
         final Map<String, String> expected = new HashMap<>();
         expected.put("reservationDate", FIELD_REQUIRED + DATE_MESSAGE);
-        expected.put("reservationTime", "Make sure reservation reservationDate and duration are not null.");
+        expected.put("reservationTime", "Make sure reservation date and duration are not null.");
 
         when(userService.existsById(user.getId())).thenReturn(true);
         when(tableService.existsById(table.getId())).thenReturn(true);
+        when(tableService.isActive(table.getId())).thenReturn(true);
 
         // when
         final Map<String, String> result = reservationValidator.validateReservation(reservation);
@@ -180,6 +185,7 @@ class ReservationValidatorTest {
 
         when(userService.existsById(user.getId())).thenReturn(true);
         when(tableService.existsById(table.getId())).thenReturn(true);
+        when(tableService.isActive(table.getId())).thenReturn(true);
 
         // when
         final Map<String, String> result = reservationValidator.validateReservation(reservation);
@@ -201,6 +207,7 @@ class ReservationValidatorTest {
 
         when(userService.existsById(user.getId())).thenReturn(true);
         when(tableService.existsById(table.getId())).thenReturn(true);
+        when(tableService.isActive(table.getId())).thenReturn(true);
 
         // when
         final Map<String, String> result = reservationValidator.validateReservation(reservation);
@@ -223,6 +230,7 @@ class ReservationValidatorTest {
 
         when(userService.existsById(user.getId())).thenReturn(true);
         when(tableService.existsById(table.getId())).thenReturn(true);
+        when(tableService.isActive(table.getId())).thenReturn(true);
 
         // when
         final Map<String, String> result = reservationValidator.validateReservation(reservation);
@@ -241,10 +249,11 @@ class ReservationValidatorTest {
         reservation.setReservationTime(OPENING_TIME.minusMinutes(1));
 
         final Map<String, String> expected = new HashMap<>();
-        expected.put("reservationTime", OPENING_HOURS_MESSAGE + " Try change reservation reservationTime and/or duration.");
+        expected.put("reservationTime", OPENING_HOURS_MESSAGE + " Try change reservation time and/or duration.");
 
         when(userService.existsById(user.getId())).thenReturn(true);
         when(tableService.existsById(table.getId())).thenReturn(true);
+        when(tableService.isActive(table.getId())).thenReturn(true);
 
         // when
         final Map<String, String> result = reservationValidator.validateReservation(reservation);
@@ -264,10 +273,11 @@ class ReservationValidatorTest {
         reservation.setDuration(3);
 
         final Map<String, String> expected = new HashMap<>();
-        expected.put("reservationTime", OPENING_HOURS_MESSAGE + " Try change reservation reservationTime and/or duration.");
+        expected.put("reservationTime", OPENING_HOURS_MESSAGE + " Try change reservation time and/or duration.");
 
         when(userService.existsById(user.getId())).thenReturn(true);
         when(tableService.existsById(table.getId())).thenReturn(true);
+        when(tableService.isActive(table.getId())).thenReturn(true);
 
         // when
         final Map<String, String> result = reservationValidator.validateReservation(reservation);
@@ -285,11 +295,12 @@ class ReservationValidatorTest {
         reservation.setDuration(null);
 
         final Map<String, String> expected = new HashMap<>();
-        expected.put("reservationTime", "Make sure reservation reservationDate and duration are not null.");
+        expected.put("reservationTime", "Make sure reservation date and duration are not null.");
         expected.put("duration", FIELD_REQUIRED + DURATION_MESSAGE);
 
         when(userService.existsById(user.getId())).thenReturn(true);
         when(tableService.existsById(table.getId())).thenReturn(true);
+        when(tableService.isActive(table.getId())).thenReturn(true);
 
         // when
         final Map<String, String> result = reservationValidator.validateReservation(reservation);
@@ -311,6 +322,7 @@ class ReservationValidatorTest {
 
         when(userService.existsById(user.getId())).thenReturn(true);
         when(tableService.existsById(table.getId())).thenReturn(true);
+        when(tableService.isActive(table.getId())).thenReturn(true);
 
         // when
         final Map<String, String> result = reservationValidator.validateReservation(reservation);

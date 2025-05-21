@@ -4,15 +4,22 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import com.proinwest.booking_table_app.diningTable.DiningTable;
 import com.proinwest.booking_table_app.reservation.Reservation;
+import com.proinwest.booking_table_app.security.jwt.JwtUtils;
+import com.proinwest.booking_table_app.security.userDetails.CustomUserDetails;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.testcontainers.containers.MySQLContainer;
@@ -23,6 +30,7 @@ import java.time.LocalDate;
 
 import static com.proinwest.booking_table_app.reservation.ReservationService.MIN_DURATION;
 import static com.proinwest.booking_table_app.reservation.ReservationService.OPENING_TIME;
+import static com.proinwest.booking_table_app.security.jwt.SecurityUtils.ACCESS_DENIED_AN_ADMIN_OR_THE_OWNER;
 import static com.proinwest.booking_table_app.user.UserService.*;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -33,6 +41,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
 public class UserE2ETest {
+    @MockBean
+    private JwtUtils jwtUtils;
     @Container
     @ServiceConnection
     private static final MySQLContainer mySQLContainer = new MySQLContainer<>("mysql:8.4.0");
@@ -43,6 +53,7 @@ public class UserE2ETest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
     private User user;
+    private User admin;
     
     @BeforeEach
     void setUp() {
@@ -50,11 +61,23 @@ public class UserE2ETest {
         
         user = new User();
         user.setLogin("john");
-        user.setPassword("secretpassword");
+        user.setPassword(new BCryptPasswordEncoder().encode("secretpassword"));
         user.setFirstName("John");
         user.setLastName("Doe");
         user.setEmail("john@mail.com");
         user.setPhoneNumber("123-456-789");
+        user.setRole("USER");
+        user.setActive(true);
+
+        admin = new User();
+        admin.setLogin("ann");
+        admin.setPassword(new BCryptPasswordEncoder().encode("secretpassword"));
+        admin.setFirstName("Ann");
+        admin.setLastName("Doe");
+        admin.setEmail("ann@mail.com");
+        admin.setPhoneNumber("999888777");
+        admin.setRole("ADMIN");
+        admin.setActive(true);
     }
 
     @AfterAll
@@ -69,7 +92,8 @@ public class UserE2ETest {
     }
 
     @Test
-    void shouldGetAllUsers() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void getAllUsers_whenUserIsAdmin_shouldFetchAllUsers() throws Exception {
         // given
         user.setId(createUser(user));
 
@@ -86,7 +110,8 @@ public class UserE2ETest {
     }
 
     @Test
-    void whenThereAreNoUsersInDatabase_shouldThrowException() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void getAllUsers_whenThereAreNoUsersInDatabase_shouldThrowException() throws Exception {
         // when & then
         mockMvc.perform(get("/users"))
                 .andExpect(status().isNotFound())
@@ -94,11 +119,27 @@ public class UserE2ETest {
     }
 
     @Test
-    void shouldCreateAndGetUserById() throws Exception {
+    @WithMockUser
+    void getAllUsers_whenUserIsNotAdmin_shouldReturnForbidden() throws Exception {
         // when & then
-        final Long userId = createUser(user);
+        mockMvc.perform(get("/users"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value(ACCESS_DENIED));
+    }
 
-        mockMvc.perform(get("/users/{id}", userId))
+    @Test
+    void whenUserIsAuthenticated_shouldCreateAndFetchOwnUserDetails() throws Exception {
+        // when & then
+//        System.out.println(user.getId());
+//        user.setId(userId);
+//        System.out.println(user.getId());
+//        authenticateAs(user);
+
+        user.setId(createUser(user));
+        final Long userId = user.getId();
+        authenticateAs(user);
+
+        mockMvc.perform(get("/users/{userId}", userId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id")         .value(userId))
                 .andExpect(jsonPath("$.login")      .value(user.getLogin()))
@@ -109,9 +150,9 @@ public class UserE2ETest {
     }
 
     @Test
-    void getUserById_whenUserNotFoundById_shouldThrowException() throws Exception {
+    void getUser_whenUserNotFoundById_shouldReturnNotFound() throws Exception {
         // given
-        final Long userId = 1L;
+        Long userId = createUser(user);
 
         // when & then
         mockMvc.perform(get("/users/{userId}", userId))
@@ -121,7 +162,7 @@ public class UserE2ETest {
     }
 
     @Test
-    void addUser_whenUserParamsAreInvalid_shouldThrowException() throws Exception {
+    void registerUser_whenUserParamsAreInvalid_shouldReturnBadRequest() throws Exception {
         // given
         user.setLogin(null);
         user.setPassword(null);
@@ -144,7 +185,38 @@ public class UserE2ETest {
     }
 
     @Test
-    void shouldUpdateUser() throws Exception {
+    void registerUser_whenUserParamsAreValid_shouldCreateUser() throws Exception {
+        // when & then
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(user)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.login")      .value(user.getLogin()))
+                .andExpect(jsonPath("$.firstName")  .value(user.getFirstName()))
+                .andExpect(jsonPath("$.lastName")   .value(user.getLastName()))
+                .andExpect(jsonPath("$.email")      .value(user.getEmail()))
+                .andExpect(jsonPath("$.phoneNumber").value(user.getPhoneNumber()))
+                .andExpect(jsonPath("$.role")       .value(user.getRole()));
+    }
+
+    @Test
+    void registerUser_whenUserAlreadyExists_shouldReturnBadRequest() throws Exception {
+        // given
+        createUser(user);
+
+        // when & then
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(user)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.login")
+                        .value("Login " + user.getLogin() + " already exists. It should be unique."))
+                .andExpect(jsonPath("$.email")
+                        .value("Email address " + user.getEmail() + " already exists. It should be unique."));
+    }
+
+    @Test
+    void updateUser_shouldUpdateUser() throws Exception {
         // given
         final Long userId = createUser(user);
 
@@ -456,5 +528,12 @@ public class UserE2ETest {
         jdbcTemplate.execute("TRUNCATE TABLE user");
         jdbcTemplate.execute("TRUNCATE TABLE reservation");
         jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS=1");
+    }
+
+    private void authenticateAs(User user) {
+        CustomUserDetails userDetails = new CustomUserDetails(user);
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                userDetails, null, userDetails.getAuthorities());
+        SecurityContextHolder.getContext().setAuthentication(authentication);
     }
 }

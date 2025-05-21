@@ -3,6 +3,7 @@ package com.proinwest.booking_table_app.reservation;
 import com.proinwest.booking_table_app.diningTable.DiningTableService;
 import com.proinwest.booking_table_app.exceptions.types.NotFoundException;
 import com.proinwest.booking_table_app.exceptions.types.ValidationException;
+import com.proinwest.booking_table_app.security.jwt.SecurityUtils;
 import com.proinwest.booking_table_app.user.UserDTO;
 import com.proinwest.booking_table_app.user.UserService;
 import org.instancio.Instancio;
@@ -37,8 +38,11 @@ class ReservationServiceTest {
     private DiningTableService diningTableService;
     @Mock
     private UserService userService;
+    @Mock
+    private SecurityUtils securityUtils;
     @InjectMocks
     private ReservationService reservationService;
+
 
     @Test
     void shouldGetAllReservation() {
@@ -373,21 +377,6 @@ class ReservationServiceTest {
         assertThrows(NotFoundException.class, () -> reservationService.getAllByDateAndTableId(tomorrow, tableId));
         verify(diningTableService, times(1)).existsById(tableId);
     }
-
-//    @Test
-//    void whenNoReservationFoundByDateAndTableId_shouldThrowException() {
-//        // given
-//        final Integer tableId = 111;
-//        final LocalDate tomorrow = LocalDate.now().plusDays(1);
-//
-//        when(diningTableService.existsById(tableId)).thenReturn(true);
-//        when(reservationRepository.findAllByDateAndTableId(tomorrow, tableId)).thenReturn(Collections.emptyList());
-//
-//        // when & then
-//        assertThrows(NotFoundException.class, () -> reservationService.getAllByDateAndTableId(tomorrow, tableId));
-//        verify(diningTableService, times(1)).existsById(tableId);
-//        verify(reservationRepository, times(1)).findAllByDateAndTableId(tomorrow, tableId);
-//    }
 
     @Test
     void whenReservationIsValid_shouldNotThrowException() {

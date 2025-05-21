@@ -18,8 +18,9 @@ public interface DiningTableRepository extends JpaRepository<DiningTable, Intege
     @Query(value = "SELECT dt.number FROM dining_table dt WHERE dt.id = :id", nativeQuery = true)
     Integer findNumberByTableId(Integer id);
 
-    @Query(value = "SELECT DISTINCT dt.* FROM dining_table dt WHERE dt.seats >= :seats", nativeQuery = true)
-    List<DiningTable> allTablesWithMinSeats(Integer seats);
+    @Query(value = "SELECT DISTINCT dt.* FROM dining_table dt WHERE dt.seats >= :seats AND dt.active = true",
+            nativeQuery = true)
+    List<DiningTable> allActiveTablesWithMinSeats(Integer seats);
 
     @Query(value = "SELECT dt.* FROM dining_table dt ORDER BY dt.active DESC", nativeQuery = true)
     List<DiningTable> allTablesOrderByActive();
@@ -28,4 +29,7 @@ public interface DiningTableRepository extends JpaRepository<DiningTable, Intege
     List<DiningTable> allActiveTables();
 
     boolean existsByNumber(int tableNumber);
+
+    @Query(value = "SELECT dt.active FROM dining_table dt WHERE dt.id = :tableId", nativeQuery = true)
+    boolean isActive(int tableId);
 }

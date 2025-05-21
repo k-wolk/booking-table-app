@@ -1,12 +1,11 @@
 package com.proinwest.booking_table_app.user;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.proinwest.booking_table_app.diningTable.DiningTable;
 import com.proinwest.booking_table_app.diningTable.DiningTableRepository;
-import com.proinwest.booking_table_app.security.jwt.JwtUtils;
-import com.proinwest.booking_table_app.reservation.Reservation;
 import com.proinwest.booking_table_app.reservation.ReservationRepository;
 import com.proinwest.booking_table_app.reservation.ReservationService;
+import com.proinwest.booking_table_app.security.jwt.JwtUtils;
+import com.proinwest.booking_table_app.security.userDetails.CustomUserDetails;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,6 +15,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
@@ -24,11 +25,11 @@ import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.util.Optional;
+import java.util.HashMap;
+import java.util.Map;
 
 import static com.proinwest.booking_table_app.user.UserService.*;
+import static org.junit.Assert.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -55,6 +56,7 @@ class UserControllerIntegrationTest {
     @Autowired
     private ObjectMapper mapper;
     private User user;
+    private User admin;
 
     @BeforeEach
     void setup() {
@@ -64,12 +66,23 @@ class UserControllerIntegrationTest {
 
         user = new User();
         user.setLogin("john");
-        user.setFirstName("Sam");
+        user.setFirstName("John");
         user.setLastName("Doe");
         user.setEmail("ann@mail.com");
         user.setPhoneNumber("123-456-789");
         user.setPassword(new BCryptPasswordEncoder().encode("secretpassword"));
-        user.setRole("ADMIN");
+        user.setRole("USER");
+        user.setActive(true);
+
+        admin = new User();
+        admin.setLogin("ann");
+        admin.setFirstName("Ann");
+        admin.setLastName("Doe");
+        admin.setEmail("ann@mail.com");
+        admin.setPhoneNumber("999888777");
+        admin.setPassword(new BCryptPasswordEncoder().encode("secretpassword"));
+        admin.setRole("ADMIN");
+        admin.setActive(true);
     }
 
     @AfterAll
@@ -85,7 +98,7 @@ class UserControllerIntegrationTest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    void shouldReturnAllUsers() throws Exception {
+    void getAllUsers_whenUserIsAdmin_shouldReturnAllUsers() throws Exception {
         // given
         userRepository.save(user);
 
@@ -103,7 +116,8 @@ class UserControllerIntegrationTest {
     }
 
     @Test
-    void whenUsersNotFound_shouldThrowException() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void getAllUsers_whenUsersNotFound_shouldReturnNotFound() throws Exception {
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
                         .get("/users"))
@@ -112,9 +126,10 @@ class UserControllerIntegrationTest {
     }
 
     @Test
-    void shouldGetUserById() throws Exception {
+    void getUser_whenUserIsAdmin_shouldGetUserById() throws Exception {
         // given
         userRepository.save(user);
+        authenticateAs(admin);
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
@@ -129,20 +144,40 @@ class UserControllerIntegrationTest {
     }
 
     @Test
-    void whenUserNotFoundById_shouldThrowException() throws Exception {
+    void getUser_whenUserIsOwner_shouldGetUserById() throws Exception {
         // given
-        final Long userId = 111L;
+        userRepository.save(user);
+        authenticateAs(user);
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .get("/users/{id}", userId))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message")
-                        .value("User with id " + userId + " was not found."));
+                        .get("/users/{id}", user.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id")          .value(user.getId()))
+                .andExpect(jsonPath("$.login")       .value(user.getLogin()))
+                .andExpect(jsonPath("$.firstName")   .value(user.getFirstName()))
+                .andExpect(jsonPath("$.lastName")    .value(user.getLastName()))
+                .andExpect(jsonPath("$.email")       .value(user.getEmail()))
+                .andExpect(jsonPath("$.phoneNumber") .value(user.getPhoneNumber()));
     }
 
     @Test
-    void shouldAddUser() throws Exception {
+    void getUser_whenUserNotFoundById_shouldReturnNotFound() throws Exception {
+        // given
+        final Long notExistingId = 111L;
+        userRepository.save(admin);
+        authenticateAs(admin);
+
+        // when & then
+        mockMvc.perform(MockMvcRequestBuilders
+                        .get("/users/{id}", notExistingId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message")
+                        .value("User with id " + notExistingId + " was not found."));
+    }
+
+    @Test
+    void registerUser_whenUserNotAuthenticated_shouldAddUser() throws Exception {
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
                         .post("/users")
@@ -157,9 +192,10 @@ class UserControllerIntegrationTest {
     }
 
     @Test
-    void shouldUpdateUser() throws Exception {
+    void updateUser_whenUserIsOwner_shouldUpdateUser() throws Exception {
         // given
         userRepository.save(user);
+        authenticateAs(user);
         final Long userId = user.getId();
 
         final User userToUpdate = new User();
@@ -173,7 +209,7 @@ class UserControllerIntegrationTest {
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .put("/users/{id}", userId)
+                        .patch("/users/{id}", userId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(userToUpdate)))
                 .andExpect(status().isOk())
@@ -186,9 +222,12 @@ class UserControllerIntegrationTest {
     }
 
     @Test
-    void updateUser_whenUserNotFoundById_shouldThrowException() throws Exception {
+    void updateUser_whenUserIsAdmin_shouldReturnForbidden() throws Exception {
         // given
-        final Long userId = 111L;
+        userRepository.save(user);
+        final Long userId = user.getId();
+        userRepository.save(admin);
+        authenticateAs(admin);
 
         final User userToUpdate = new User();
         userToUpdate.setId(userId);
@@ -201,18 +240,45 @@ class UserControllerIntegrationTest {
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .put("/users/{id}", userId)
+                        .patch("/users/{id}", userId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(userToUpdate)))
-                .andExpect(status().isNotFound())
+                .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message")
-                        .value("User with id " + userId + " was not found."));
+                        .value(ACCESS_DENIED));
     }
 
     @Test
-    void shouldPartiallyUpdateUser() throws Exception {
+    void updateUser_whenUserNotFoundById_shouldReturnForbidden() throws Exception {
+        // given
+        final Long userId = 111L;
+        userRepository.save(user);
+        authenticateAs(user);
+
+        final User userToUpdate = new User();
+        userToUpdate.setId(userId);
+        userToUpdate.setLogin("johnny");
+        userToUpdate.setFirstName("John");
+        userToUpdate.setLastName("Smith");
+        userToUpdate.setEmail("john@gmail.com");
+        userToUpdate.setPhoneNumber("147-258-369");
+        userToUpdate.setPassword("newPassword1");
+
+        // when & then
+        mockMvc.perform(MockMvcRequestBuilders
+                        .patch("/users/{id}", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(userToUpdate)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message")
+                        .value(ACCESS_DENIED));
+    }
+
+    @Test
+    void updateUser_whenUserIsOwner_shouldPartiallyUpdateUser() throws Exception {
         // given
         userRepository.save(user);
+        authenticateAs(user);
         final Long userId = user.getId();
 
         final User userToUpdate = new User();
@@ -235,362 +301,202 @@ class UserControllerIntegrationTest {
     }
 
     @Test
-    void partiallyUpdateUser_whenUserNotFoundById_shouldThrowException() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void updateUserRole_whenUserIsAdmin_shouldUpdatedUserRole() throws Exception {
         // given
-        final Long userId = 111L;
-
-        final User userToUpdate = new User();
-        userToUpdate.setId(userId);
-        userToUpdate.setLogin("johnny");
-        userToUpdate.setFirstName("John");
-        userToUpdate.setLastName("Smith");
-        userToUpdate.setEmail("john@gmail.com");
-        userToUpdate.setPhoneNumber("147-258-369");
-        userToUpdate.setPassword("newPassword1");
+        userRepository.save(user);
+        final Long userId = user.getId();
+        final Map<String, String> role = Map.of("role", "ADMIN");
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .patch("/users/{id}", userId)
+                        .put("/users/role/{id}", userId)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(userToUpdate)))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message")
-                        .value("User with id " + userId + " was not found."));
+                        .content(mapper.writeValueAsString(role)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id")          .value(userId))
+                .andExpect(jsonPath("$.login")       .value(user.getLogin()))
+                .andExpect(jsonPath("$.firstName")   .value(user.getFirstName()))
+                .andExpect(jsonPath("$.lastName")    .value(user.getLastName()))
+                .andExpect(jsonPath("$.email")       .value(user.getEmail()))
+                .andExpect(jsonPath("$.phoneNumber") .value(user.getPhoneNumber()))
+                .andExpect(jsonPath("$.role")        .value("ADMIN"));
     }
 
     @Test
-    void shouldDeleteUser() throws Exception {
-        // given
-        userRepository.save(user);
-        final Long userId = user.getId();
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .delete("/users/{id}", userId))
-                .andExpect(status().isNoContent());
-
-        final Optional<User> deletedUserById = userRepository.findById(userId);
-        assertTrue(deletedUserById.isEmpty());
-    }
-
-    @Test
-    void whenUserNotExistsById_shouldThrowException() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void updateUserRole_whenUserNotFoundById_shouldThrowException() throws Exception {
         // given
         final Long userId = 111L;
+        final Map<String, String> role = Map.of("role", "ADMIN");
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .delete("/users/{id}", userId))
+                        .put("/users/role/{id}", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(role)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
                         .value("User with id " + userId + " was not found."));
     }
 
     @Test
-    void whenUserHasAssignedReservation_shouldThrowException() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void updateUserRole_whenRoleIsNull_shouldThrowException() throws Exception {
         // given
         userRepository.save(user);
         final Long userId = user.getId();
-
-        final DiningTable table = new DiningTable();
-        table.setId(1);
-        table.setNumber(1);
-        table.setSeats(2);
-
-        tableRepository.save(table);
-
-        final Reservation reservation = new Reservation();
-        reservation.setUser(user);
-        reservation.setReservationDate(LocalDate.now().plusDays(1));
-        reservation.setReservationTime(LocalTime.of(17,0));
-        reservation.setDuration(1);
-        reservation.setDiningTable(table);
-
-        reservationRepository.save(reservation);
+        final Map<String, String> role = new HashMap<>();
+        role.put("role", null);
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                .delete("/users/{id}", userId))
+                        .put("/users/role/{id}", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(role)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message")
-                        .value("User with id " + userId + " can not be deleted because he has at least one reservation assigned."));
-
-        reservationRepository.deleteAll();
+                        .value(ROLE_IS_REQUIRED));
     }
 
     @Test
-    void shouldFindAllUsersByLoginFragment() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void updateUserRole_whenRoleIsBlank_shouldThrowException() throws Exception {
         // given
         userRepository.save(user);
-
-        final String loginFragment = "oH";
+        final Long userId = user.getId();
+        final Map<String, String> role = new HashMap<>();
+        role.put("role", " ");
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                .get("/users/search/login/{login}", loginFragment))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.size()")         .value(1))
-                .andExpect(jsonPath("$[0].id")          .value(user.getId()))
-                .andExpect(jsonPath("$[0].login")       .value(user.getLogin()))
-                .andExpect(jsonPath("$[0].firstName")   .value(user.getFirstName()))
-                .andExpect(jsonPath("$[0].lastName")    .value(user.getLastName()))
-                .andExpect(jsonPath("$[0].email")       .value(user.getEmail()))
-                .andExpect(jsonPath("$[0].phoneNumber") .value(user.getPhoneNumber()));
+                        .put("/users/role/{id}", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(role)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message")
+                        .value(ROLE_IS_REQUIRED));
     }
 
     @Test
-    void whenLoginFragmentIsBlank_shouldThrowException() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void updateUserRoles_whenRoleIsInvalid_shouldThrowException() throws Exception {
         // given
-        final String loginFragment = " ";
+        userRepository.save(user);
+        final Long userId = user.getId();
+        final Map<String, String> role = new HashMap<>();
+        role.put("role", "ADMINISTRATOR");
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .get("/users/search/login/{login}", loginFragment))
+                        .put("/users/role/{id}", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(role)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message")
+                        .value(INVALID_ROLE));
+    }
+
+    @Test
+    void deactivateUser_whenUserIsAdmin_shouldDeactivateUser() throws Exception {
+        //
+        userRepository.save(admin);
+        authenticateAs(admin);
+        userRepository.save(user);
+        final Long userId = user.getId();
+
+        // when & then
+        mockMvc.perform(MockMvcRequestBuilders
+                        .patch("/users/deactivate/{id}", userId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message")
+                        .value("User with id " + userId + " deactivated successfully."));
+
+        User deactivatedUser = userRepository.findById(userId).orElseThrow();
+        assertFalse(deactivatedUser.isActive());
+    }
+
+    @Test
+    void deactivateUser_whenUserIsOwner_shouldDeactivateUser() throws Exception {
+        //
+        userRepository.save(user);
+        authenticateAs(user);
+        final Long userId = user.getId();
+
+        // when & then
+        mockMvc.perform(MockMvcRequestBuilders
+                        .patch("/users/deactivate/{id}", userId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message")
+                        .value("User with id " + userId + " deactivated successfully."));
+
+        User deactivatedUser = userRepository.findById(userId).orElseThrow();
+        assertFalse(deactivatedUser.isActive());
+    }
+
+    @Test
+    void deactivateUser_whenUserNotFoundById_shouldThrowException() throws Exception {
+        //
+        userRepository.save(admin);
+        authenticateAs(admin);
+        final Long userId = admin.getId() + 111;
+
+        // when & then
+        mockMvc.perform(MockMvcRequestBuilders
+                        .patch("/users/deactivate/{id}", userId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message")
+                        .value("User with id " + userId + " was not found."));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void searchUsers_whenUserIsAdmin_shouldFindAllUsersByQuery() throws Exception {
+        // given
+        userRepository.save(admin);
+        userRepository.save(user);
+
+        final String query = "john ann";
+
+        // when & then
+        mockMvc.perform(MockMvcRequestBuilders
+                .get("/users/search?query={query}", query))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size()")         .value(2));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void searchUsers_whenQueryIsBlank_shouldThrowException() throws Exception {
+        // given
+        final String query = " ";
+
+        // when & then
+        mockMvc.perform(MockMvcRequestBuilders
+                        .get("/users/search?query={query}", query))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message")
                         .value(ReservationService.INPUT_IS_MISSING));
     }
 
     @Test
-    void whenLoginNotFound_shouldThrowException() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void searchUsers_whenUserNotFound_shouldThrowException() throws Exception {
         // given
-        final String loginFragment = "x";
+        final String query = "asdasdad";
 
         // when & then
         mockMvc.perform(MockMvcRequestBuilders
-                        .get("/users/search/login/{login}", loginFragment))
+                        .get("/users/search?query={query}", query))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("There are no users containing login: " + loginFragment));
+                        .value("There are no users containing: " + query));
     }
 
-    @Test
-    void shouldFindAllUsersByFirstNameFragment() throws Exception {
-        // given
-        userRepository.save(user);
-
-        final String firstNameFragment = "AM";
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                .get("/users/search/firstname/{firstName}", firstNameFragment))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.size()")         .value(1))
-                .andExpect(jsonPath("$[0].id")          .value(user.getId()))
-                .andExpect(jsonPath("$[0].login")       .value(user.getLogin()))
-                .andExpect(jsonPath("$[0].firstName")   .value(user.getFirstName()))
-                .andExpect(jsonPath("$[0].lastName")    .value(user.getLastName()))
-                .andExpect(jsonPath("$[0].email")       .value(user.getEmail()))
-                .andExpect(jsonPath("$[0].phoneNumber") .value(user.getPhoneNumber()));
-    }
-
-    @Test
-    void whenFirstNameFragmentIsBlank_shouldThrowException() throws Exception {
-        // given
-        final String firstNameFragment = " ";
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/users/search/firstname/{firstName}", firstNameFragment))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message")
-                        .value(ReservationService.INPUT_IS_MISSING));
-    }
-
-    @Test
-    void whenFirstNameNotFound_shouldThrowException() throws Exception {
-        // given
-        final String firstNameFragment = "x";
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/users/search/firstname/{firstName}", firstNameFragment))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message")
-                        .value("There are no users containing first name: " + firstNameFragment));
-    }
-
-    @Test
-    void shouldFindAllUsersByLastNameFragment() throws Exception {
-        // given
-        userRepository.save(user);
-
-        final String lastNameFragment = "OE";
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                .get("/users/search/lastname/{lastName}", lastNameFragment))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.size()")         .value(1))
-                .andExpect(jsonPath("$[0].id")          .value(user.getId()))
-                .andExpect(jsonPath("$[0].login")       .value(user.getLogin()))
-                .andExpect(jsonPath("$[0].firstName")   .value(user.getFirstName()))
-                .andExpect(jsonPath("$[0].lastName")    .value(user.getLastName()))
-                .andExpect(jsonPath("$[0].email")       .value(user.getEmail()))
-                .andExpect(jsonPath("$[0].phoneNumber") .value(user.getPhoneNumber()));
-    }
-
-    @Test
-    void whenLastNameFragmentIsBlank_shouldThrowException() throws Exception {
-        // given
-        final String lastNameFragment = " ";
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/users/search/lastname/{lastName}", lastNameFragment))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message")
-                        .value(ReservationService.INPUT_IS_MISSING));
-    }
-
-    @Test
-    void whenLastNameNotFound_shouldThrowException() throws Exception {
-        // given
-        final String lastNameFragment = "x";
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/users/search/lastname/{lastName}", lastNameFragment))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message")
-                        .value("There are no users containing last name: " + lastNameFragment));
-    }
-
-    @Test
-    void shouldFindAllUsersByEmailFragment() throws Exception {
-        // given
-        userRepository.save(user);
-
-        final String emailFragment = ".com";
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                .get("/users/search/email/{email}", emailFragment))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.size()")         .value(1))
-                .andExpect(jsonPath("$[0].id")          .value(user.getId()))
-                .andExpect(jsonPath("$[0].login")       .value(user.getLogin()))
-                .andExpect(jsonPath("$[0].firstName")   .value(user.getFirstName()))
-                .andExpect(jsonPath("$[0].lastName")    .value(user.getLastName()))
-                .andExpect(jsonPath("$[0].email")       .value(user.getEmail()))
-                .andExpect(jsonPath("$[0].phoneNumber") .value(user.getPhoneNumber()));
-    }
-
-    @Test
-    void whenEmailFragmentIsBlank_shouldThrowException() throws Exception {
-        // given
-        final String emailFragment = " ";
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/users/search/email/{email}", emailFragment))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message")
-                        .value(ReservationService.INPUT_IS_MISSING));
-    }
-
-    @Test
-    void whenEmailNotFound_shouldThrowException() throws Exception {
-        // given
-        final String emailFragment = "x";
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/users/search/email/{email}", emailFragment))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message")
-                        .value("There are no users containing email: " + emailFragment));
-    }
-
-    @Test
-    void shouldFindAllUsersByPhoneNumberFragment() throws Exception {
-        // given
-        userRepository.save(user);
-
-        final String phoneNumberFragment = "23-4";
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                .get("/users/search/phone/{phoneNumber}", phoneNumberFragment))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.size()")         .value(1))
-                .andExpect(jsonPath("$[0].id")          .value(user.getId()))
-                .andExpect(jsonPath("$[0].login")       .value(user.getLogin()))
-                .andExpect(jsonPath("$[0].firstName")   .value(user.getFirstName()))
-                .andExpect(jsonPath("$[0].lastName")    .value(user.getLastName()))
-                .andExpect(jsonPath("$[0].email")       .value(user.getEmail()))
-                .andExpect(jsonPath("$[0].phoneNumber") .value(user.getPhoneNumber()));
-    }
-
-    @Test
-    void whenPhoneNumberFragmentIsBlank_shouldThrowException() throws Exception {
-        // given
-        final String phoneNumberFragment = " ";
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/users/search/phone/{phoneNumber}", phoneNumberFragment))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message")
-                        .value(ReservationService.INPUT_IS_MISSING));
-    }
-
-    @Test
-    void whenPhoneNumberNotFound_shouldThrowException() throws Exception {
-        // given
-        final String phoneNumberFragment = "x";
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/users/search/phone/{phoneNumber}", phoneNumberFragment))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message")
-                        .value("There are no users containing phone number: " + phoneNumberFragment));
-    }
-
-    @Test
-    void shouldFindAllUsersByAnyString() throws Exception {
-        // given
-        userRepository.save(user);
-
-        final String anyString = "oH";
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                .get("/users/search/{anyString}", anyString))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.size()")         .value(1))
-                .andExpect(jsonPath("$[0].id")          .value(user.getId()))
-                .andExpect(jsonPath("$[0].login")       .value(user.getLogin()))
-                .andExpect(jsonPath("$[0].firstName")   .value(user.getFirstName()))
-                .andExpect(jsonPath("$[0].lastName")    .value(user.getLastName()))
-                .andExpect(jsonPath("$[0].email")       .value(user.getEmail()))
-                .andExpect(jsonPath("$[0].phoneNumber") .value(user.getPhoneNumber()));
-    }
-
-    @Test
-    void whenAnyStringIsBlank_shouldThrowException() throws Exception {
-        // given
-        final String anyString = " ";
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/users/search/{anyString}", anyString))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message")
-                        .value(ReservationService.INPUT_IS_MISSING));
-    }
-
-    @Test
-    void whenUserNotFound_shouldThrowException() throws Exception {
-        // given
-        final String anyString = "x";
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/users/search/{anyString}", anyString))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message")
-                        .value("There are no users containing login, name, email or phone number: " + anyString));
+    private void authenticateAs(User user) {
+        CustomUserDetails userDetails = new CustomUserDetails(user);
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                userDetails, null, userDetails.getAuthorities());
+        SecurityContextHolder.getContext().setAuthentication(authentication);
     }
 }

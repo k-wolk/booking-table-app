@@ -2,7 +2,7 @@ package com.proinwest.booking_table_app.diningTable;
 
 import com.proinwest.booking_table_app.exceptions.types.InvalidInputException;
 import com.proinwest.booking_table_app.exceptions.types.NotFoundException;
-import com.proinwest.booking_table_app.exceptions.types.SecurityException;
+import com.proinwest.booking_table_app.exceptions.types.CustomSecurityException;
 import com.proinwest.booking_table_app.exceptions.types.ValidationException;
 import com.proinwest.booking_table_app.security.jwt.SecurityUtils;
 import com.proinwest.booking_table_app.reservation.Reservation;
@@ -338,7 +338,7 @@ class DiningTableServiceTest {
 
         final List<DiningTable> bookedDiningTables = new ArrayList<>();
 
-        when(tableRepository.allTablesWithMinSeats(table.getSeats()))
+        when(tableRepository.allActiveTablesWithMinSeats(table.getSeats()))
                 .thenReturn(allTablesWithMinSeats);
         when(tableService.getBookedTables(
                         reservation.getReservationDate(),
@@ -352,7 +352,7 @@ class DiningTableServiceTest {
         // then
         assertNotNull(result);
         assertEquals(allTablesWithMinSeats, result);
-        verify(tableRepository, times(1)).allTablesWithMinSeats(table.getSeats());
+        verify(tableRepository, times(1)).allActiveTablesWithMinSeats(table.getSeats());
     }
 
     @Test
@@ -369,7 +369,7 @@ class DiningTableServiceTest {
         final List<DiningTable> bookedDiningTables = new ArrayList<>();
         bookedDiningTables.add(table);
 
-        when(tableRepository.allTablesWithMinSeats(table.getSeats()))
+        when(tableRepository.allActiveTablesWithMinSeats(table.getSeats()))
                 .thenReturn(allTablesWithMinSeats);
         when(tableService.getBookedTables(
                         reservation.getReservationDate(),
@@ -379,7 +379,7 @@ class DiningTableServiceTest {
 
         // when & then
         assertThrows(NotFoundException.class, () -> tableService.getAvailableTables(reservation));
-        verify(tableRepository, times(1)).allTablesWithMinSeats(table.getSeats());
+        verify(tableRepository, times(1)).allActiveTablesWithMinSeats(table.getSeats());
     }
 
     @Test
@@ -388,15 +388,15 @@ class DiningTableServiceTest {
         final DiningTable table = Instancio.create(DiningTable.class);
         final int minSeats = table.getSeats();
 
-        when(tableRepository.allTablesWithMinSeats(minSeats)).thenReturn(List.of(table));
+        when(tableRepository.allActiveTablesWithMinSeats(minSeats)).thenReturn(List.of(table));
 
         // when
-        final List<DiningTable> result = tableService.getAllTablesWithMinSeats(minSeats);
+        final List<DiningTable> result = tableService.getAllActiveTablesWithMinSeats(minSeats);
 
         // then
         assertNotNull(result);
         assertEquals(List.of(table), result);
-        verify(tableRepository, times(1)).allTablesWithMinSeats(minSeats);
+        verify(tableRepository, times(1)).allActiveTablesWithMinSeats(minSeats);
     }
 
     @Test
@@ -404,11 +404,11 @@ class DiningTableServiceTest {
         // given
         final int minSeats = 6;
 
-        when(tableRepository.allTablesWithMinSeats(minSeats)).thenReturn(Collections.emptyList());
+        when(tableRepository.allActiveTablesWithMinSeats(minSeats)).thenReturn(Collections.emptyList());
 
         // when & then
-        assertThrows(NotFoundException.class, () -> tableService.getAllTablesWithMinSeats(minSeats));
-        verify(tableRepository, times(1)).allTablesWithMinSeats(minSeats);
+        assertThrows(NotFoundException.class, () -> tableService.getAllActiveTablesWithMinSeats(minSeats));
+        verify(tableRepository, times(1)).allActiveTablesWithMinSeats(minSeats);
     }
 
     @Test

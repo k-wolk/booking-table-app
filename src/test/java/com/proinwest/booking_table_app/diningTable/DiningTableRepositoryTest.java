@@ -149,7 +149,7 @@ public class DiningTableRepositoryTest {
         tableRepository.save(table2);
 
         // when
-        final List<DiningTable> result = tableRepository.allTablesWithMinSeats(6);
+        final List<DiningTable> result = tableRepository.allActiveTablesWithMinSeats(6);
 
         // then
         assertNotNull(result);
@@ -166,9 +166,51 @@ public class DiningTableRepositoryTest {
         tableRepository.save(table);
 
         // when
-        final List<DiningTable> result = tableRepository.allTablesWithMinSeats(5);
+        final List<DiningTable> result = tableRepository.allActiveTablesWithMinSeats(5);
 
         // then
         assertEquals(Collections.emptyList(), result);
+    }
+
+    @Test
+    void shouldReturnListOfAllTablesOrderByActive_whenExists() {
+        // given
+        final DiningTable table1 = new DiningTable();
+        table1.setNumber(1);
+        table1.setSeats(4);
+        table1.setActive(true);
+
+        final DiningTable table2 = new DiningTable();
+        table2.setNumber(2);
+        table2.setSeats(6);
+        table2.setActive(false);
+
+        tableRepository.save(table1);
+        tableRepository.save(table2);
+
+        // when
+        final List<DiningTable> result = tableRepository.allTablesOrderByActive();
+
+        // then
+        assertNotNull(result);
+        assertEquals(List.of(table1, table2), result);
+    }
+
+    @Test
+    void shouldReturnActiveById_whenExists() {
+        // given
+        final DiningTable table = new DiningTable();
+        final Integer number = 2;
+        table.setNumber(number);
+        table.setSeats(4);
+        table.setActive(true);
+
+        tableRepository.save(table);
+
+        // when
+        final boolean result = tableRepository.isActive(table.getId());
+
+        // then
+        assertTrue(result);
     }
 }

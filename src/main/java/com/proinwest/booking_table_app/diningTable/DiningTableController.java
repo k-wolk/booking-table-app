@@ -25,7 +25,6 @@ public class DiningTableController {
     }
 
     @GetMapping("/getactive")
-//    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<List<DiningTable>> getAllActiveTables() {
         List<DiningTable> allTables = tableService.getAllActiveTables();
         return ResponseEntity.ok(allTables);

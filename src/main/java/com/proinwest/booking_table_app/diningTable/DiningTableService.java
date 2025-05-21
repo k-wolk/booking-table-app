@@ -2,7 +2,7 @@ package com.proinwest.booking_table_app.diningTable;
 
 import com.proinwest.booking_table_app.exceptions.types.InvalidInputException;
 import com.proinwest.booking_table_app.exceptions.types.NotFoundException;
-import com.proinwest.booking_table_app.exceptions.types.SecurityException;
+import com.proinwest.booking_table_app.exceptions.types.CustomSecurityException;
 import com.proinwest.booking_table_app.exceptions.types.ValidationException;
 import com.proinwest.booking_table_app.security.jwt.SecurityUtils;
 import com.proinwest.booking_table_app.reservation.Reservation;
@@ -31,6 +31,7 @@ public class DiningTableService {
     public static final String NO_TABLES_FOUND = "No dining tables was found.";
     public static final String NO_FREE_TABLES_WAS_FOUND = "No free tables was found according to your requirements.";
     public static final String TABLE_ID_IS_REQUIRED = "Dining table id is required.";
+    public static final String ACCESS_DENIED_TABLE_INACTIVE = "Access denied: table is inactive";
     private final DiningTableRepository tableRepository;
     private final ReservationService reservationService;
     private final UserService userService;
@@ -66,10 +67,10 @@ public class DiningTableService {
 
     DiningTable getTable(Integer tableId) {
         DiningTable table = tableRepository.findById(tableId)
-                .orElseThrow(() -> new NotFoundException("Table with id " + tableId + " was not found."));
+                .orElseThrow(() -> new NotFoundException("Table not found for ID: " + tableId + "."));
 
         if (!securityUtils.isAdmin() && !table.isActive())
-            throw new SecurityException("Access denied: table is inactive");
+            throw new CustomSecurityException(ACCESS_DENIED_TABLE_INACTIVE);
 
         return table;
     }
@@ -89,7 +90,7 @@ public class DiningTableService {
 
     public void deactivateTable(Integer tableId) {
         DiningTable table = tableRepository.findById(tableId)
-                .orElseThrow(() -> new NotFoundException("Table with id " + tableId + " was not found."));
+                .orElseThrow(() -> new NotFoundException("Table not found for ID: " + tableId + "."));
 
         table.setActive(false);
         tableRepository.save(table);
@@ -97,7 +98,7 @@ public class DiningTableService {
 
     public void activateTable(Integer tableId) {
         DiningTable table = tableRepository.findById(tableId)
-                .orElseThrow(() -> new NotFoundException("Table with id " + tableId + " was not found."));
+                .orElseThrow(() -> new NotFoundException("Table not found for ID: " + tableId + "."));
 
         table.setActive(true);
         tableRepository.save(table);
@@ -106,7 +107,7 @@ public class DiningTableService {
     DiningTable updateTable(Integer tableId, DiningTable table) {
         final DiningTable tableToUpdate = tableRepository.findById(tableId)
                 .map(updatingTable -> updateTable(table, updatingTable))
-                .orElseThrow(() -> new NotFoundException("Table with id " + tableId + " was not found."));
+                .orElseThrow(() -> new NotFoundException("Table not found for ID: " + tableId + "."));
 
         validateTable(tableToUpdate);
 
@@ -115,7 +116,7 @@ public class DiningTableService {
 
     void deleteTable(Integer tableId) {
         if (!existsById(tableId))
-            throw new NotFoundException("Table with " + tableId + " was not found.");
+            throw new NotFoundException("Table not found for ID: " + tableId + ".");
 
         if (!reservationService.findAllByTableId(tableId).isEmpty())
             throw new InvalidInputException("Table with " + tableId + " can not be deleted " +
@@ -127,7 +128,7 @@ public class DiningTableService {
     List<DiningTable> getAvailableTables(Reservation reservation) {
         reservationService.validateDateTimeDurationAndSeats(reservation);
 
-        final Iterable<DiningTable> allTablesWithMinSeats = getAllTablesWithMinSeats(reservation.getDiningTable().getSeats());
+        final Iterable<DiningTable> allTablesWithMinSeats = getAllActiveTablesWithMinSeats(reservation.getDiningTable().getSeats());
         final List<DiningTable> bookedTables = getBookedTables(
                 reservation.getReservationDate(),
                 reservation.getReservationTime(),
@@ -147,12 +148,12 @@ public class DiningTableService {
         return availableTables;
     }
 
-    List<DiningTable> getAllTablesWithMinSeats(Integer seats) {
-        final List<DiningTable> allTablesWithMinSeats = tableRepository.allTablesWithMinSeats(seats);
-        if (allTablesWithMinSeats.isEmpty())
+    List<DiningTable> getAllActiveTablesWithMinSeats(Integer seats) {
+        final List<DiningTable> allActiveTablesWithMinSeats = tableRepository.allActiveTablesWithMinSeats(seats);
+        if (allActiveTablesWithMinSeats.isEmpty())
             throw new NotFoundException("There are no tables with the required number of seats (" + seats + ").");
 
-        return allTablesWithMinSeats;
+        return allActiveTablesWithMinSeats;
     }
 
     List<DiningTable> getBookedTables(LocalDate date, LocalTime time, int duration) {
@@ -224,5 +225,9 @@ public class DiningTableService {
         if (table.getSeats() != null) updatingTable.setSeats(table.getSeats());
 
         return updatingTable;
+    }
+
+    public boolean isActive(Integer tableId) {
+        return tableRepository.isActive(tableId);
     }
 }

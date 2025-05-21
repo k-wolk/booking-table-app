@@ -98,7 +98,7 @@ public class DiningTableE2ETest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    void getAllTables_whenNoTableExists_shouldThrowException() throws Exception {
+    void getAllTables_whenNoTableExists_shouldReturnNotFound() throws Exception {
         // given
         cleanDatabase();
 
@@ -122,7 +122,7 @@ public class DiningTableE2ETest {
 
     @Test
     @WithMockUser
-    void getAllActiveTables_whenNoTableExists_shouldThrowException() throws Exception {
+    void getAllActiveTables_whenNoTableExists_shouldReturnNotFound() throws Exception {
         // given
         cleanDatabase();
 
@@ -145,7 +145,7 @@ public class DiningTableE2ETest {
 
     @Test
     @WithMockUser
-    void getTable_whenTableNotExists_shouldThrowException() throws Exception {
+    void getTable_whenTableNotExists_shouldReturnNotFound() throws Exception {
         // given
         cleanDatabase();
         final Integer tableId = 1;
@@ -154,12 +154,12 @@ public class DiningTableE2ETest {
         mockMvc.perform(get("/tables/{tableId}", tableId))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("Table with id " + tableId + " was not found."));
+                        .value("Table not found for ID: " + tableId + "."));
     }
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    void createTable_whenTableParamsAreInvalid_shouldThrowException() throws Exception {
+    void createTable_whenTableParamsAreInvalid_shouldReturnBadRequest() throws Exception {
         // given
         table.setNumber(null);
         table.setSeats(0);
@@ -191,7 +191,7 @@ public class DiningTableE2ETest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    void deactivateTable_whenTableNotExists_shouldThrowException() throws Exception {
+    void deactivateTable_whenTableNotExists_shouldReturnNotFound() throws Exception {
         // given
         cleanDatabase();
         Integer tableId = 1;
@@ -200,7 +200,7 @@ public class DiningTableE2ETest {
         mockMvc.perform(post("/tables/deactivate/{tableId}", tableId))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("Table with id " + tableId + " was not found."));
+                        .value("Table not found for ID: " + tableId + "."));
     }
 
     @Test
@@ -221,7 +221,7 @@ public class DiningTableE2ETest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    void activateTable_whenTableNotExists_shouldThrowException() throws Exception {
+    void activateTable_whenTableNotExists_shouldReturnNotFound() throws Exception {
         // given
         cleanDatabase();
         Integer tableId = 1;
@@ -230,7 +230,7 @@ public class DiningTableE2ETest {
         mockMvc.perform(post("/tables/activate/{tableId}", tableId))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("Table with id " + tableId + " was not found."));
+                        .value("Table not found for ID: " + tableId + "."));
     }
 
     @Test
@@ -285,7 +285,7 @@ public class DiningTableE2ETest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    void updateTable_whenTableNotExists_shouldThrowException() throws Exception {
+    void updateTable_whenTableNotExists_shouldReturnNotFound() throws Exception {
         // given
         cleanDatabase();
         final Integer tableId = 1;
@@ -296,12 +296,12 @@ public class DiningTableE2ETest {
                         .content(mapper.writeValueAsString(table)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("Table with id " + tableId + " was not found."));
+                        .value("Table not found for ID: " + tableId + "."));
     }
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    void updateTable_whenTableParamsAreInvalid_shouldThrowException() throws Exception {
+    void updateTable_whenTableParamsAreInvalid_shouldReturnBadRequest() throws Exception {
         // given
         final DiningTable invalidTable = new DiningTable();
         invalidTable.setNumber(MAX_NUMBER + 1);
@@ -336,7 +336,7 @@ public class DiningTableE2ETest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    void deleteTable_whenTableNotExists_shouldThrowException() throws Exception {
+    void deleteTable_whenTableNotExists_shouldReturnNotFound() throws Exception {
         // given
         cleanDatabase();
         final Integer tableId = 1;
@@ -347,12 +347,12 @@ public class DiningTableE2ETest {
                         .content(mapper.writeValueAsString(table)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("Table with " + tableId + " was not found."));
+                        .value("Table not found for ID: " + tableId + "."));
     }
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    void deleteTable_whenTableHasAssignedReservation_shouldThrowException() throws Exception {
+    void deleteTable_whenTableHasAssignedReservation_shouldReturnBadRequest() throws Exception {
         // given
         final User user = new User();
         user.setLogin("john");
@@ -391,7 +391,7 @@ public class DiningTableE2ETest {
         LocalDate date = LocalDate.now().plusDays(1);
 
         // when & then
-        mockMvc.perform(get("/tables/{tableId}/available/date/{date}", tableId, date))
+        mockMvc.perform(get("/tables/{tableId}/date/{date}", tableId, date))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0]").value(OPENING_TIME + " - " + CLOSING_TIME));
     }
@@ -429,7 +429,7 @@ public class DiningTableE2ETest {
         createReservation(reservation2);
 
         // when
-        mockMvc.perform(get("/tables/{tableId}/available/date/{date}", tableId, date))
+        mockMvc.perform(get("/tables/{tableId}/date/{date}", tableId, date))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0]")
                         .value(OPENING_TIME + " - " + reservation1.getReservationTime()))
@@ -443,17 +443,17 @@ public class DiningTableE2ETest {
 
     @Test
     @WithMockUser
-    void availableTimes_whenTableNotExists_shouldThrowException() throws Exception {
+    void availableTimes_whenTableNotExists_shouldReturnNotFound() throws Exception {
         // given
         cleanDatabase();
         Integer tableId = 1;
         LocalDate date = LocalDate.now();
 
         // when & then
-        mockMvc.perform(get("/tables/{tableId}/available/date/{date}", tableId, date))
+        mockMvc.perform(get("/tables/{tableId}/date/{date}", tableId, date))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("Table with id " + tableId + " was not found."));
+                        .value("Table not found for ID: " + tableId + "."));
     }
 
     @Test
@@ -506,7 +506,7 @@ public class DiningTableE2ETest {
 
     @Test
     @WithMockUser
-    void availableTables_whenReservationParamsAreInvalid_shouldThrowException() throws Exception {
+    void availableTables_whenReservationParamsAreInvalid_shouldReturnBadRequest() throws Exception {
         // given
         table.setNumber(null);
         table.setSeats(MAX_SEATS + 1);
@@ -524,14 +524,14 @@ public class DiningTableE2ETest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.reservationDate")       .value(DATE_MESSAGE))
                 .andExpect(jsonPath("$.reservationTime")       .value(OPENING_HOURS_MESSAGE
-                        + " Try change reservation reservationTime and/or duration."))
+                        + " Try change reservation time and/or duration."))
                 .andExpect(jsonPath("$.duration")   .value(DURATION_MESSAGE))
                 .andExpect(jsonPath("$.seats")      .value(SEATS_MESSAGE));
     }
 
     @Test
     @WithMockUser
-    void availableTables_whenThereIsNoTablesWithRequiredSeats_shouldThrowException() throws Exception {
+    void availableTables_whenThereIsNoTablesWithRequiredSeats_shouldReturnNotFound() throws Exception {
         // given
         final DiningTable requestedTable = new DiningTable();
         requestedTable.setSeats(table.getSeats() + 1);
@@ -554,7 +554,7 @@ public class DiningTableE2ETest {
 
     @Test
     @WithMockUser
-    void availableTables_whenAllTablesAreBooked_shouldThrowException() throws Exception {
+    void availableTables_whenAllTablesAreBooked_shouldReturnNotFound() throws Exception {
         // given
         final User user = new User();
         user.setLogin("john");

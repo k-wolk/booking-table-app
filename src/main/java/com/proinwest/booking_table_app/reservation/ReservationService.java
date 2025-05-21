@@ -22,8 +22,8 @@ public class ReservationService {
     public static final LocalTime OPENING_TIME = LocalTime.of(11,0);
     public static final LocalTime CLOSING_TIME = LocalTime.of(23,0);
     public static final String OPENING_HOURS_MESSAGE = "Our place is open from " + OPENING_TIME + " to " + CLOSING_TIME + ".";
-    public static final String DATE_MESSAGE = "Reservation reservationDate should be present or future.";
-    public static final String TIME_MESSAGE = "Reservation reservationTime should be present of future.";
+    public static final String DATE_MESSAGE = "Reservation date should be present or future.";
+    public static final String TIME_MESSAGE = "Reservation time should be present of future.";
     public static final int MIN_DURATION = 1;
     public static final int MAX_DURATION = 6;
     public static final String DURATION_MESSAGE = "Duration should be between " + MIN_DURATION + " and " + MAX_DURATION + " hours.";
@@ -88,15 +88,15 @@ public class ReservationService {
     }
 
     ReservationDTO updateReservation(final Long id, final Reservation reservation) {
-        securityUtils.isAdminOrOwner(reservation.getUser().getId());
-
-        final Reservation reservationToUpdate = reservationRepository.findById(id)
-                .map(updatingReservation -> updateReservation(reservation, updatingReservation))
+        final Reservation existingReservation = reservationRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Reservation with id " + id + " was not found."));
 
-        validateReservation(reservationToUpdate);
+        securityUtils.isAdminOrOwner(existingReservation.getUser().getId());
 
-        final Reservation savedReservation = reservationRepository.save(reservationToUpdate);
+        Reservation updatedReservation = updateReservation(reservation, existingReservation);
+        validateReservation(updatedReservation);
+
+        final Reservation savedReservation = reservationRepository.save(updatedReservation);
         return reservationDTOMapper.apply(savedReservation);
     }
 
@@ -119,14 +119,14 @@ public class ReservationService {
                 .toList();
 
         if (allByUserId.isEmpty())
-            throw new NotFoundException("There is no reservation assigned to user with id: " + userId);
+            throw new NotFoundException("No reservation is assigned to the user with ID: " + userId + ".");
 
         return allByUserId;
     }
 
     public List<ReservationDTO> getAllByDateAndTableId(LocalDate date, Integer tableId) {
         if (!diningTableService.existsById(tableId))
-            throw new NotFoundException("Table with id " + tableId + " was not found.");
+            throw new NotFoundException("Table not found for ID: " + tableId + ".");
 
         final List<ReservationDTO> allByDateAndTableId = reservationRepository.findAllByDateAndTableId(date, tableId)
                 .stream()
@@ -144,14 +144,14 @@ public class ReservationService {
                 .map(reservationDTOMapper)
                 .toList();
 
-        if (allByDate.isEmpty()) throw new NotFoundException("There is no reservation on reservationDate " + date + ".");
+        if (allByDate.isEmpty()) throw new NotFoundException("There is no reservation on date " + date + ".");
 
         return allByDate;
     }
 
     public List<ReservationDTO> findAllByTableId(Integer tableId) {
         if (!diningTableService.existsById(tableId))
-            throw new NotFoundException("Dining table with id " + tableId + " was not found.");
+            throw new NotFoundException("Dining table not found for ID: " + tableId + ".");
 
         final List<ReservationDTO> allByTableId = reservationRepository.findAllByTableId(tableId)
                 .stream()
@@ -177,7 +177,7 @@ public class ReservationService {
         }
 
         if (resultSet.isEmpty())
-            throw new NotFoundException("No reservation was found on query: " + query);
+            throw new NotFoundException("No reservation was found for the query: " + query + ".");
 
         return new ArrayList<>(resultSet);
     }
@@ -187,7 +187,6 @@ public class ReservationService {
         if (!validationMessages.isEmpty()) throw new ValidationException(validationMessages);
     }
 
-    // todo: tide up validator classes. Seats should be validated by tableValidator etc.
     public void validateDateTimeDurationAndSeats(Reservation reservation) {
         Map<String, String> validationMessages = reservationValidator.validateDateTimeDurationAndSeats(reservation);
         if (!validationMessages.isEmpty()) throw new ValidationException(validationMessages);
