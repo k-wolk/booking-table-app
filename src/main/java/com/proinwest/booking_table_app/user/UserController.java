@@ -25,6 +25,7 @@ public class UserController {
 
     @GetMapping("{userId}")
     public ResponseEntity<UserDTO> getUser(@PathVariable Long userId) {
+        System.out.println("DEBUG: UserController getUser() called with userId: " + userId);
         UserDTO user = userService.getUser(userId);
         return ResponseEntity.ok(user);
     }
@@ -42,7 +43,7 @@ public class UserController {
         return ResponseEntity.ok().body(updatedUser);
     }
 
-    @PutMapping("/role/{userId}")
+    @PatchMapping("/role/{userId}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserDTO> updateUserRole(@PathVariable Long userId, @RequestBody Map<String, String> role) {
         UserDTO updatedUser = userService.updateUserRole(userId, role);

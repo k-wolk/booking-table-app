@@ -40,8 +40,9 @@ public class ReservationService {
                               ReservationDTOMapper reservationDTOMapper,
                               ReservationValidator reservationValidator,
                               DiningTableService tableService,
-                              UserService userService, SecurityUtils securityUtils)
-    {
+                              UserService userService,
+                              SecurityUtils securityUtils
+    ) {
         this.reservationRepository = reservationRepository;
         this.reservationDTOMapper = reservationDTOMapper;
         this.reservationValidator = reservationValidator;
@@ -151,7 +152,7 @@ public class ReservationService {
 
     public List<ReservationDTO> findAllByTableId(Integer tableId) {
         if (!diningTableService.existsById(tableId))
-            throw new NotFoundException("Dining table not found for ID: " + tableId + ".");
+            throw new NotFoundException("Table not found for ID: " + tableId + ".");
 
         final List<ReservationDTO> allByTableId = reservationRepository.findAllByTableId(tableId)
                 .stream()

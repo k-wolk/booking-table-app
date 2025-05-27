@@ -1,5 +1,6 @@
 package com.proinwest.booking_table_app.security.userDetails;
 
+import com.proinwest.booking_table_app.user.User;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -58,4 +59,6 @@ public class CustomUserDetails implements UserDetails {
     public boolean isEnabled() {
         return active;
     }
+
+    public boolean isActive() {return  active;}
 }

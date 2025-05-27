@@ -104,10 +104,10 @@ class DiningTableControllerWebLayerTest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    void getAllActiveTables_whenUserIsAdmin_shouldReturnForbidden() throws Exception {
+    void getAllActiveTables_whenUserIsAdmin_shouldReturnOk() throws Exception {
         // when & then
         mockMvc.perform(get("/tables/getactive"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk());
     }
 
     @Test

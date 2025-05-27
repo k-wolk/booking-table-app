@@ -71,7 +71,8 @@ class ReservationControllerWebLayerTest {
                 user.getLastName(),
                 user.getEmail(),
                 user.getPhoneNumber(),
-                user.getRole()
+                user.getRole(),
+                user.isActive()
         );
 
         table = Instancio.create(DiningTable.class);

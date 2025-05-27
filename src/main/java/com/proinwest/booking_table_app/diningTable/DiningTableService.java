@@ -1,9 +1,6 @@
 package com.proinwest.booking_table_app.diningTable;
 
-import com.proinwest.booking_table_app.exceptions.types.InvalidInputException;
-import com.proinwest.booking_table_app.exceptions.types.NotFoundException;
-import com.proinwest.booking_table_app.exceptions.types.CustomSecurityException;
-import com.proinwest.booking_table_app.exceptions.types.ValidationException;
+import com.proinwest.booking_table_app.exceptions.types.*;
 import com.proinwest.booking_table_app.security.jwt.SecurityUtils;
 import com.proinwest.booking_table_app.reservation.Reservation;
 import com.proinwest.booking_table_app.reservation.ReservationDTO;
@@ -119,7 +116,7 @@ public class DiningTableService {
             throw new NotFoundException("Table not found for ID: " + tableId + ".");
 
         if (!reservationService.findAllByTableId(tableId).isEmpty())
-            throw new InvalidInputException("Table with " + tableId + " can not be deleted " +
+            throw new DisableException("Table with " + tableId + " can not be deleted " +
                     "because it has at least one reservation assigned.");
 
         tableRepository.deleteById(tableId);

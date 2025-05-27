@@ -409,7 +409,7 @@ public class DiningTableControllerIntegrationTest {
 
         // when & then
         mockMvc.perform(delete("/tables/{tableId}", tableId))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message")
                         .value("Table with " + tableId
                                 + " can not be deleted because it has at least one reservation assigned."));

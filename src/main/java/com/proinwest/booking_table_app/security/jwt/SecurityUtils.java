@@ -12,7 +12,9 @@ public class SecurityUtils {
     public static final String ACCESS_DENIED_AN_ADMIN_OR_THE_OWNER = "Access denied: You must be an admin or the owner.";
 
     public boolean isAdmin() {
-        return hasRole("ROLE_ADMIN");
+        boolean isAdmin = hasRole("ROLE_ADMIN");
+        System.out.println("isAdmin: " + isAdmin);
+        return isAdmin;
     }
 
     public boolean isUser() {
@@ -20,12 +22,17 @@ public class SecurityUtils {
     }
 
     public void isAdminOrOwner(Long userId) {
-        if (!isAdmin() && !isCurrentUser(userId))
+        if (!isAdmin() && !isOwner(userId))
             throw new CustomSecurityException(ACCESS_DENIED_AN_ADMIN_OR_THE_OWNER);
     }
 
-    public boolean isCurrentUser(Long userId) {
-        return userId.equals(getCurrentUserId());
+    public boolean isOwner(Long userId) {
+        Long currentUserId = getCurrentUserId();
+        boolean isOwner = userId.equals(currentUserId);
+        System.out.println("current user ID: " + currentUserId);
+        System.out.println("isOwner: " + isOwner);
+        return isOwner;
+//        return userId.isOwner(getCurrentUserId());
     }
 
     private boolean hasRole(String role) {
@@ -40,9 +47,9 @@ public class SecurityUtils {
     private Long getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        System.out.println("DEBUG: Authentication: " + authentication);
-        System.out.println("DEBUG: Principal: " + authentication.getPrincipal());
-        System.out.println("DEBUG: Principal class: " + authentication.getPrincipal().getClass().getName());
+        System.out.println("DEBUG1: Authentication: " + authentication);
+        System.out.println("DEBUG2: Principal: " + authentication.getPrincipal());
+        System.out.println("DEBUG3: Principal class: " + authentication.getPrincipal().getClass().getName());
 
         if (authentication == null || authentication.getPrincipal() == null)
             throw new CustomSecurityException("No authenticated user found.");

@@ -3,6 +3,7 @@ package com.proinwest.booking_table_app.user;
 import com.proinwest.booking_table_app.exceptions.types.InvalidInputException;
 import com.proinwest.booking_table_app.exceptions.types.NotFoundException;
 import com.proinwest.booking_table_app.reservation.ReservationService;
+import com.proinwest.booking_table_app.security.jwt.SecurityUtils;
 import org.instancio.Instancio;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,6 +34,8 @@ class UserServiceTest {
     private UserValidator userValidator;
     @Mock
     private ReservationService reservationService;
+    @Mock
+    private SecurityUtils securityUtils;
     @Mock
     private PasswordEncoder passwordEncoder;
     @Spy
@@ -75,7 +78,7 @@ class UserServiceTest {
         final UserDTO userDTO = Instancio.create(UserDTO.class);
         final Long userId = user.getId();
 
-        doNothing().when(userService).isAdminOrOwner(userId);
+        doNothing().when(securityUtils).isAdminOrOwner(userId);
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(userDTOMapper.apply(user)).thenReturn(userDTO);
 
@@ -94,7 +97,7 @@ class UserServiceTest {
         // given
         final Long userId = 1L;
 
-        doNothing().when(userService).isAdminOrOwner(userId);
+        doNothing().when(securityUtils).isAdminOrOwner(userId);
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
         // when & then
@@ -162,7 +165,7 @@ class UserServiceTest {
 
         final UserDTO userDTO = Instancio.create(UserDTO.class);
 
-        doNothing().when(userService).isCurrentUser(userId);
+        when(securityUtils.isOwner(userId)).thenReturn(true);
         when(userRepository.findById(userId)).thenReturn(Optional.of(userToUpdate));
         when(userRepository.save(userToUpdate)).thenReturn(savedUser);
         when(userDTOMapper.apply(savedUser)).thenReturn(userDTO);
@@ -173,7 +176,7 @@ class UserServiceTest {
         // then
         assertNotNull(result);
         assertEquals(userDTO, result);
-        verify(userService, times(1)).isCurrentUser(userId);
+        verify(securityUtils, times(1)).isOwner(userId);
         verify(userRepository, times(1)).findById(userId);
         verify(userRepository, times(1)).save(userToUpdate);
         verify(userDTOMapper, times(1)).apply(savedUser);
@@ -185,7 +188,7 @@ class UserServiceTest {
         final User user = Instancio.create(User.class);
         final Long userId = user.getId();
 
-        doNothing().when(userService).isCurrentUser(userId);
+        when(securityUtils.isOwner(userId)).thenReturn(true);
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
         // when & then
@@ -196,43 +199,43 @@ class UserServiceTest {
     @Test
     void shouldFindUserByAnyString() {
         // given
-        final String searchPhrase = "any";
+        final String query = "any";
         final User user = Instancio.create(User.class);
         final UserDTO userDTO = Instancio.create(UserDTO.class);
 
-        when(userRepository.searchUsers(searchPhrase)).thenReturn(List.of(user));
+        when(userRepository.searchUsers(query)).thenReturn(List.of(user));
         when(userDTOMapper.apply(user)).thenReturn(userDTO);
 
         // when
-        final List<UserDTO> result = userService.searchUsers(searchPhrase);
+        final List<UserDTO> result = userService.searchUsers(query);
 
         // then
         assertNotNull(result);
         assertEquals(List.of(userDTO), result);
-        verify(userRepository, times(1)).searchUsers(searchPhrase);
+        verify(userRepository, times(1)).searchUsers(query);
         verify(userDTOMapper, times(1)).apply(user);
     }
 
     @Test
-    void whenSearchPhraseIsBlank_shouldThrowException() {
+    void whenQueryIsBlank_shouldThrowException() {
         // given
-        final String searchPhrase = " ";
+        final String query = " ";
 
         // when & then
-        assertThrows(InvalidInputException.class, () -> userService.searchUsers(searchPhrase));
-        verify(userRepository, never()).searchUsers(searchPhrase);
+        assertThrows(InvalidInputException.class, () -> userService.searchUsers(query));
+        verify(userRepository, never()).searchUsers(query);
     }
 
     @Test
-    void whenUserNotFoundByStringPhrase_shouldThrowException() {
+    void whenUserNotFoundByQuery_shouldThrowException() {
         // given
-        final String searchPhrase = "any";
+        final String query = "any";
 
-        when(userRepository.searchUsers(searchPhrase)).thenReturn(Collections.emptyList());
+        when(userRepository.searchUsers(query)).thenReturn(Collections.emptyList());
 
         // when & then
-        assertThrows(NotFoundException.class, () -> userService.searchUsers(searchPhrase));
-        verify(userRepository, times(1)).searchUsers(searchPhrase);
+        assertThrows(NotFoundException.class, () -> userService.searchUsers(query));
+        verify(userRepository, times(1)).searchUsers(query);
     }
 
     @Test

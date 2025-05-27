@@ -58,7 +58,7 @@ public class ReservationE2ETest {
     private Reservation reservation;
 
     @BeforeEach
-    void setUp() throws Exception {
+    void setUp() {
         cleanDatabase();
 
         table = new DiningTable();
@@ -529,7 +529,7 @@ public class ReservationE2ETest {
         mockMvc.perform(get("/reservations/date/{date}/table/{tableId}", date, tableId))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("Dining table not found for ID: " + tableId + "."));
+                        .value("Table not found for ID: " + tableId + "."));
     }
 
     @Test
@@ -562,9 +562,9 @@ public class ReservationE2ETest {
     }
 
     @Test
-    @WithMockUser
     void findAllByDate_whenUserIsNotAdmin_shouldReturnForbidden() throws Exception {
         // given
+        authenticateAs(user);
         final LocalDate date = reservation.getReservationDate();
 
         // when & then
@@ -710,6 +710,7 @@ public class ReservationE2ETest {
         CustomUserDetails userDetails = new CustomUserDetails(user);
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                 userDetails, null, userDetails.getAuthorities());
+        System.out.println("auth " + authentication);
         SecurityContextHolder.getContext().setAuthentication(authentication);
     }
 }

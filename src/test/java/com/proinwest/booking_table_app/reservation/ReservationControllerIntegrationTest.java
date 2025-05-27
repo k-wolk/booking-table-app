@@ -665,7 +665,7 @@ class ReservationControllerIntegrationTest {
         mockMvc.perform(get("/reservations/date/{date}/table/{tableId}", date, tableId))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("Dining table not found for ID: " + tableId + "."));
+                        .value("Table not found for ID: " + tableId + "."));
     }
 
     @Test

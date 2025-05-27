@@ -43,7 +43,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    @Profile("!test")
+//    @Profile("!test")
     public AuthTokenFilter authenticationJwtTokenFilter() {
         logger.debug("Initializing JWT Authentication Filter");
         return new AuthTokenFilter();
@@ -54,8 +54,8 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/signup", "/signin", "/tables/available", "/tables/getactive", "/error",
-                                "/tables/{tableId}", "/tables/{tableId}/date/{date}").permitAll()
+                        .requestMatchers("/signup", "/signin", "/tables/available", "/tables/getactive",
+                                "/error", "/tables/{tableId}", "/tables/{tableId}/date/{date}").permitAll()
                         .requestMatchers(HttpMethod.POST, "/users").permitAll()
                         .anyRequest().authenticated()
                 )
@@ -77,7 +77,7 @@ public class SecurityConfig {
 
                             ExceptionResponse errorResponse = new ExceptionResponse(
                                     HttpStatus.FORBIDDEN.value(),
-                                    "Access denied.", // lub accessDeniedException.getMessage()
+                                    "Access denied.",
                                     LocalDateTime.now().toString()
                             );
 

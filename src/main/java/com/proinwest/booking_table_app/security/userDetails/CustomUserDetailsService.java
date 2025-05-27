@@ -39,16 +39,14 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String login) throws UsernameNotFoundException {
-        System.out.println("DEBUG: loadUserByUsername() called with login: " + login);
+        System.out.println("DEBUG11: loadUserByUsername() called with login: " + login);
         User user = userRepository.findByLogin(login)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + login));
 
         System.out.println("DEBUG: Loaded user from DB: " + user.getLogin());
         System.out.println("DEBUG: User class: " + user.getClass().getName());
 
-        if (!user.isActive()) {
-            throw new DisableException("User account is deactivated.");
-        }
+
 
         CustomUserDetails customUserDetails = new CustomUserDetails(user);
         System.out.println("DEBUG: Returning CustomUserDetails: " + customUserDetails.getClass().getName());

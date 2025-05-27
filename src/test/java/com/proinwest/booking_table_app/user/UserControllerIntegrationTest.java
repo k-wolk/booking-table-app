@@ -31,6 +31,7 @@ import java.util.Map;
 import static com.proinwest.booking_table_app.user.UserService.*;
 import static org.junit.Assert.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -103,8 +104,7 @@ class UserControllerIntegrationTest {
         userRepository.save(user);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/users"))
+        mockMvc.perform(get("/users"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")         .value(1))
                 .andExpect(jsonPath("$[0].id")          .value(user.getId()))
@@ -119,8 +119,7 @@ class UserControllerIntegrationTest {
     @WithMockUser(roles = "ADMIN")
     void getAllUsers_whenUsersNotFound_shouldReturnNotFound() throws Exception {
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/users"))
+        mockMvc.perform(get("/users"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value(NO_USERS_IN_DATABASE));
     }
@@ -132,8 +131,7 @@ class UserControllerIntegrationTest {
         authenticateAs(admin);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/users/{id}", user.getId()))
+        mockMvc.perform(get("/users/{userId}", user.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id")          .value(user.getId()))
                 .andExpect(jsonPath("$.login")       .value(user.getLogin()))
@@ -150,8 +148,7 @@ class UserControllerIntegrationTest {
         authenticateAs(user);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/users/{id}", user.getId()))
+        mockMvc.perform(get("/users/{userId}", user.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id")          .value(user.getId()))
                 .andExpect(jsonPath("$.login")       .value(user.getLogin()))
@@ -169,8 +166,7 @@ class UserControllerIntegrationTest {
         authenticateAs(admin);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/users/{id}", notExistingId))
+        mockMvc.perform(get("/users/{userId}", notExistingId))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
                         .value("User with id " + notExistingId + " was not found."));
@@ -179,8 +175,7 @@ class UserControllerIntegrationTest {
     @Test
     void registerUser_whenUserNotAuthenticated_shouldAddUser() throws Exception {
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .post("/users")
+        mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(user)))
                 .andExpect(status().isCreated())
@@ -208,8 +203,7 @@ class UserControllerIntegrationTest {
         userToUpdate.setPassword("newPassword1");
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .patch("/users/{id}", userId)
+        mockMvc.perform(patch("/users/{userId}", userId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(userToUpdate)))
                 .andExpect(status().isOk())
@@ -239,8 +233,7 @@ class UserControllerIntegrationTest {
         userToUpdate.setPassword("newPassword1");
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .patch("/users/{id}", userId)
+        mockMvc.perform(patch("/users/{userId}", userId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(userToUpdate)))
                 .andExpect(status().isForbidden())
@@ -256,7 +249,7 @@ class UserControllerIntegrationTest {
         authenticateAs(user);
 
         final User userToUpdate = new User();
-        userToUpdate.setId(userId);
+//        userToUpdate.setId(userId);
         userToUpdate.setLogin("johnny");
         userToUpdate.setFirstName("John");
         userToUpdate.setLastName("Smith");
@@ -265,8 +258,7 @@ class UserControllerIntegrationTest {
         userToUpdate.setPassword("newPassword1");
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .patch("/users/{id}", userId)
+        mockMvc.perform(patch("/users/{userId}", userId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(userToUpdate)))
                 .andExpect(status().isForbidden())
@@ -287,8 +279,7 @@ class UserControllerIntegrationTest {
         userToUpdate.setLastName("Smith");
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .patch("/users/{id}", userId)
+        mockMvc.perform(patch("/users/{userId}", userId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(userToUpdate)))
                 .andExpect(status().isOk())
@@ -309,8 +300,7 @@ class UserControllerIntegrationTest {
         final Map<String, String> role = Map.of("role", "ADMIN");
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .put("/users/role/{id}", userId)
+        mockMvc.perform(patch("/users/role/{userId}", userId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(role)))
                 .andExpect(status().isOk())
@@ -331,8 +321,7 @@ class UserControllerIntegrationTest {
         final Map<String, String> role = Map.of("role", "ADMIN");
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .put("/users/role/{id}", userId)
+        mockMvc.perform(patch("/users/role/{userId}", userId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(role)))
                 .andExpect(status().isNotFound())
@@ -350,8 +339,7 @@ class UserControllerIntegrationTest {
         role.put("role", null);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .put("/users/role/{id}", userId)
+        mockMvc.perform(patch("/users/role/{userId}", userId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(role)))
                 .andExpect(status().isBadRequest())
@@ -369,8 +357,7 @@ class UserControllerIntegrationTest {
         role.put("role", " ");
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .put("/users/role/{id}", userId)
+        mockMvc.perform(patch("/users/role/{userId}", userId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(role)))
                 .andExpect(status().isBadRequest())
@@ -388,8 +375,7 @@ class UserControllerIntegrationTest {
         role.put("role", "ADMINISTRATOR");
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .put("/users/role/{id}", userId)
+        mockMvc.perform(patch("/users/role/{userId}", userId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(role)))
                 .andExpect(status().isBadRequest())
@@ -406,8 +392,7 @@ class UserControllerIntegrationTest {
         final Long userId = user.getId();
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .patch("/users/deactivate/{id}", userId))
+        mockMvc.perform(patch("/users/deactivate/{userId}", userId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message")
                         .value("User with id " + userId + " deactivated successfully."));
@@ -424,8 +409,7 @@ class UserControllerIntegrationTest {
         final Long userId = user.getId();
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .patch("/users/deactivate/{id}", userId))
+        mockMvc.perform(patch("/users/deactivate/{userId}", userId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message")
                         .value("User with id " + userId + " deactivated successfully."));
@@ -442,8 +426,7 @@ class UserControllerIntegrationTest {
         final Long userId = admin.getId() + 111;
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .patch("/users/deactivate/{id}", userId))
+        mockMvc.perform(patch("/users/deactivate/{userId}", userId))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
                         .value("User with id " + userId + " was not found."));
@@ -459,8 +442,7 @@ class UserControllerIntegrationTest {
         final String query = "john ann";
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                .get("/users/search?query={query}", query))
+        mockMvc.perform(get("/users/search?query={query}", query))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")         .value(2));
     }
@@ -472,8 +454,7 @@ class UserControllerIntegrationTest {
         final String query = " ";
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/users/search?query={query}", query))
+        mockMvc.perform(get("/users/search?query={query}", query))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message")
                         .value(ReservationService.INPUT_IS_MISSING));
@@ -486,8 +467,7 @@ class UserControllerIntegrationTest {
         final String query = "asdasdad";
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/users/search?query={query}", query))
+        mockMvc.perform(get("/users/search?query={query}", query))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
                         .value("There are no users containing: " + query));

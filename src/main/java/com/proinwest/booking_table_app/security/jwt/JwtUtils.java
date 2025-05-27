@@ -1,5 +1,7 @@
 package com.proinwest.booking_table_app.security.jwt;
 
+import com.proinwest.booking_table_app.exceptions.types.DisableException;
+import com.proinwest.booking_table_app.security.userDetails.CustomUserDetails;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
@@ -36,7 +38,12 @@ public class JwtUtils {
         return null;
     }
 
-    public String generateTokenFromUsername(UserDetails userDetails) {
+    public String generateTokenFromUsername(CustomUserDetails userDetails) {
+        if (!userDetails.isActive()) {
+            System.out.println("DEBUG: User account is deactivated. Tu wypierdala błąd");
+            throw new DisableException("User account is deactivated.");
+        }
+
         return Jwts.builder()
                 .subject(userDetails.getUsername())
                 .claim("role", userDetails.getAuthorities().stream()

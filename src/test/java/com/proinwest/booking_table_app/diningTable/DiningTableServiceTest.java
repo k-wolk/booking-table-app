@@ -1,9 +1,6 @@
 package com.proinwest.booking_table_app.diningTable;
 
-import com.proinwest.booking_table_app.exceptions.types.InvalidInputException;
-import com.proinwest.booking_table_app.exceptions.types.NotFoundException;
-import com.proinwest.booking_table_app.exceptions.types.CustomSecurityException;
-import com.proinwest.booking_table_app.exceptions.types.ValidationException;
+import com.proinwest.booking_table_app.exceptions.types.*;
 import com.proinwest.booking_table_app.security.jwt.SecurityUtils;
 import com.proinwest.booking_table_app.reservation.Reservation;
 import com.proinwest.booking_table_app.reservation.ReservationDTO;
@@ -149,7 +146,7 @@ class DiningTableServiceTest {
         when(securityUtils.isAdmin()).thenReturn(false);
 
         // when & then
-        assertThrows(SecurityException.class, () -> tableService.getTable(tableId));
+        assertThrows(CustomSecurityException.class, () -> tableService.getTable(tableId));
         verify(tableRepository, times(1)).findById(tableId);
         verify(securityUtils, times(1)).isAdmin();
     }
@@ -322,7 +319,7 @@ class DiningTableServiceTest {
         when(reservationService.findAllByTableId(tableId)).thenReturn(List.of(reservationDTO));
 
         // when & then
-        assertThrows(InvalidInputException.class, () -> tableService.deleteTable(tableId));
+        assertThrows(DisableException.class, () -> tableService.deleteTable(tableId));
     }
 
     @Test

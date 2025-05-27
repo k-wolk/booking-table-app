@@ -6,10 +6,7 @@ import com.proinwest.booking_table_app.exceptions.types.NotFoundException;
 import com.proinwest.booking_table_app.exceptions.types.ValidationException;
 import com.proinwest.booking_table_app.reservation.ReservationService;
 import com.proinwest.booking_table_app.security.jwt.SecurityUtils;
-import com.proinwest.booking_table_app.security.userDetails.CustomUserDetails;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -17,6 +14,8 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import java.net.URI;
 import java.util.*;
 import java.util.stream.StreamSupport;
+
+import static com.proinwest.booking_table_app.reservation.ReservationService.INPUT_IS_MISSING;
 
 @Service
 public class UserService {
@@ -51,8 +50,9 @@ public class UserService {
                        UserDTOMapper userDTOMapper,
                        @Lazy ReservationService reservationService,
                        UserValidator userValidator,
-                       PasswordEncoder passwordEncoder, SecurityUtils securityUtils)
-    {
+                       PasswordEncoder passwordEncoder,
+                       SecurityUtils securityUtils
+    ) {
         this.userRepository = userRepository;
         this.userDTOMapper = userDTOMapper;
         this.reservationService = reservationService;
@@ -73,6 +73,7 @@ public class UserService {
     }
 
     UserDTO getUser(Long userId) {
+        System.out.println("DEBUG: getUser() called with userId: " + userId);
         securityUtils.isAdminOrOwner(userId);
         UserDTO userDTO = userRepository.findById(userId)
                 .map(userDTOMapper)
@@ -97,14 +98,14 @@ public class UserService {
     }
 
     UserDTO updateUser(Long userId, User user) {
-        isCurrentUser(userId);
+        if (!securityUtils.isOwner(userId)) throw new CustomSecurityException(ACCESS_DENIED);
 
         final User userToUpdate = userRepository.findById(userId)
                 .map(updatingUser -> updateUser(user, updatingUser))
                 .orElseThrow(() -> new NotFoundException("User with id " + userId + " was not found."));
 
         validateUserToUpdate(user, userId);
-
+        if (user.getPassword() != null) userToUpdate.setPassword(passwordEncoder.encode(user.getPassword()));
         final User savedUser = userRepository.save(userToUpdate);
         return userDTOMapper.apply(savedUser);
     }
@@ -123,7 +124,7 @@ public class UserService {
     }
 
     void deactivateUser(Long userId) {
-        isAdminOrOwner(userId);
+        securityUtils.isAdminOrOwner(userId);
 
         final User userToDeactivate = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User with id " + userId + " was not found."));
@@ -133,7 +134,7 @@ public class UserService {
     }
 
     List<UserDTO> searchUsers(String query) {
-        if (query.isBlank()) throw new InvalidInputException(ReservationService.INPUT_IS_MISSING);
+        if (query.isBlank()) throw new InvalidInputException(INPUT_IS_MISSING);
 
         String[] terms = query.split("\\s+");
         Set<UserDTO> resultSet = new HashSet<>();
@@ -184,36 +185,6 @@ public class UserService {
 
     private boolean isValidRole(String role) {
         return role.equals("USER") || role.equals("ADMIN");
-    }
-
-    public boolean isAdmin() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        return authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-    }
-
-    public boolean isUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        return authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_USER"));
-    }
-
-    public void isAdminOrOwner(Long userId) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        boolean isAdmin = authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-
-        if (!isAdmin && !userDetails.getId().equals(userId))
-            throw new CustomSecurityException(ACCESS_DENIED);
-    }
-
-    void isCurrentUser(Long userId) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-
-        if (!userDetails.getId().equals(userId))
-            throw new CustomSecurityException(ACCESS_DENIED);
     }
 
     private static User updateUser(User user, User updatingUser) {

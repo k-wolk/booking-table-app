@@ -89,7 +89,8 @@ class ReservationServiceTest {
                 reservation.getUser().getLastName(),
                 reservation.getUser().getEmail(),
                 reservation.getUser().getPhoneNumber(),
-                reservation.getUser().getRole()
+                reservation.getUser().getRole(),
+                reservation.getUser().isActive()
         );
 
         final ReservationDTO reservationDTO = new ReservationDTO(
