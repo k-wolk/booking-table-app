@@ -18,7 +18,7 @@ It supports user authentication and authorization using JWT tokens and role-base
 - Spring Security + JWT
 - Spring Data JPA (Hibernate)
 - MySQL
-- Testcontainers (Integration Testing)
+- Testcontainers (Integration and end-to-end testing)
 - JUnit 5 & MockMvc
 - Maven
 
@@ -29,19 +29,19 @@ It supports user authentication and authorization using JWT tokens and role-base
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/booking-table-app.git
+git clone https://github.com/k-wolk/booking-table-app
 cd booking-table-app
 ```
 
 ### 2. Configure the database
 Edit src/main/resources/application.properties:
 ```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/booking_table
+spring.datasource.url=jdbc:mysql://localhost:3306/tables_db
 spring.datasource.username=root
-spring.datasource.password=yourpassword
+spring.datasource.password=YOUR_PASSWORD
 spring.jpa.hibernate.ddl-auto=update
-jwt.secret=your_secret_key
-jwt.expirationMs=86400000
+spring.app.jwtSecret=YOUR_SECRET_KEY
+spring.app.jwtExpirationMs=86400000
 ```
 ⚠️ Make sure to create tables before running the application. You can find schemas below.
 
@@ -141,8 +141,8 @@ Authorization: Bearer YOUR_JWT_TOKEN
 | GET    | `/users/search`                               | Admin           | Search users by query                               |
 | GET    | `/reservations`                               | Admin           | View a list of all reservations                     |
 | GET    | `/reservations/{id}`                          | Admin / resource owner | View reservation details                     |
-| POST   | `/reservations`                               | Admin / resource user  | Create a new reservation                     |
-| GET    | `/reservations/users/{userId}`                | User            | View own reservations                               |
+| POST   | `/reservations`                               | Admin / user    | Create a new reservation                            |
+| GET    | `/reservations/user/{userId}`                | Resource owner  | View own reservations                               |
 | PATCH  | `/reservations/{id}`                          | Admin / resource owner | Update a reservation                         |
 | DELETE | `/reservations/{id}`                          | Admin / resource owner | Delete a reservation                         |
 | GET    | `/reservations/date/{date}/table/{tableId}`   | Admin           | View reservations for a specific date and table     |
@@ -163,7 +163,7 @@ Authorization: Bearer YOUR_JWT_TOKEN
 
 ## 🧪 Running Tests
 
-The project includes unit and integration tests.
+The project includes unit, integration and end-to-end tests.
 
 Run all tests:
 
@@ -174,6 +174,8 @@ mvn test
 Testing technologies:
 
 - JUnit 5
+  
+- Mockito
 
 - MockMvc
 
