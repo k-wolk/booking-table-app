@@ -1,12 +1,17 @@
 package com.proinwest.booking_table_app.reservation;
 
+import com.proinwest.booking_table_app.diningTable.DiningTable;
 import com.proinwest.booking_table_app.diningTable.DiningTableService;
+import com.proinwest.booking_table_app.exceptions.types.CustomSecurityException;
+import com.proinwest.booking_table_app.exceptions.types.InvalidInputException;
 import com.proinwest.booking_table_app.exceptions.types.NotFoundException;
 import com.proinwest.booking_table_app.exceptions.types.ValidationException;
 import com.proinwest.booking_table_app.security.jwt.SecurityUtils;
+import com.proinwest.booking_table_app.user.User;
 import com.proinwest.booking_table_app.user.UserDTO;
 import com.proinwest.booking_table_app.user.UserService;
 import org.instancio.Instancio;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -20,8 +25,8 @@ import java.net.URI;
 import java.time.LocalDate;
 import java.util.*;
 
-import static com.proinwest.booking_table_app.reservation.ReservationService.DATE_MESSAGE;
-import static com.proinwest.booking_table_app.reservation.ReservationService.DURATION_MESSAGE;
+import static com.proinwest.booking_table_app.reservation.ReservationService.*;
+import static com.proinwest.booking_table_app.security.jwt.SecurityUtils.ACCESS_DENIED_AN_ADMIN_OR_THE_OWNER;
 import static com.proinwest.booking_table_app.user.UserService.FIELD_REQUIRED;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -42,14 +47,49 @@ class ReservationServiceTest {
     private SecurityUtils securityUtils;
     @InjectMocks
     private ReservationService reservationService;
+    private Reservation reservation;
+    private ReservationDTO reservationDTO;
+    private User user;
+    private UserDTO userDTO;
+    private DiningTable table;
 
+    @BeforeEach
+    void setUp() {
+        user = Instancio.create(User.class);
+        table = Instancio.create(DiningTable.class);
+
+        userDTO = new UserDTO(
+                user.getId(),
+                user.getLogin(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getEmail(),
+                user.getPhoneNumber(),
+                user.getRole(),
+                user.isActive()
+        );
+
+        reservation = new Reservation();
+        reservation.setId(111L);
+        reservation.setReservationDate(LocalDate.now().plusDays(1));
+        reservation.setReservationTime(OPENING_TIME);
+        reservation.setDuration(MIN_DURATION);
+        reservation.setUser(user);
+        reservation.setDiningTable(table);
+
+        reservationDTO = new ReservationDTO(
+                reservation.getId(),
+                reservation.getReservationDate(),
+                reservation.getReservationTime(),
+                reservation.getDuration(),
+                userDTO,
+                table
+        );
+    }
 
     @Test
-    void shouldGetAllReservation() {
+    void getAllReservations_whenExists_shouldFetchAllReservations() {
         // given
-        final Reservation reservation = Instancio.create(Reservation.class);
-        final ReservationDTO reservationDTO = Instancio.create(ReservationDTO.class);
-
         final List<Reservation> allReservations = new ArrayList<>();
         allReservations.add(reservation);
 
@@ -67,7 +107,7 @@ class ReservationServiceTest {
     }
 
     @Test
-    void whenNoReservationWasFound_shouldThrowException() {
+    void getAllReservations_whenNotExists_shouldThrowException() {
         // given
         when(reservationRepository.findAll()).thenReturn(Collections.emptyList());
 
@@ -77,30 +117,9 @@ class ReservationServiceTest {
     }
 
     @Test
-    void shouldGetReservationById() {
+    void getReservation_whenExists_shouldFetchReservationById() {
         // given
-        final Reservation reservation = Instancio.create(Reservation.class);
-        final Long id = 111L;
-
-        UserDTO userDTO = new UserDTO(
-                reservation.getUser().getId(),
-                reservation.getUser().getLogin(),
-                reservation.getUser().getFirstName(),
-                reservation.getUser().getLastName(),
-                reservation.getUser().getEmail(),
-                reservation.getUser().getPhoneNumber(),
-                reservation.getUser().getRole(),
-                reservation.getUser().isActive()
-        );
-
-        final ReservationDTO reservationDTO = new ReservationDTO(
-                reservation.getId(),
-                reservation.getReservationDate(),
-                reservation.getReservationTime(),
-                reservation.getDuration(),
-                userDTO,
-                reservation.getDiningTable()
-        );
+        final Long id = reservation.getId();
 
         when(reservationRepository.findById(id)).thenReturn(Optional.of(reservation));
         when(reservationDTOMapper.apply(reservation)).thenReturn(reservationDTO);
@@ -116,9 +135,9 @@ class ReservationServiceTest {
     }
 
     @Test
-    void whenReservationNotFoundById_shouldThrowException() {
+    void getReservation_whenNotExists_shouldThrowException() {
         // given
-        final Long id = 111L;
+        final Long id = reservation.getId();
         when(reservationRepository.findById(id)).thenReturn(Optional.empty());
 
         // when & then
@@ -127,11 +146,24 @@ class ReservationServiceTest {
     }
 
     @Test
-    void shouldAddReservation() {
+    void getReservation_whenUserIsNotAdminOrOwner_shouldThrowException() {
         // given
-        final Reservation reservation = Instancio.create(Reservation.class);
-        final ReservationDTO reservationDTO = Instancio.create(ReservationDTO.class);
+        final Long id = reservation.getId();
 
+        when(reservationRepository.findById(id)).thenReturn(Optional.of(reservation));
+        when(reservationDTOMapper.apply(reservation)).thenReturn(reservationDTO);
+        doThrow(new CustomSecurityException(ACCESS_DENIED_AN_ADMIN_OR_THE_OWNER))
+                .when(securityUtils).isAdminOrOwner(reservation.getUser().getId());
+
+        // when & then
+        assertThrows(CustomSecurityException.class, () -> reservationService.getReservation(id));
+        verify(reservationRepository, times(1)).findById(id);
+    }
+
+    @Test
+    void createReservation_whenParamsAreValid_shouldAddReservation() {
+        // given
+        when(reservationValidator.validateReservation(reservation)).thenReturn(Collections.emptyMap());
         when(reservationRepository.save(reservation)).thenReturn(reservation);
         when(reservationDTOMapper.apply(reservation)).thenReturn(reservationDTO);
 
@@ -141,14 +173,14 @@ class ReservationServiceTest {
         // then
         assertNotNull(result);
         assertEquals(reservationDTO, result);
+        verify(reservationValidator, times(1)).validateReservation(reservation);
         verify(reservationRepository, times(1)).save(reservation);
         verify(reservationDTOMapper, times(1)).apply(reservation);
     }
 
     @Test
-    void shouldGenerateCorrectLocationUri() {
+    void location_shouldGenerateCorrectLocationUri() {
         // given
-        final Reservation reservation = Instancio.create(Reservation.class);
         reservation.setId(7L);
 
         final MockHttpServletRequest request = new MockHttpServletRequest();
@@ -166,15 +198,14 @@ class ReservationServiceTest {
     }
 
     @Test
-    void shouldUpdateReservation() {
+    void updateReservations_whenParamsAreValid_shouldUpdateReservation() {
         // given
-        final Reservation reservation = Instancio.create(Reservation.class);
-        final ReservationDTO reservationDTO = Instancio.create(ReservationDTO.class);
         final Reservation reservationToUpdate = Instancio.create(Reservation.class);
         final Reservation savedReservation = reservation;
         final Long id = reservation.getId();
 
         when(reservationRepository.findById(id)).thenReturn(Optional.ofNullable(reservationToUpdate));
+        when(reservationValidator.validateReservation(any(Reservation.class))).thenReturn(Collections.emptyMap());
         when(reservationRepository.save(any(Reservation.class))).thenReturn(savedReservation);
         when(reservationDTOMapper.apply(reservation)).thenReturn(reservationDTO);
 
@@ -185,31 +216,48 @@ class ReservationServiceTest {
         assertNotNull(result);
         assertEquals(reservationDTO, result);
         verify(reservationRepository, times(1)).findById(id);
+        verify(reservationValidator, times(1)).validateReservation(any(Reservation.class));
         verify(reservationRepository, times(1)).save(any(Reservation.class));
         verify(reservationDTOMapper, times(1)).apply(reservation);
     }
 
     @Test
-    void updateReservation_whenReservationNotFound_shouldThrowException() {
+    void updateReservation_whenReservationNotExists_shouldThrowException() {
         // given
-        final Reservation reservation = Instancio.create(Reservation.class);
         final Long id = reservation.getId();
 
-//        when(userService.isAdminOrOwner(reservation.getUser().getId())).thenReturn(true);
         when(reservationRepository.findById(id)).thenReturn(Optional.empty());
 
         // when & then
         assertThrows(NotFoundException.class, () -> reservationService.updateReservation(id, reservation));
         verify(reservationRepository, never()).save(reservation);
+        verify(securityUtils, never()).isAdminOrOwner(anyLong());
+        verify(reservationRepository, never()).save(any(Reservation.class));
+        verify(reservationDTOMapper, never()).apply(any(Reservation.class));
     }
 
     @Test
-    void shouldDeleteReservation() {
+    void updateReservation_whenUserIsNotAdminOrOwner_shouldThrowException() {
         // given
-        final Long id = 111L;
-        Reservation reservation = Instancio.create(Reservation.class);
+        final Long id = reservation.getId();
 
-        when(reservationRepository.findById(id)).thenReturn(Optional.ofNullable(reservation));
+        when(reservationRepository.findById(id)).thenReturn(Optional.of(reservation));
+        doThrow(new CustomSecurityException(ACCESS_DENIED_AN_ADMIN_OR_THE_OWNER))
+                .when(securityUtils).isAdminOrOwner(reservation.getUser().getId());
+
+        // when & then
+        assertThrows(CustomSecurityException.class, () -> reservationService.updateReservation(id, reservation));
+        verify(reservationRepository, times(1)).findById(id);
+        verify(reservationRepository, never()).save(any(Reservation.class));
+        verify(reservationDTOMapper, never()).apply(any(Reservation.class));
+    }
+
+    @Test
+    void cancelReservation_whenExists_shouldDeleteReservation() {
+        // given
+        final Long id = reservation.getId();
+
+        when(reservationRepository.findById(id)).thenReturn(Optional.of(reservation));
 
         // when & then
         assertDoesNotThrow(() -> reservationService.cancelReservation(id));
@@ -218,40 +266,170 @@ class ReservationServiceTest {
     }
 
     @Test
-    void whenReservationNotExists_shouldThrowException() {
+    void cancelReservation_whenReservationNotExists_shouldThrowException() {
         // given
-        final Long id = 111L;
+        final Long id = reservation.getId();
 
         when(reservationRepository.findById(id)).thenReturn(Optional.empty());
 
         // when & then
         assertThrows(NotFoundException.class, () -> reservationService.cancelReservation(id));
         verify(reservationRepository, times(1)).findById(id);
+        verify(reservationRepository, never()).deleteById(id);
     }
 
     @Test
-    void shouldFindAllReservationsByDate() {
+    void cancelReservation_whenUserIsNotAdminOrOwner_shouldThrowException() {
         // given
-        final LocalDate tomorrow = LocalDate.now().plusDays(1);
-        final Reservation reservation = Instancio.create(Reservation.class);
-        final ReservationDTO reservationDTO = Instancio.create(ReservationDTO.class);
+        final Long id = reservation.getId();
 
+        when(reservationRepository.findById(id)).thenReturn(Optional.of(reservation));
+        doThrow(new CustomSecurityException(ACCESS_DENIED_AN_ADMIN_OR_THE_OWNER))
+                .when(securityUtils).isAdminOrOwner(reservation.getUser().getId());
+
+        // when & then
+        assertThrows(CustomSecurityException.class, () -> reservationService.cancelReservation(id));
+        verify(reservationRepository, times(1)).findById(id);
+        verify(reservationRepository, never()).deleteById(id);
+    }
+
+    @Test
+    void getUserReservations_whenUserExists_shouldReturnUserReservations() {
+        // given
+        final Long userId = user.getId();
+
+        when(userService.existsById(userId)).thenReturn(true);
+        when(reservationRepository.findAllByUserId(userId)).thenReturn(List.of(reservation));
         when(reservationDTOMapper.apply(reservation)).thenReturn(reservationDTO);
-        when(reservationRepository.findAllByDate(tomorrow))
-                .thenReturn(List.of(reservation));
 
         // when
-        final List<ReservationDTO> result = reservationService.findAllByDate(tomorrow);
+        final List<ReservationDTO> result = reservationService.getUserReservations(userId);
+
+        // then
+        assertNotNull(result);
+        assertEquals(List.of(reservationDTO), result);
+        verify(securityUtils, times(1)).isAdminOrOwner(userId);
+        verify(userService, times(1)).existsById(userId);
+        verify(reservationRepository, times(1)).findAllByUserId(userId);
+        verify(reservationDTOMapper, times(1)).apply(reservation);
+    }
+
+    @Test
+    void getUserReservations_whenUserNotExists_shouldThrowException() {
+        // given
+        final Long userId = user.getId();
+
+        when(userService.existsById(userId)).thenReturn(false);
+
+        // when & then
+        assertThrows(NotFoundException.class, () -> reservationService.getUserReservations(userId));
+        verify(securityUtils, times(1)).isAdminOrOwner(userId);
+        verify(userService, times(1)).existsById(userId);
+        verify(reservationRepository, never()).findAllByUserId(userId);
+    }
+
+    @Test
+    void getUserReservations_whenUserIsNotAdminOrOwner_shouldThrowException() {
+        // given
+        final Long userId = user.getId();
+
+        doThrow(new CustomSecurityException(ACCESS_DENIED_AN_ADMIN_OR_THE_OWNER))
+                .when(securityUtils).isAdminOrOwner(userId);
+
+        // when & then
+        assertThrows(CustomSecurityException.class, () -> reservationService.getUserReservations(userId));
+        verify(securityUtils, times(1)).isAdminOrOwner(userId);
+        verify(userService, never()).existsById(userId);
+        verify(reservationRepository, never()).findAllByUserId(userId);
+    }
+
+    @Test
+    void getUserReservations_whenNoReservationsFound_shouldThrowException() {
+        // given
+        final Long userId = user.getId();
+
+        when(userService.existsById(userId)).thenReturn(true);
+        when(reservationRepository.findAllByUserId(userId)).thenReturn(Collections.emptyList());
+        
+        // when & then
+        assertThrows(NotFoundException.class, () -> reservationService.getUserReservations(userId));
+        verify(securityUtils, times(1)).isAdminOrOwner(userId);
+        verify(userService, times(1)).existsById(userId);
+        verify(reservationRepository, times(1)).findAllByUserId(userId);
+    }
+
+    @Test
+    void getAllByDateAndTableId_whenExists_shouldReturnListOfReservations() {
+        // given
+        final Integer tableId = table.getId();
+        final LocalDate date = reservation.getReservationDate();
+
+        when(diningTableService.existsById(tableId)).thenReturn(true);
+        when(reservationRepository.findAllByDateAndTableId(date, tableId)).thenReturn(List.of(reservation));
+        when(reservationDTOMapper.apply(reservation)).thenReturn(reservationDTO);
+
+        // when
+        final List<ReservationDTO> result = reservationService.getAllByDateAndTableId(date, tableId);
+
+        // then
+        assertNotNull(result);
+        assertEquals(List.of(reservationDTO), result);
+        verify(diningTableService, times(1)).existsById(tableId);
+        verify(reservationRepository, times(1)).findAllByDateAndTableId(date, tableId);
+        verify(reservationDTOMapper, times(1)).apply(reservation);
+    }
+
+    @Test
+    void getAllByDateAndTableId_whenTableNotExists_shouldThrowException() {
+        // given
+        final Integer tableId = 111;
+        final LocalDate tomorrow = LocalDate.now().plusDays(1);
+
+        when(diningTableService.existsById(tableId)).thenReturn(false);
+
+        // when & then
+        assertThrows(NotFoundException.class, () -> reservationService.getAllByDateAndTableId(tomorrow, tableId));
+        verify(diningTableService, times(1)).existsById(tableId);
+        verify(reservationRepository, never()).findAllByDateAndTableId(any(LocalDate.class), eq(tableId));
+    }
+
+    @Test
+    void getAllByDateAndTableId_whenNoReservationsFound_shouldReturnEmptyList() {
+        // given
+        final Integer tableId = 111;
+        final LocalDate tomorrow = LocalDate.now().plusDays(1);
+
+        when(diningTableService.existsById(tableId)).thenReturn(true);
+        when(reservationRepository.findAllByDateAndTableId(tomorrow, tableId)).thenReturn(Collections.emptyList());
+
+        // when
+        final List<ReservationDTO> result = reservationService.getAllByDateAndTableId(tomorrow, tableId);
+
+        // then
+        assertTrue(result.isEmpty());
+        verify(diningTableService, times(1)).existsById(tableId);
+        verify(reservationRepository, times(1)).findAllByDateAndTableId(tomorrow, tableId);
+    }
+
+    @Test
+    void findAllByDate_whenExists_shouldFindAllReservationsByDate() {
+        // given
+        final LocalDate date = reservation.getReservationDate();
+
+        when(reservationDTOMapper.apply(reservation)).thenReturn(reservationDTO);
+        when(reservationRepository.findAllByDate(date)).thenReturn(List.of(reservation));
+
+        // when
+        final List<ReservationDTO> result = reservationService.findAllByDate(date);
 
         // then
         assertNotNull(result);
         assertEquals(List.of(reservationDTO), result);
         verify(reservationDTOMapper, times(1)).apply(reservation);
-        verify(reservationRepository, times(1)).findAllByDate(tomorrow);
+        verify(reservationRepository, times(1)).findAllByDate(date);
     }
-
     @Test
-    void whenNoReservationFoundByDate_shouldThrowException() {
+    void allByDate_whenNoReservationFoundByDate_shouldThrowException() {
         // given
         final LocalDate tomorrow = LocalDate.now().plusDays(1);
 
@@ -263,43 +441,9 @@ class ReservationServiceTest {
     }
 
     @Test
-    void shouldFindAllReservationsByUserId() {
+    void findAllByTableId_whenExists_shouldFindAllReservationByTableId() {
         // given
-        final Reservation reservation = Instancio.create(Reservation.class);
-        final ReservationDTO reservationDTO = Instancio.create(ReservationDTO.class);
-        final Long userId = reservation.getUser().getId();
-
-        when(reservationRepository.findAllByUserId(userId)).thenReturn(List.of(reservation));
-        when(reservationDTOMapper.apply(reservation)).thenReturn(reservationDTO);
-
-        // when
-        final List<ReservationDTO> result = reservationService.getUserReservations(userId);
-
-        // then
-        assertNotNull(result);
-        assertEquals(List.of(reservationDTO), result);
-        verify(reservationRepository, times(1)).findAllByUserId(userId);
-        verify(reservationDTOMapper, times(1)).apply(reservation);
-    }
-
-    @Test
-    void whenNoReservationFoundByUserId_shouldReturnEmptyList() {
-        // given
-        final Long userId = 111L;
-
-        when(reservationRepository.findAllByUserId(userId)).thenReturn(Collections.emptyList());
-
-        // when & then
-        assertThrows(NotFoundException.class, () -> reservationService.getUserReservations(userId));
-        verify(reservationRepository, times(1)).findAllByUserId(userId);
-    }
-
-    @Test
-    void shouldFindAllReservationByTableId() {
-        // given
-        final Integer tableId = 111;
-        final Reservation reservation = Instancio.create(Reservation.class);
-        final ReservationDTO reservationDTO = Instancio.create(ReservationDTO.class);
+        final Integer tableId = table.getId();
 
         when(diningTableService.existsById(tableId)).thenReturn(true);
         when(reservationRepository.findAllByTableId(tableId)).thenReturn(List.of(reservation));
@@ -311,12 +455,13 @@ class ReservationServiceTest {
         // then
         assertNotNull(result);
         assertEquals(List.of(reservationDTO), result);
+        verify(diningTableService, times(1)).existsById(tableId);
         verify(reservationRepository, times(1)).findAllByTableId(tableId);
         verify(reservationDTOMapper, times(1)).apply(reservation);
     }
 
     @Test
-    void whenTableNotExists_shouldThrowException() {
+    void findAllByTableId_whenTableNotExists_shouldThrowException() {
         // given
         final Integer tableId = 111;
 
@@ -324,10 +469,12 @@ class ReservationServiceTest {
 
         // when & then
         assertThrows(NotFoundException.class, () -> reservationService.findAllByTableId(tableId));
+        verify(diningTableService, times(1)).existsById(tableId);
+        verify(reservationRepository, never()).findAllByTableId(tableId);
     }
 
     @Test
-    void whenNoReservationFoundByTableId_shouldReturnEmptyList() {
+    void findAllByTableId_whenNoReservationFoundByTableId_shouldReturnEmptyList() {
         // given
         final Integer tableId = 111;
 
@@ -343,47 +490,53 @@ class ReservationServiceTest {
         verify(reservationRepository, times(1)).findAllByTableId(tableId);
     }
 
-    @Test
-    void shouldFindAllReservationByDateAndTableId() {
-        // given
-        final Integer tableId = 111;
-        final LocalDate tomorrow = LocalDate.now().plusDays(1);
-        final Reservation reservation = Instancio.create(Reservation.class);
-        final ReservationDTO reservationDTO = Instancio.create(ReservationDTO.class);
+    // todo: searchReservation tests...
 
-        when(diningTableService.existsById(tableId)).thenReturn(true);
-        when(reservationRepository.findAllByDateAndTableId(tomorrow, tableId)).thenReturn(List.of(reservation));
+    @Test
+    void searchReservation_whenValidParams_shouldReturnListOfReservations() {
+        // given
+        final String searchTerm = "test";
+        final List<Reservation> reservations = List.of(reservation);
+
+        when(reservationRepository.searchReservations(searchTerm)).thenReturn(reservations);
         when(reservationDTOMapper.apply(reservation)).thenReturn(reservationDTO);
 
         // when
-        final List<ReservationDTO> result = reservationService.getAllByDateAndTableId(tomorrow, tableId);
+        final List<ReservationDTO> result = reservationService.searchReservations(searchTerm);
 
         // then
         assertNotNull(result);
         assertEquals(List.of(reservationDTO), result);
-        verify(diningTableService, times(1)).existsById(tableId);
-        verify(reservationRepository, times(1)).findAllByDateAndTableId(tomorrow, tableId);
+        verify(reservationRepository, times(1)).searchReservations(searchTerm);
         verify(reservationDTOMapper, times(1)).apply(reservation);
     }
 
     @Test
-    void findAllByDateAndTableId_whenTableNotExists_shouldThrowException() {
+    void searchReservation_whenSearchTermIsBlank_shouldThrowException() {
         // given
-        final Integer tableId = 111;
-        final LocalDate tomorrow = LocalDate.now().plusDays(1);
-
-        when(diningTableService.existsById(tableId)).thenReturn(false);
+        final String searchTerm = " ";
 
         // when & then
-        assertThrows(NotFoundException.class, () -> reservationService.getAllByDateAndTableId(tomorrow, tableId));
-        verify(diningTableService, times(1)).existsById(tableId);
+        assertThrows(InvalidInputException.class, () -> reservationService.searchReservations(searchTerm));
+        verify(reservationRepository, never()).searchReservations(anyString());
     }
 
     @Test
-    void whenReservationIsValid_shouldNotThrowException() {
+    void searchReservation_whenNoReservationsFound_shouldThrowException() {
         // given
-        final Reservation reservation = Instancio.create(Reservation.class);
+        final String searchTerm = "nonexistent";
 
+        when(reservationRepository.searchReservations(searchTerm)).thenReturn(Collections.emptyList());
+
+        // when & then
+        assertThrows(NotFoundException.class, () -> reservationService.searchReservations(searchTerm));
+        verify(reservationRepository, times(1)).searchReservations(searchTerm);
+        verify(reservationDTOMapper, never()).apply(any(Reservation.class));
+    }
+
+    @Test
+    void validateReservation_whenReservationIsValid_shouldNotThrowException() {
+        // given
         when(reservationValidator.validateReservation(reservation)).thenReturn(Collections.emptyMap());
 
         // when & then
@@ -392,10 +545,8 @@ class ReservationServiceTest {
     }
 
     @Test
-    void whenReservationIsNotValid_shouldThrowException() {
+    void validateReservation_whenReservationIsNotValid_shouldThrowException() {
         // given
-        final Reservation reservation = Instancio.create(Reservation.class);
-
         final Map<String, String> validationMessages = new HashMap<>();
         validationMessages.put("duration", FIELD_REQUIRED + DURATION_MESSAGE);
 
@@ -407,10 +558,8 @@ class ReservationServiceTest {
     }
 
     @Test
-    void whenDateTimeDurationAndSeatsAreValid_shouldNotThrowException() {
+    void validateDateTimeDurationAndSeats_whenParamsAreValid_shouldNotThrowException() {
         // given
-        final Reservation reservation = Instancio.create(Reservation.class);
-
         when(reservationValidator.validateDateTimeDurationAndSeats(reservation)).thenReturn(Collections.emptyMap());
 
         // when & then
@@ -419,10 +568,8 @@ class ReservationServiceTest {
     }
 
     @Test
-    void whenDateTimeDurationOrSeatsAreNotValid_shouldThrowException() {
+    void validateDateTimeDurationAndSeats_whenParamsAreNotValid_shouldThrowException() {
         // given
-        final Reservation reservation = Instancio.create(Reservation.class);
-
         final Map<String, String> validationMessages = new HashMap<>();
         validationMessages.put("reservationDate", DATE_MESSAGE);
 

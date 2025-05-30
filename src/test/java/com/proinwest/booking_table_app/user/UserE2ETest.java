@@ -114,7 +114,7 @@ public class UserE2ETest {
     }
 
     @Test
-    void getAllUsers_whenThereAreNoUsersInDatabase_shouldThrowException() throws Exception {
+    void getAllUsers_whenThereAreNoUsersInDatabase_shouldReturnNotFound() throws Exception {
         // given
         authenticateAs(admin);
 
@@ -508,21 +508,6 @@ public class UserE2ETest {
         return Long.valueOf(userId);
     }
 
-    void cleanDatabase() {
-        jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS=0");
-        jdbcTemplate.execute("TRUNCATE TABLE dining_table");
-        jdbcTemplate.execute("TRUNCATE TABLE user");
-        jdbcTemplate.execute("TRUNCATE TABLE reservation");
-        jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS=1");
-    }
-
-    private void authenticateAs(User user) {
-        CustomUserDetails userDetails = new CustomUserDetails(user);
-        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                userDetails, null, userDetails.getAuthorities());
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-    }
-
     private String obtainJwtToken(String login, String password) throws Exception {
         LoginRequest loginRequest = new LoginRequest();
         loginRequest.setLogin(login);
@@ -536,5 +521,20 @@ public class UserE2ETest {
 
         final String contentAsString = result.getResponse().getContentAsString();
         return JsonPath.read(contentAsString, "$.jwtToken");
+    }
+
+    private void authenticateAs(User user) {
+        CustomUserDetails userDetails = new CustomUserDetails(user);
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                userDetails, null, userDetails.getAuthorities());
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+    }
+
+    void cleanDatabase() {
+        jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS=0");
+        jdbcTemplate.execute("TRUNCATE TABLE dining_table");
+        jdbcTemplate.execute("TRUNCATE TABLE user");
+        jdbcTemplate.execute("TRUNCATE TABLE reservation");
+        jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS=1");
     }
 }

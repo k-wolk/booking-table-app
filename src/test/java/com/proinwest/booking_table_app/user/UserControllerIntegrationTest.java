@@ -20,7 +20,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -315,7 +314,7 @@ class UserControllerIntegrationTest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    void updateUserRole_whenUserNotFoundById_shouldThrowException() throws Exception {
+    void updateUserRole_whenUserNotFoundById_shouldReturnNotFound() throws Exception {
         // given
         final Long userId = 111L;
         final Map<String, String> role = Map.of("role", "ADMIN");
@@ -331,7 +330,7 @@ class UserControllerIntegrationTest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    void updateUserRole_whenRoleIsNull_shouldThrowException() throws Exception {
+    void updateUserRole_whenRoleIsNull_shouldReturnBadRequest() throws Exception {
         // given
         userRepository.save(user);
         final Long userId = user.getId();
@@ -349,7 +348,7 @@ class UserControllerIntegrationTest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    void updateUserRole_whenRoleIsBlank_shouldThrowException() throws Exception {
+    void updateUserRole_whenRoleIsBlank_shouldReturnBadRequest() throws Exception {
         // given
         userRepository.save(user);
         final Long userId = user.getId();
@@ -367,7 +366,7 @@ class UserControllerIntegrationTest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    void updateUserRoles_whenRoleIsInvalid_shouldThrowException() throws Exception {
+    void updateUserRoles_whenRoleIsInvalid_shouldReturnBadRequest() throws Exception {
         // given
         userRepository.save(user);
         final Long userId = user.getId();
@@ -419,7 +418,7 @@ class UserControllerIntegrationTest {
     }
 
     @Test
-    void deactivateUser_whenUserNotFoundById_shouldThrowException() throws Exception {
+    void deactivateUser_whenUserNotFoundById_shouldReturnNotFound() throws Exception {
         //
         userRepository.save(admin);
         authenticateAs(admin);
@@ -449,7 +448,7 @@ class UserControllerIntegrationTest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    void searchUsers_whenQueryIsBlank_shouldThrowException() throws Exception {
+    void searchUsers_whenQueryIsBlank_shouldReturnBadRequest() throws Exception {
         // given
         final String query = " ";
 
@@ -462,7 +461,7 @@ class UserControllerIntegrationTest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    void searchUsers_whenUserNotFound_shouldThrowException() throws Exception {
+    void searchUsers_whenUserNotFound_shouldReturnNotFound() throws Exception {
         // given
         final String query = "asdasdad";
 

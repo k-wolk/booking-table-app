@@ -56,7 +56,7 @@ public class DiningTableRepositoryTest {
     }
 
     @Test
-    void shouldReturnListOfBookedTablesByDateTimeAndDuration_whenExists() {
+    void bookedTablesByDateTimeAndDuration_whenExists_shouldReturnListOfBookedTables() {
         // given
         final User user = Instancio.create(User.class);
         user.setId(1L);
@@ -105,7 +105,24 @@ public class DiningTableRepositoryTest {
     }
 
     @Test
-    void shouldFindNumberById_whenExists() {
+    void bookedTablesByDateTimeAndDuration_whenNotExists_shouldReturnEmptyList() {
+        // given
+        final LocalDate tomorrow = LocalDate.now().plusDays(1);
+
+        // when
+        final List<DiningTable> bookedTables = tableRepository.bookedTablesByDateTimeAndDuration(
+                tomorrow,
+                LocalTime.of(17,0),
+                1
+        );
+
+        // then
+        assertNotNull(bookedTables);
+        assertTrue(bookedTables.isEmpty());
+    }
+
+    @Test
+    void findNumberByTableId_whenExists_shouldFindNumberById() {
         // given
         final DiningTable table = new DiningTable();
         final int number = 2;
@@ -123,7 +140,7 @@ public class DiningTableRepositoryTest {
     }
 
     @Test
-    void shouldNotFindNumberById_whenNotExists() {
+    void findNumberByTableId_whenNotExists_shouldReturnNull() {
         // given
         final int id = 1;
 
@@ -135,18 +152,26 @@ public class DiningTableRepositoryTest {
     }
 
     @Test
-    void shouldReturnListOfTableWithMinSeats_whenExists() {
+    void allActiveTablesWithMinSeats_whenExists_shouldReturnListOfTables() {
         // given
         final DiningTable table1 = new DiningTable();
         table1.setNumber(1);
         table1.setSeats(4);
+        table1.setActive(true);
 
         final DiningTable table2 = new DiningTable();
         table2.setNumber(2);
         table2.setSeats(6);
+        table2.setActive(true);
+
+        final DiningTable table3 = new DiningTable();
+        table3.setNumber(3);
+        table3.setSeats(8);
+        table3.setActive(false);
 
         tableRepository.save(table1);
         tableRepository.save(table2);
+        tableRepository.save(table3);
 
         // when
         final List<DiningTable> result = tableRepository.allActiveTablesWithMinSeats(6);
@@ -157,13 +182,20 @@ public class DiningTableRepositoryTest {
     }
 
     @Test
-    void shouldReturnEmptyList_whenThereIsNoTableWithMinSeats() {
+    void allActiveTablesWithMinSeats_whenNotExists_shouldReturnEmptyList() {
         // given
         final DiningTable table = new DiningTable();
         table.setNumber(1);
         table.setSeats(4);
+        table.setActive(true);
+
+        final DiningTable table2 = new DiningTable();
+        table2.setNumber(2);
+        table2.setSeats(6);
+        table2.setActive(false);
 
         tableRepository.save(table);
+        tableRepository.save(table2);
 
         // when
         final List<DiningTable> result = tableRepository.allActiveTablesWithMinSeats(5);
@@ -173,7 +205,47 @@ public class DiningTableRepositoryTest {
     }
 
     @Test
-    void shouldReturnListOfAllTablesOrderByActive_whenExists() {
+    void allTablesOrderByActive_whenExists_shouldReturnListOfAllTablesOrderByActive() {
+        // given
+        final DiningTable table1 = new DiningTable();
+        table1.setNumber(1);
+        table1.setSeats(4);
+        table1.setActive(true);
+
+        final DiningTable table2 = new DiningTable();
+        table2.setNumber(2);
+        table2.setSeats(6);
+        table2.setActive(false);
+
+        final DiningTable table3 = new DiningTable();
+        table3.setNumber(3);
+        table3.setSeats(8);
+        table3.setActive(true);
+
+        tableRepository.save(table1);
+        tableRepository.save(table2);
+        tableRepository.save(table3);
+
+        // when
+        final List<DiningTable> result = tableRepository.allTablesOrderByActive();
+
+        // then
+        assertNotNull(result);
+        assertEquals(List.of(table1, table3, table2), result);
+    }
+
+    @Test
+    void allTablesOrderByActive_whenNotExists_shouldReturnEmptyList() {
+        // when
+        final List<DiningTable> result = tableRepository.allTablesOrderByActive();
+
+        // then
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void allActiveTables_whenExists_shouldReturnListOfActiveTables() {
         // given
         final DiningTable table1 = new DiningTable();
         table1.setNumber(1);
@@ -189,19 +261,28 @@ public class DiningTableRepositoryTest {
         tableRepository.save(table2);
 
         // when
-        final List<DiningTable> result = tableRepository.allTablesOrderByActive();
+        final List<DiningTable> result = tableRepository.allActiveTables();
 
         // then
         assertNotNull(result);
-        assertEquals(List.of(table1, table2), result);
+        assertEquals(List.of(table1), result);
     }
 
     @Test
-    void shouldReturnActiveById_whenExists() {
+    void allActiveTables_whenNotExists_shouldReturnEmptyList() {
+        // when
+        final List<DiningTable> result = tableRepository.allActiveTables();
+
+        // then
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void isActive_whenActiveIsTrue_shouldReturnActiveById() {
         // given
         final DiningTable table = new DiningTable();
-        final Integer number = 2;
-        table.setNumber(number);
+        table.setNumber(2);
         table.setSeats(4);
         table.setActive(true);
 
@@ -212,5 +293,22 @@ public class DiningTableRepositoryTest {
 
         // then
         assertTrue(result);
+    }
+
+    @Test
+    void isActive_whenActiveIsFalse_shouldReturnActiveById() {
+        // given
+        final DiningTable table = new DiningTable();
+        table.setNumber(2);
+        table.setSeats(4);
+        table.setActive(false);
+
+        tableRepository.save(table);
+
+        // when
+        final boolean result = tableRepository.isActive(table.getId());
+
+        // then
+        assertFalse(result);
     }
 }

@@ -1,10 +1,13 @@
 package com.proinwest.booking_table_app.diningTable;
 
-import com.proinwest.booking_table_app.exceptions.types.*;
-import com.proinwest.booking_table_app.security.jwt.SecurityUtils;
+import com.proinwest.booking_table_app.exceptions.types.CustomSecurityException;
+import com.proinwest.booking_table_app.exceptions.types.DisableException;
+import com.proinwest.booking_table_app.exceptions.types.NotFoundException;
+import com.proinwest.booking_table_app.exceptions.types.ValidationException;
 import com.proinwest.booking_table_app.reservation.Reservation;
 import com.proinwest.booking_table_app.reservation.ReservationDTO;
 import com.proinwest.booking_table_app.reservation.ReservationService;
+import com.proinwest.booking_table_app.security.jwt.SecurityUtils;
 import com.proinwest.booking_table_app.user.UserDTO;
 import org.instancio.Instancio;
 import org.junit.jupiter.api.Test;
@@ -40,7 +43,7 @@ class DiningTableServiceTest {
     private DiningTableService tableService;
 
     @Test
-    void shouldReturnAllTables() {
+    void getAllTables_whenTableExists_shouldReturnListOfAllTables() {
         // given
         final DiningTable table = Instancio.create(DiningTable.class);
         table.setActive(true);
@@ -48,8 +51,7 @@ class DiningTableServiceTest {
         final List<DiningTable> allTables = new ArrayList<>();
         allTables.add(table);
 
-        when(tableRepository.allTablesOrderByActive())
-                .thenReturn(allTables);
+        when(tableRepository.allTablesOrderByActive()).thenReturn(allTables);
 
         // when
         final List<DiningTable> result = tableService.getAllTables();
@@ -61,10 +63,9 @@ class DiningTableServiceTest {
     }
 
     @Test
-    void getAllTables_whenTablesListIsEmpty_shouldThrowException() {
+    void getAllTables_whenTableNotExists_shouldThrowException() {
         // given
-        when(tableRepository.allTablesOrderByActive())
-                .thenReturn(Collections.emptyList());
+        when(tableRepository.allTablesOrderByActive()).thenReturn(Collections.emptyList());
 
         // when & then
         assertThrows(NotFoundException.class, tableService::getAllTables);
@@ -72,7 +73,7 @@ class DiningTableServiceTest {
     }
 
     @Test
-    void shouldReturnAllActiveTables() {
+    void getAllActiveTables_whenActiveTableExists_shouldReturnListOfAllActiveTables() {
         // given
         final DiningTable table = Instancio.create(DiningTable.class);
         table.setActive(true);
@@ -80,8 +81,7 @@ class DiningTableServiceTest {
         final List<DiningTable> allActiveTables = new ArrayList<>();
         allActiveTables.add(table);
 
-        when(tableRepository.allActiveTables())
-                .thenReturn(allActiveTables);
+        when(tableRepository.allActiveTables()).thenReturn(allActiveTables);
 
         // when
         final List<DiningTable> result = tableService.getAllActiveTables();
@@ -93,10 +93,9 @@ class DiningTableServiceTest {
     }
 
     @Test
-    void getAllActiveTables_whenTablesListIsEmpty_shouldThrowException() {
+    void getAllActiveTables_whenNoActiveTable_shouldThrowException() {
         // given
-        when(tableRepository.allActiveTables())
-                .thenReturn(Collections.emptyList());
+        when(tableRepository.allActiveTables()).thenReturn(Collections.emptyList());
 
         // when & then
         assertThrows(NotFoundException.class, tableService::getAllActiveTables);
@@ -104,7 +103,7 @@ class DiningTableServiceTest {
     }
 
     @Test
-    void shouldReturnTableById() {
+    void getTable_whenTableExists_shouldFetchTableById() {
         // given
         final DiningTable table = Instancio.create(DiningTable.class);
         final int tableId = table.getId();
@@ -124,7 +123,7 @@ class DiningTableServiceTest {
     }
 
     @Test
-    void getTable_whenTableNotFoundById_shouldThrowException() {
+    void getTable_whenTableNotExists_shouldThrowException() {
         // given
         final int tableId = 1;
 
@@ -136,7 +135,7 @@ class DiningTableServiceTest {
     }
 
     @Test
-    void getTable_whenTableIsInactive_shouldThrowException() {
+    void getTable_whenTableIsInactiveAndUserIsNotAdmin_shouldThrowException() {
         // given
         final DiningTable table = Instancio.create(DiningTable.class);
         final Integer tableId = table.getId();
@@ -152,7 +151,7 @@ class DiningTableServiceTest {
     }
 
     @Test
-    void shouldCreateTable() {
+    void createTable_whenTableIsValid_shouldSaveTable() {
         // given
         final DiningTable table = new DiningTable();
         table.setNumber(2);
@@ -161,8 +160,8 @@ class DiningTableServiceTest {
         final DiningTable savedTable = table;
         savedTable.setId(1);
 
-        when(tableRepository.save(table))
-                .thenReturn(savedTable);
+        when(tableValidator.validateTable(table)).thenReturn(Collections.emptyMap());
+        when(tableRepository.save(table)).thenReturn(savedTable);
 
         // when
         final DiningTable result = tableService.createTable(table);
@@ -171,10 +170,11 @@ class DiningTableServiceTest {
         assertNotNull(result);
         assertEquals(savedTable, result);
         verify(tableRepository, times(1)).save(table);
+        verify(tableValidator, times(1)).validateTable(table);
     }
 
     @Test
-    void shouldGenerateCorrectLocationUri() {
+    void location_shouldGenerateCorrectLocationUri() {
         // given
         final DiningTable table = Instancio.create(DiningTable.class);
         table.setId(7);
@@ -194,9 +194,10 @@ class DiningTableServiceTest {
     }
 
     @Test
-    void shouldDeactivateTable() {
+    void deactivateTable_whenTableExists_shouldDeactivateTable() {
         // given
         final DiningTable table = Instancio.create(DiningTable.class);
+        table.setActive(true);
         final Integer tableId = table.getId();
 
         when(tableRepository.findById(tableId)).thenReturn(Optional.of(table));
@@ -206,11 +207,12 @@ class DiningTableServiceTest {
 
         // then
         assertFalse(table.isActive());
+        verify(tableRepository, times(1)).findById(tableId);
         verify(tableRepository, times(1)).save(table);
     }
 
     @Test
-    void deactivateTable_whenTableNotFound_shouldThrowException() {
+    void deactivateTable_whenTableNotExists_shouldThrowException() {
         // given
         final int tableId = 1;
 
@@ -218,11 +220,12 @@ class DiningTableServiceTest {
 
         // when & then
         assertThrows(NotFoundException.class, () -> tableService.deactivateTable(tableId));
+        verify(tableRepository, times(1)).findById(tableId);
         verify(tableRepository, never()).save(any());
     }
 
     @Test
-    void shouldActivateTable() {
+    void activateTable_whenTableExists_shouldActivateTable() {
         // given
         DiningTable table = Instancio.create(DiningTable.class);
         Integer tableId = table.getId();
@@ -240,7 +243,7 @@ class DiningTableServiceTest {
     }
 
     @Test
-    void activateTable_whenTableNotFound_shouldThrowException() {
+    void activateTable_whenTableNotExists_shouldThrowException() {
         // given
         final int tableId = 1;
 
@@ -248,16 +251,18 @@ class DiningTableServiceTest {
 
         // when & then
         assertThrows(NotFoundException.class, () -> tableService.activateTable(tableId));
+        verify(tableRepository, times(1)).findById(tableId);
         verify(tableRepository, never()).save(any());
     }
 
     @Test
-    void shouldUpdateTable() {
+    void updateTable_whenTableExists_shouldUpdateTable() {
         // given
         final DiningTable table = Instancio.create(DiningTable.class);
         final int tableId = table.getId();
 
         when(tableRepository.findById(tableId)).thenReturn(Optional.of(table));
+        when(tableValidator.validateTable(table)).thenReturn(Collections.emptyMap());
         when(tableRepository.save(table)).thenReturn(table);
 
         // when
@@ -267,11 +272,12 @@ class DiningTableServiceTest {
         assertNotNull(result);
         assertEquals(table, result);
         verify(tableRepository, times(1)).findById(tableId);
+        verify(tableValidator, times(1)).validateTable(table);
         verify(tableRepository, times(1)).save(table);
     }
 
     @Test
-    void updateTable_whenTableNotFoundById_shouldThrowException() {
+    void updateTable_whenTableNotExists_shouldThrowException() {
         // given
         final DiningTable table = Instancio.create(DiningTable.class);
         final int tableId = table.getId();
@@ -281,10 +287,11 @@ class DiningTableServiceTest {
         // when & then
         assertThrows(NotFoundException.class, () -> tableService.updateTable(tableId, table));
         verify(tableRepository, times(1)).findById(tableId);
+        verify(tableRepository, never()).save(any());
     }
 
     @Test
-    void shouldDeleteTable() {
+    void deleteTable_whenTableExists_shouldDeleteTable() {
         // given
         final int tableId = 111;
 
@@ -293,6 +300,7 @@ class DiningTableServiceTest {
 
         // when & then
         assertDoesNotThrow(() -> tableService.deleteTable(tableId));
+        verify(tableRepository, times(1)).existsById(tableId);
         verify(reservationService, times(1)).findAllByTableId(tableId);
         verify(tableRepository, times(1)).deleteById(tableId);
     }
@@ -307,6 +315,7 @@ class DiningTableServiceTest {
         // when & then
         assertThrows(NotFoundException.class, () -> tableService.deleteTable(tableId));
         verify(tableRepository, times(1)).existsById(tableId);
+        verify(tableRepository, never()).deleteById(tableId);
     }
 
     @Test
@@ -320,10 +329,12 @@ class DiningTableServiceTest {
 
         // when & then
         assertThrows(DisableException.class, () -> tableService.deleteTable(tableId));
+        verify(tableRepository, times(1)).existsById(tableId);
+        verify(tableRepository, never()).deleteById(tableId);
     }
 
     @Test
-    void shouldGetAvailableTables() {
+    void getAvailableTables_shouldGetAvailableTables() {
         // given
         final DiningTable table = Instancio.create(DiningTable.class);
 
@@ -335,8 +346,7 @@ class DiningTableServiceTest {
 
         final List<DiningTable> bookedDiningTables = new ArrayList<>();
 
-        when(tableRepository.allActiveTablesWithMinSeats(table.getSeats()))
-                .thenReturn(allTablesWithMinSeats);
+        when(tableRepository.allActiveTablesWithMinSeats(table.getSeats())).thenReturn(allTablesWithMinSeats);
         when(tableService.getBookedTables(
                         reservation.getReservationDate(),
                         reservation.getReservationTime(),
@@ -353,7 +363,7 @@ class DiningTableServiceTest {
     }
 
     @Test
-    void whenAllTablesAreReserved_shouldThrowException() {
+    void getAvailableTables_whenAllTablesAreReserved_shouldThrowException() {
         // given
         final DiningTable table = Instancio.create(DiningTable.class);
 
@@ -366,8 +376,7 @@ class DiningTableServiceTest {
         final List<DiningTable> bookedDiningTables = new ArrayList<>();
         bookedDiningTables.add(table);
 
-        when(tableRepository.allActiveTablesWithMinSeats(table.getSeats()))
-                .thenReturn(allTablesWithMinSeats);
+        when(tableRepository.allActiveTablesWithMinSeats(table.getSeats())).thenReturn(allTablesWithMinSeats);
         when(tableService.getBookedTables(
                         reservation.getReservationDate(),
                         reservation.getReservationTime(),
@@ -380,7 +389,7 @@ class DiningTableServiceTest {
     }
 
     @Test
-    void shouldReturnAllTableWithMinSeats() {
+    void getAllActiveTablesWithMinSeats_shouldReturnAvailableTables() {
         // given
         final DiningTable table = Instancio.create(DiningTable.class);
         final int minSeats = table.getSeats();
@@ -397,7 +406,7 @@ class DiningTableServiceTest {
     }
 
     @Test
-    void whenThereIsNoTableWithMinSeats_shouldThrowException() {
+    void getAllActiveTablesWithMinSeats_whenThereIsNoTableWithMinSeats_shouldThrowException() {
         // given
         final int minSeats = 6;
 
@@ -409,7 +418,7 @@ class DiningTableServiceTest {
     }
 
     @Test
-    void shouldReturnBookedDiningTables() {
+    void getBookedTables_shouldReturnBookedDiningTables() {
         // given
         final DiningTable table = Instancio.create(DiningTable.class);
 
@@ -433,7 +442,7 @@ class DiningTableServiceTest {
     }
 
     @Test
-    void shouldReturnAvailableTimes_whenReservationExists() {
+    void whenTableIsAvailable_whenReservationExists_shouldReturnAvailableTimes() {
         // given
         DiningTable table = Instancio.create(DiningTable.class);
         Integer tableId = table.getId();
@@ -462,7 +471,7 @@ class DiningTableServiceTest {
     }
 
     @Test
-    void shouldReturnFullAvailability_whenNoReservationsExist() {
+    void whenTableIsAvailable_shouldReturnFullAvailability_whenNoReservationsExist() {
         // given
         int tableId = 1;
         LocalDate date = LocalDate.now().plusDays(1);
@@ -480,7 +489,7 @@ class DiningTableServiceTest {
     }
 
     @Test
-    void whenTableIdIsValid_shouldReturnTableNumber() {
+    void findNumberByTableId_whenTableIdIsValid_shouldReturnTableNumber() {
         // given
         final DiningTable table = Instancio.create(DiningTable.class);
         final Integer tableId = table.getId();
@@ -498,7 +507,7 @@ class DiningTableServiceTest {
     }
 
     @Test
-    void whenIdIsNull_shouldReturnZero() {
+    void findNumberByTableId_whenTableIdIsNull_shouldReturnZero() {
         // given
         final Integer tableId = null;
 
@@ -510,7 +519,7 @@ class DiningTableServiceTest {
     }
 
     @Test
-    void whenTableExistsById_shouldReturnTrue() {
+    void existsById_whenTableExistsById_shouldReturnTrue() {
         // given
         final DiningTable table = Instancio.create(DiningTable.class);
         final Integer tableId = table.getId();
@@ -526,7 +535,22 @@ class DiningTableServiceTest {
     }
 
     @Test
-    void whenTableExistByNumber_shouldReturnTrue() {
+    void existsById_whenTableDoesNotExistsById_shouldReturnFalse() {
+        // given
+        final Integer tableId = 1;
+
+        when(tableRepository.existsById(tableId)).thenReturn(false);
+
+        // when
+        final boolean result = tableService.existsById(tableId);
+
+        // then
+        assertFalse(result);
+        verify(tableRepository, times(1)).existsById(tableId);
+    }
+
+    @Test
+    void existsByNumber_whenTableExistByNumber_shouldReturnTrue() {
         // given
         final int tableNumber = 123;
 
@@ -541,7 +565,7 @@ class DiningTableServiceTest {
     }
 
     @Test
-    void whenTableDoesNotExistsByNumber_shouldReturnFalse() {
+    void existsByNumber_whenTableDoesNotExistsByNumber_shouldReturnFalse() {
         // given
         final int tableNumber = 123;
 
@@ -556,7 +580,7 @@ class DiningTableServiceTest {
     }
 
     @Test
-    void whenTableNumberIsNull_shouldThrowException() {
+    void validateTable_whenTableNumberIsNotValid_shouldThrowException() {
         //given
         final Integer tableId = 1;
         final DiningTable table = new DiningTable();
@@ -583,5 +607,35 @@ class DiningTableServiceTest {
         // when & then
         assertDoesNotThrow(() -> tableService.validateTable(table));
         verify(tableValidator, times(1)).validateTable(table);
+    }
+
+    @Test
+    void isActive_whenTableIsActive_shouldReturnTrue() {
+        // given
+        final Integer tableId = 1;
+
+        when(tableRepository.isActive(tableId)).thenReturn(true);
+
+        // when
+        final boolean result = tableService.isActive(tableId);
+
+        // then
+        assertTrue(result);
+        verify(tableRepository, times(1)).isActive(tableId);
+    }
+
+    @Test
+    void isActive_whenTableIsNotActive_shouldReturnFalse() {
+        // given
+        final Integer tableId = 1;
+
+        when(tableRepository.isActive(tableId)).thenReturn(false);
+
+        // when
+        final boolean result = tableService.isActive(tableId);
+
+        // then
+        assertFalse(result);
+        verify(tableRepository, times(1)).isActive(tableId);
     }
 }

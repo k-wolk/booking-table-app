@@ -602,6 +602,19 @@ class ReservationControllerIntegrationTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
+    void getUserReservations_whenUserNotExists_shouldReturnNotFound() throws Exception {
+        // given
+        final Long userId = 111L;
+
+        // when & then
+        mockMvc.perform(get("/reservations/user/{userId}", userId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message")
+                        .value("User not found for ID: " + userId + "."));
+    }
+
+    @Test
     void getUserReservations_whenUserHasNoReservation_shouldReturnNotFound() throws Exception {
         // given
         authenticateAs(user);
@@ -794,7 +807,7 @@ class ReservationControllerIntegrationTest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    void searchReservation_whenReservationNotFound_shouldThrowException() throws Exception {
+    void searchReservation_whenReservationNotFound_shouldReturnNotFound() throws Exception {
         // given
         tableRepository.save(table);
         reservationRepository.save(reservation);
@@ -814,27 +827,6 @@ class ReservationControllerIntegrationTest {
         Authentication authentication = new UsernamePasswordAuthenticationToken(
                 userDetails, null, userDetails.getAuthorities());
         SecurityContextHolder.getContext().setAuthentication(authentication);
-    }
-
-    private Integer createTable(DiningTable table) throws Exception {
-        final ResultActions postResult = mockMvc.perform(post("/tables")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(table)))
-                .andExpect(status().isCreated());
-
-        final String responseContent = postResult.andReturn().getResponse().getContentAsString();
-        return JsonPath.read(responseContent, "$.id");
-    }
-
-    private Long createUser(User user) throws Exception {
-        final ResultActions postResult = mockMvc.perform(post("/users")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(user)))
-                .andExpect(status().isCreated());
-
-        final String responseContent = postResult.andReturn().getResponse().getContentAsString();
-        final Integer userId = JsonPath.read(responseContent, "$.id");
-        return Long.valueOf(userId);
     }
 
     private Long createReservation(Reservation reservation) throws Exception {

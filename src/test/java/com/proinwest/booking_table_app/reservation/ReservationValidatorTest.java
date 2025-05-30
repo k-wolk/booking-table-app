@@ -93,7 +93,7 @@ class ReservationValidatorTest {
     }
 
     @Test
-    void validateReservation_whenUserNotExistsById_shouldReturnError() {
+    void validateReservation_whenUserNotExists_shouldReturnError() {
         // given
         final Long userId = user.getId();
 
@@ -150,6 +150,28 @@ class ReservationValidatorTest {
         assertNotNull(result);
         assertEquals(expected, result);
         verify(userService, times(1)).existsById(user.getId());
+    }
+
+    @Test
+    void validateReservation_whenTableIsNotActive_shouldReturnError() {
+        // given
+        final Integer tableId = table.getId();
+
+        final Map<String, String> expected = new HashMap<>();
+        expected.put("diningTable", "Dining table with id " + tableId + " is not active.");
+
+        when(userService.existsById(user.getId())).thenReturn(true);
+        when(tableService.existsById(tableId)).thenReturn(true);
+        when(tableService.isActive(tableId)).thenReturn(false);
+
+        // when
+        final Map<String, String> result = reservationValidator.validateReservation(reservation);
+
+        // then
+        assertNotNull(result);
+        assertEquals(expected, result);
+        verify(userService, times(1)).existsById(user.getId());
+        verify(tableService, times(1)).existsById(tableId);
     }
 
     @Test
@@ -313,6 +335,28 @@ class ReservationValidatorTest {
     }
 
     @Test
+    void validateReservation_whenDurationIsLessThanMinDuration_shouldReturnError() {
+        // given
+        reservation.setDuration(MIN_DURATION - 1);
+
+        final Map<String, String> expected = new HashMap<>();
+        expected.put("duration", DURATION_MESSAGE);
+
+        when(userService.existsById(user.getId())).thenReturn(true);
+        when(tableService.existsById(table.getId())).thenReturn(true);
+        when(tableService.isActive(table.getId())).thenReturn(true);
+
+        // when
+        final Map<String, String> result = reservationValidator.validateReservation(reservation);
+
+        // then
+        assertNotNull(result);
+        assertEquals(expected, result);
+        verify(userService, times(1)).existsById(user.getId());
+        verify(tableService, times(1)).existsById(table.getId());
+    }
+
+    @Test
     void validateReservation_whenDurationLargerThanMaxDuration_shouldReturnError() {
         // given
         reservation.setDuration(MAX_DURATION + 1);
@@ -335,7 +379,7 @@ class ReservationValidatorTest {
     }
 
     @Test
-    void whenDateTimeDurationAndSeatsAreValid_shouldReturnEmptyErrorsMap() {
+    void validateDateTimeDurationAndSeats_whenParamsAreValid_shouldReturnEmptyErrorsMap() {
         // when
         final Map<String, String> result = reservationValidator.validateDateTimeDurationAndSeats(reservation);
 
@@ -344,7 +388,7 @@ class ReservationValidatorTest {
     }
 
     @Test
-    void whenReservationIsNotColliding_shouldNotThrowException() {
+    void isTableAvailable_whenReservationIsNotColliding_shouldNotThrowException() {
         // given
         when(reservationRepository.findAllByDateAndTableId(reservation.getReservationDate(), reservation.getDiningTable().getId()))
                 .thenReturn(Collections.emptyList());
@@ -354,7 +398,7 @@ class ReservationValidatorTest {
     }
 
     @Test
-    void whenReservationsCollide_shouldThrowException() {
+    void isTableAvailable_whenReservationsCollide_shouldThrowException() {
         // given
         final int tableId = 123;
         table.setId(tableId);

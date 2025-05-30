@@ -3,8 +3,7 @@ package com.proinwest.booking_table_app.reservation;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import com.proinwest.booking_table_app.diningTable.DiningTable;
-import com.proinwest.booking_table_app.security.jwt.JwtUtils;
-import com.proinwest.booking_table_app.security.userDetails.CustomUserDetails;
+import com.proinwest.booking_table_app.security.auth.LoginRequest;
 import com.proinwest.booking_table_app.user.User;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,15 +11,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -41,8 +37,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
 public class ReservationE2ETest {
-    @MockBean
-    private JwtUtils jwtUtils;
     @Container
     @ServiceConnection
     private static final MySQLContainer mySQLContainer = new MySQLContainer<>("mysql:8.4.0");
@@ -64,6 +58,7 @@ public class ReservationE2ETest {
         table = new DiningTable();
         table.setNumber(5);
         table.setSeats(7);
+        table.setActive(true);
 
         user = new User();
         user.setLogin("john");
@@ -71,7 +66,7 @@ public class ReservationE2ETest {
         user.setLastName("Doe");
         user.setEmail("john@mail.com");
         user.setPhoneNumber("123-456-789");
-        user.setPassword(new BCryptPasswordEncoder().encode("secretpassword"));
+        user.setPassword("secretpassword");
         user.setRole("USER");
         user.setActive(true);
 
@@ -81,7 +76,7 @@ public class ReservationE2ETest {
         admin.setLastName("Doe");
         admin.setEmail("ann@mail.com");
         admin.setPhoneNumber("999888777");
-        admin.setPassword(new BCryptPasswordEncoder().encode("secretpassword"));
+        admin.setPassword("secretpassword");
         admin.setRole("ADMIN");
         admin.setActive(true);
 
@@ -107,15 +102,18 @@ public class ReservationE2ETest {
     @Test
     void getAllReservations_whenUserIsAdmin_shouldFetchAllReservations() throws Exception {
         // given
-        authenticateAs(admin);
-        table.setId(createTable(table));
+        createUser(admin);
+        final String tokenAdmin = obtainJwtToken(admin.getLogin(), admin.getPassword());
+
+        table.setId(createTable(table, tokenAdmin));
         user.setId(createUser(user));
-        reservation.setId(createReservation(reservation));
+        reservation.setId(createReservation(reservation, tokenAdmin));
 
         // when & then
-        mockMvc.perform(get("/reservations"))
+        mockMvc.perform(get("/reservations")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenAdmin))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.size()")          .value(1))
+                .andExpect(jsonPath("$.size()")             .value(1))
                 .andExpect(jsonPath("$[0].id")              .value(reservation.getId()))
                 .andExpect(jsonPath("$[0].reservationDate") .value(reservation.getReservationDate().toString()))
                 .andExpect(jsonPath("$[0].reservationTime") .value(reservation.getReservationTime().toString()))
@@ -134,26 +132,31 @@ public class ReservationE2ETest {
     @Test
     void getAllReservations_whenThereIsNoReservationInDatabase_shouldReturnNotFound() throws Exception {
         // given
-        authenticateAs(admin);
+        createUser(admin);
+        final String tokenAdmin = obtainJwtToken(admin.getLogin(), admin.getPassword());
 
         // when & then
-        mockMvc.perform(get("/reservations"))
+        mockMvc.perform(get("/reservations")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenAdmin))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value(NO_RESERVATIONS_IN_DATABASE));
     }
 
     @Test
-    void whenUserIsAuthenticated_shouldCreateAndGetReservationById() throws Exception {
+    void getReservation_createReservation_whenUserIsAuthenticated_shouldCreateAndGetOwnReservationById() throws Exception {
         // given
-        authenticateAs(admin);
-        table.setId(createTable(table));
-        authenticateAs(user);
+        createUser(admin);
+        final String tokenAdmin = obtainJwtToken(admin.getLogin(), admin.getPassword());
+        table.setId(createTable(table, tokenAdmin));
+
         user.setId(createUser(user));
+        final String token = obtainJwtToken(user.getLogin(), user.getPassword());
 
         // when & then
-        final Long id = createReservation(reservation);
+        final Long id = createReservation(reservation, token);
 
-        mockMvc.perform(get("/reservations/{id}", id))
+        mockMvc.perform(get("/reservations/{id}", id)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id")              .value(id))
                 .andExpect(jsonPath("$.reservationDate") .value(reservation.getReservationDate().toString()))
@@ -172,22 +175,26 @@ public class ReservationE2ETest {
     }
 
     @Test
-    @WithMockUser
     void getReservation_whenThereIsNoReservationInDatabase_shouldReturnNotFound() throws Exception {
         // given
+        createUser(admin);
+        final String tokenAdmin = obtainJwtToken(admin.getLogin(), admin.getPassword());
         final Long id = 1L;
 
         // when & then
-        mockMvc.perform(get("/reservations/{id}", id))
+        mockMvc.perform(get("/reservations/{id}", id)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenAdmin))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
                         .value("Reservation with id " + id + " was not found."));
     }
 
     @Test
-    @WithMockUser
     void addReservation_whenReservationParamsAreInvalid_shouldReturnBadRequest() throws Exception {
         // given
+        createUser(user);
+        final String token = obtainJwtToken(user.getLogin(), user.getPassword());
+
         reservation.setReservationDate(null);
         reservation.setReservationTime(null);
         reservation.setDuration(null);
@@ -196,6 +203,7 @@ public class ReservationE2ETest {
 
         // when & then
         mockMvc.perform(post("/reservations")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(reservation)))
                 .andExpect(status().isBadRequest())
@@ -209,16 +217,18 @@ public class ReservationE2ETest {
     @Test
     void updateReservation_whenUserIsOwner_shouldUpdateReservation() throws Exception {
         // given
-        authenticateAs(admin);
-        table.setId(createTable(table));
-        authenticateAs(user);
+        createUser(admin);
+        final String tokenAdmin = obtainJwtToken(admin.getLogin(), admin.getPassword());
+        table.setId(createTable(table, tokenAdmin));
+
         user.setId(createUser(user));
-        final Long id = createReservation(reservation);
+        final String token = obtainJwtToken(user.getLogin(), user.getPassword());
+        final Long id = createReservation(reservation, tokenAdmin);
 
         final DiningTable newTable = new DiningTable();
         newTable.setNumber(table.getNumber() + 1);
         newTable.setSeats(table.getSeats() + 1);
-        newTable.setId(createTable(newTable));
+        newTable.setId(createTable(newTable, tokenAdmin));
 
         final User newUser = new User();
         newUser.setLogin("sam");
@@ -238,6 +248,7 @@ public class ReservationE2ETest {
 
         // when & then
         mockMvc.perform(patch("/reservations/{id}", id)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(updatedReservation)))
                 .andExpect(status().isOk())
@@ -260,11 +271,13 @@ public class ReservationE2ETest {
     @Test
     void updateReservation_whenReservationNotFoundById_shouldReturnNotFound() throws Exception {
         // given
-        authenticateAs(admin);
+        createUser(admin);
+        final String tokenAdmin = obtainJwtToken(admin.getLogin(), admin.getPassword());
         final Long id = 1L;
 
         // when & then
         mockMvc.perform(patch("/reservations/{id}", id)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenAdmin)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(reservation)))
                 .andExpect(status().isNotFound())
@@ -275,16 +288,15 @@ public class ReservationE2ETest {
     @Test
     void updateReservation_whenReservationParamsAreInvalid_shouldReturnBadRequest() throws Exception {
         // given
-        authenticateAs(admin);
-        final Integer tableId = createTable(table);
-        table.setId(tableId);
-        authenticateAs(user);
-        final Long userId = createUser(user);
-        user.setId(userId);
-        final Long id = createReservation(reservation);
+        createUser(admin);
+        final String tokenAdmin = obtainJwtToken(admin.getLogin(), admin.getPassword());
+        table.setId(createTable(table, tokenAdmin));
 
-        final Long invalidUserId = userId + 111;
-        final Integer invalidTableId = tableId + 111;
+        user.setId(createUser(user));
+        final Long id = createReservation(reservation, tokenAdmin);
+
+        final Long invalidUserId = user.getId() + 111;
+        final Integer invalidTableId = table.getId() + 111;
 
         reservation.setReservationDate(LocalDate.now().minusDays(1));
         reservation.setReservationTime(OPENING_TIME.minusHours(1));
@@ -296,6 +308,7 @@ public class ReservationE2ETest {
 
         // when & then
         mockMvc.perform(patch("/reservations/{id}", id)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenAdmin)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(reservation)))
                 .andExpect(status().isBadRequest())
@@ -310,49 +323,56 @@ public class ReservationE2ETest {
     }
 
     @Test
-    @WithMockUser
     void cancelReservation_whenUserIsAdmin_shouldDeleteReservation() throws Exception {
         // given
-        authenticateAs(admin);
-        table.setId(createTable(table));
-        user.setId(createUser(user));
-        final Long id = createReservation(reservation);
+        admin.setId(createUser(admin));
+        final String tokenAdmin = obtainJwtToken(admin.getLogin(), admin.getPassword());
+        table.setId(createTable(table, tokenAdmin));
+        reservation.setUser(admin);
+        final Long id = createReservation(reservation, tokenAdmin);
 
-        mockMvc.perform(get("/reservations/{id}", id))
+        mockMvc.perform(get("/reservations/{id}", id)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenAdmin))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id));
 
         // when
-        mockMvc.perform(delete("/reservations/{id}", id))
+        mockMvc.perform(delete("/reservations/{id}", id)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenAdmin))
                 .andExpect(status().isNoContent());
 
         // then
-        mockMvc.perform(get("/reservations/{id}", id))
+        mockMvc.perform(get("/reservations/{id}", id)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenAdmin))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
                         .value("Reservation with id " + id + " was not found."));
     }
 
     @Test
-    @WithMockUser
     void cancelReservation_whenUserIsOwner_shouldDeleteReservation() throws Exception {
         // given
-        authenticateAs(admin);
-        table.setId(createTable(table));
-        authenticateAs(user);
-        user.setId(createUser(user));
-        final Long id = createReservation(reservation);
+        createUser(admin);
+        final String tokenAdmin = obtainJwtToken(admin.getLogin(), admin.getPassword());
+        table.setId(createTable(table, tokenAdmin));
 
-        mockMvc.perform(get("/reservations/{id}", id))
+        user.setId(createUser(user));
+        final String token = obtainJwtToken(user.getLogin(), user.getPassword());
+        final Long id = createReservation(reservation, token);
+
+        mockMvc.perform(get("/reservations/{id}", id)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id));
 
         // when
-        mockMvc.perform(delete("/reservations/{id}", id))
+        mockMvc.perform(delete("/reservations/{id}", id)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isNoContent());
 
         // then
-        mockMvc.perform(get("/reservations/{id}", id))
+        mockMvc.perform(get("/reservations/{id}", id)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
                         .value("Reservation with id " + id + " was not found."));
@@ -361,27 +381,32 @@ public class ReservationE2ETest {
     @Test
     void cancelReservation_whenReservationNotExists_shouldReturnNotFound() throws Exception {
         // given
-        authenticateAs(admin);
+        createUser(admin);
+        final String tokenAdmin = obtainJwtToken(admin.getLogin(), admin.getPassword());
         final Long id = 1L;
 
         // when & then
-        mockMvc.perform(delete("/reservations/{id}", id))
+        mockMvc.perform(delete("/reservations/{id}", id)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenAdmin))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
                         .value("Reservation with id " + id + " was not found."));
     }
 
     @Test
-    void getUserReservations_whenUserIsOwner_shouldFetchAllUserReservations() throws Exception {
+    void getUserReservations_whenUserIsOwner_shouldFetchAllOwnReservations() throws Exception {
         // given
-        authenticateAs(admin);
-        table.setId(createTable(table));
-        authenticateAs(user);
+        createUser(admin);
+        final String tokenAdmin = obtainJwtToken(admin.getLogin(), admin.getPassword());
+        table.setId(createTable(table, tokenAdmin));
+
         user.setId(createUser(user));
-        reservation.setId(createReservation(reservation));
+        final String token = obtainJwtToken(user.getLogin(), user.getPassword());
+        reservation.setId(createReservation(reservation, token));
 
         // when & then
-        mockMvc.perform(get("/reservations/user/{userId}", user.getId()))
+        mockMvc.perform(get("/reservations/user/{userId}", user.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")             .value(1))
                 .andExpect(jsonPath("$[0].id")              .value(reservation.getId()))
@@ -402,13 +427,17 @@ public class ReservationE2ETest {
     @Test
     void getUserReservations_whenUserIsAdmin_shouldFetchAllUserReservations() throws Exception {
         // given
-        authenticateAs(admin);
-        table.setId(createTable(table));
+        createUser(admin);
+        final String tokenAdmin = obtainJwtToken(admin.getLogin(), admin.getPassword());
+        table.setId(createTable(table, tokenAdmin));
+
         user.setId(createUser(user));
-        reservation.setId(createReservation(reservation));
+        final String token = obtainJwtToken(user.getLogin(), user.getPassword());
+        reservation.setId(createReservation(reservation, token));
 
         // when & then
-        mockMvc.perform(get("/reservations/user/{userId}", user.getId()))
+        mockMvc.perform(get("/reservations/user/{userId}", user.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenAdmin))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")             .value(1))
                 .andExpect(jsonPath("$[0].id")              .value(reservation.getId()))
@@ -429,25 +458,29 @@ public class ReservationE2ETest {
     @Test
     void getUserReservations_whenUserNotExists_shouldReturnNotFound() throws Exception {
         // given
-        authenticateAs(admin);
-        final Long userId = 1L;
+        createUser(admin);
+        final String tokenAdmin = obtainJwtToken(admin.getLogin(), admin.getPassword());
+        final Long userId = 222L;
 
         // when & then
-        mockMvc.perform(get("/reservations/user/{userId}", userId))
+        mockMvc.perform(get("/reservations/user/{userId}", userId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenAdmin))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("No reservation is assigned to the user with ID: " + userId + "."));
+                        .value("User not found for ID: " + userId + "."));
     }
 
     @Test
-    void getUserReservations_whenThereIsNoReservationInDatabase_shouldReturnNotFound() throws Exception {
+    void getUserReservations_whenThereIsNoReservationAssignedToUser_shouldReturnNotFound() throws Exception {
         // given
-        authenticateAs(admin);
-        table.setId(createTable(table));
+        createUser(admin);
+        final String tokenAdmin = obtainJwtToken(admin.getLogin(), admin.getPassword());
+        table.setId(createTable(table, tokenAdmin));
         user.setId(createUser(user));
 
         // when & then
-        mockMvc.perform(get("/reservations/user/{userId}", user.getId()))
+        mockMvc.perform(get("/reservations/user/{userId}", user.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenAdmin))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
                         .value("No reservation is assigned to the user with ID: " + user.getId() + "."));
@@ -456,16 +489,20 @@ public class ReservationE2ETest {
     @Test
     void findAllByDateAndTableId_whenUserIsAdmin_shouldFetchAllReservations() throws Exception {
         // given
-        authenticateAs(admin);
-        table.setId(createTable(table));
+        createUser(admin);
+        final String tokenAdmin = obtainJwtToken(admin.getLogin(), admin.getPassword());
+        table.setId(createTable(table, tokenAdmin));
+
         user.setId(createUser(user));
-        reservation.setId(createReservation(reservation));
+        final String token = obtainJwtToken(user.getLogin(), user.getPassword());
+        reservation.setId(createReservation(reservation, token));
 
         final LocalDate date = reservation.getReservationDate();
         final Integer tableId = table.getId();
 
         // when & then
-        mockMvc.perform(get("/reservations/date/{date}/table/{tableId}", date, tableId))
+        mockMvc.perform(get("/reservations/date/{date}/table/{tableId}", date, tableId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenAdmin))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")             .value(1))
                 .andExpect(jsonPath("$[0].id")              .value(reservation.getId()))
@@ -484,14 +521,17 @@ public class ReservationE2ETest {
     }
 
     @Test
-    @WithMockUser
     void findAllByDateAndTableId_whenUserIsNotAdmin_shouldReturnForbidden() throws Exception {
         // given
+        createUser(user);
+        final String token = obtainJwtToken(user.getLogin(), user.getPassword());
+
         final LocalDate date = reservation.getReservationDate();
         final Integer tableId = 111;
 
         // when & then
-        mockMvc.perform(get("/reservations/date/{date}/table/{tableId}", date, tableId))
+        mockMvc.perform(get("/reservations/date/{date}/table/{tableId}", date, tableId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value(ACCESS_DENIED));
     }
@@ -499,16 +539,16 @@ public class ReservationE2ETest {
     @Test
     void findAllByDateAndTableId_whenReservationNotFoundByDateAndTableId_shouldReturnNotFound() throws Exception {
         // given
-        authenticateAs(admin);
-        table.setId(createTable(table));
-        user.setId(createUser(user));
-        reservation.setId(createReservation(reservation));
+        createUser(admin);
+        final String tokenAdmin = obtainJwtToken(admin.getLogin(), admin.getPassword());
+        table.setId(createTable(table, tokenAdmin));
 
-        final LocalDate date = reservation.getReservationDate().plusDays(1);
+        final LocalDate date = LocalDate.now().plusDays(1);
         final Integer tableId = table.getId();
 
         // when & then
-        mockMvc.perform(get("/reservations/date/{date}/table/{tableId}", date, tableId))
+        mockMvc.perform(get("/reservations/date/{date}/table/{tableId}", date, tableId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenAdmin))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
                         .value("There is no reservation on " + date + " for the table with ID " + tableId + "."));
@@ -517,33 +557,38 @@ public class ReservationE2ETest {
     @Test
     void findAllByDateAndTableId_whenTableNotFoundById_shouldReturnNotFound() throws Exception {
         // given
-        authenticateAs(admin);
-        table.setId(createTable(table));
+        createUser(admin);
+        final String tokenAdmin = obtainJwtToken(admin.getLogin(), admin.getPassword());
+        table.setId(createTable(table, tokenAdmin));
         user.setId(createUser(user));
-        reservation.setId(createReservation(reservation));
+        reservation.setId(createReservation(reservation, tokenAdmin));
 
         final LocalDate date = reservation.getReservationDate();
-        final Integer tableId = table.getId() + 111;
+        final Integer invalidTableId = table.getId() + 1;
 
         // when & then
-        mockMvc.perform(get("/reservations/date/{date}/table/{tableId}", date, tableId))
+        mockMvc.perform(get("/reservations/date/{date}/table/{tableId}", date, invalidTableId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenAdmin))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("Table not found for ID: " + tableId + "."));
+                        .value("Table not found for ID: " + invalidTableId + "."));
     }
 
     @Test
     void findAllByDate_whenUserIsAdmin_shouldFetchAllReservations() throws Exception {
         // given
-        authenticateAs(admin);
-        table.setId(createTable(table));
+        createUser(admin);
+        final String tokenAdmin = obtainJwtToken(admin.getLogin(), admin.getPassword());
+        table.setId(createTable(table, tokenAdmin));
+
         user.setId(createUser(user));
-        reservation.setId(createReservation(reservation));
+        reservation.setId(createReservation(reservation, tokenAdmin));
 
         final LocalDate date = reservation.getReservationDate();
 
         // when & then
-        mockMvc.perform(get("/reservations/date/{date}", date))
+        mockMvc.perform(get("/reservations/date/{date}", date)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenAdmin))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")             .value(1))
                 .andExpect(jsonPath("$[0].id")              .value(reservation.getId()))
@@ -564,11 +609,13 @@ public class ReservationE2ETest {
     @Test
     void findAllByDate_whenUserIsNotAdmin_shouldReturnForbidden() throws Exception {
         // given
-        authenticateAs(user);
+        createUser(user);
+        final String token = obtainJwtToken(user.getLogin(), user.getPassword());
         final LocalDate date = reservation.getReservationDate();
 
         // when & then
-        mockMvc.perform(get("/reservations/date/{date}", date))
+        mockMvc.perform(get("/reservations/date/{date}", date)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value(ACCESS_DENIED));
     }
@@ -576,32 +623,36 @@ public class ReservationE2ETest {
     @Test
     void findAllByDate_whenReservationNotFoundByDate_shouldReturnNotFound() throws Exception {
         // given
-        authenticateAs(admin);
-        table.setId(createTable(table));
+        createUser(admin);
+        final String tokenAdmin = obtainJwtToken(admin.getLogin(), admin.getPassword());
+        table.setId(createTable(table, tokenAdmin));
         user.setId(createUser(user));
-        reservation.setId(createReservation(reservation));
+        reservation.setId(createReservation(reservation, tokenAdmin));
 
         final LocalDate date = reservation.getReservationDate().plusDays(1);
 
         // when & then
-        mockMvc.perform(get("/reservations/date/{date}", date))
+        mockMvc.perform(get("/reservations/date/{date}", date)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenAdmin))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
                         .value("There is no reservation on date " + date + "."));
     }
 
     @Test
-    void searchReservations_whenUserIsAdmin_shouldFetchAllReservations() throws Exception {
+    void searchReservations_whenUserIsAdmin_shouldFindAllReservations() throws Exception {
         // given
-        authenticateAs(admin);
-        table.setId(createTable(table));
+        createUser(admin);
+        final String tokenAdmin = obtainJwtToken(admin.getLogin(), admin.getPassword());
+        table.setId(createTable(table, tokenAdmin));
         user.setId(createUser(user));
-        reservation.setId(createReservation(reservation));
+        reservation.setId(createReservation(reservation, tokenAdmin));
 
         final String query = reservation.getUser().getLogin();
 
         // when & then
-        mockMvc.perform(get("/reservations/search?query={query}", query))
+        mockMvc.perform(get("/reservations/search?query={query}", query)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenAdmin))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")             .value(1))
                 .andExpect(jsonPath("$[0].id")              .value(reservation.getId()))
@@ -620,13 +671,16 @@ public class ReservationE2ETest {
     }
 
     @Test
-    @WithMockUser
     void searchReservations_whenUserIsNotAdmin_shouldReturnForbidden() throws Exception {
         // given
+        createUser(user);
+        final String token = obtainJwtToken(user.getLogin(), user.getPassword());
+
         final String query = reservation.getUser().getLogin();
 
         // when & then
-        mockMvc.perform(get("/reservations/search?query={query}", query))
+        mockMvc.perform(get("/reservations/search?query={query}", query)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value(ACCESS_DENIED));
     }
@@ -634,15 +688,17 @@ public class ReservationE2ETest {
     @Test
     void searchReservations_whenReservationNotFoundByQuery_shouldReturnNotFound() throws Exception {
         // given
-        authenticateAs(admin);
-        table.setId(createTable(table));
+        createUser(admin);
+        final String tokenAdmin = obtainJwtToken(admin.getLogin(), admin.getPassword());
+        table.setId(createTable(table, tokenAdmin));
         user.setId(createUser(user));
-        reservation.setId(createReservation(reservation));
+        reservation.setId(createReservation(reservation, tokenAdmin));
 
         final String query = "non-existing-query";
 
         // when & then
-        mockMvc.perform(get("/reservations/search?query={query}", query))
+        mockMvc.perform(get("/reservations/search?query={query}", query)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenAdmin))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
                         .value("No reservation was found for the query: " + query + "."));
@@ -651,23 +707,26 @@ public class ReservationE2ETest {
     @Test
     void searchReservations_whenQueryIsBlank_shouldReturnBadRequest() throws Exception {
         // given
-        authenticateAs(admin);
-        table.setId(createTable(table));
+        createUser(admin);
+        final String tokenAdmin = obtainJwtToken(admin.getLogin(), admin.getPassword());
+        table.setId(createTable(table, tokenAdmin));
         user.setId(createUser(user));
-        reservation.setId(createReservation(reservation));
+        reservation.setId(createReservation(reservation, tokenAdmin));
 
         final String query = "";
 
         // when & then
-        mockMvc.perform(get("/reservations/search?query={query}", query))
+        mockMvc.perform(get("/reservations/search?query={query}", query)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenAdmin))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message")
                         .value(INPUT_IS_MISSING));
     }
 
 
-    private Integer createTable(DiningTable table) throws Exception {
+    private Integer createTable(DiningTable table, String token) throws Exception {
         final ResultActions postResult = mockMvc.perform(post("/tables")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(table)))
                 .andExpect(status().isCreated());
@@ -687,8 +746,9 @@ public class ReservationE2ETest {
         return Long.valueOf(userId);
     }
 
-    private Long createReservation(Reservation reservation) throws Exception {
+    private Long createReservation(Reservation reservation, String token) throws Exception {
         final ResultActions postResult = mockMvc.perform(post("/reservations")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(reservation)))
                 .andExpect(status().isCreated());
@@ -698,19 +758,26 @@ public class ReservationE2ETest {
         return Long.valueOf(id);
     }
 
+    private String obtainJwtToken(String login, String password) throws Exception {
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.setLogin(login);
+        loginRequest.setPassword(password);
+
+        MvcResult result = mockMvc.perform(post("/signin")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        final String contentAsString = result.getResponse().getContentAsString();
+        return JsonPath.read(contentAsString, "$.jwtToken");
+    }
+
     void cleanDatabase() {
         jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS=0");
         jdbcTemplate.execute("TRUNCATE TABLE dining_table");
         jdbcTemplate.execute("TRUNCATE TABLE user");
         jdbcTemplate.execute("TRUNCATE TABLE reservation");
         jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS=1");
-    }
-
-    private void authenticateAs(User user) {
-        CustomUserDetails userDetails = new CustomUserDetails(user);
-        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                userDetails, null, userDetails.getAuthorities());
-        System.out.println("auth " + authentication);
-        SecurityContextHolder.getContext().setAuthentication(authentication);
     }
 }

@@ -746,14 +746,6 @@ public class DiningTableE2ETest {
                 .andExpect(status().isNoContent());
     }
 
-    void cleanDatabase() {
-        jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS=0");
-        jdbcTemplate.execute("TRUNCATE TABLE dining_table");
-        jdbcTemplate.execute("TRUNCATE TABLE user");
-        jdbcTemplate.execute("TRUNCATE TABLE reservation");
-        jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS=1");
-    }
-
     private String obtainJwtToken(String login, String password) throws Exception {
         final LoginRequest loginRequest = new LoginRequest();
         loginRequest.setLogin(login);
@@ -767,5 +759,13 @@ public class DiningTableE2ETest {
 
         final String contentAsString = result.getResponse().getContentAsString();
         return JsonPath.read(contentAsString, "$.jwtToken");
+    }
+
+    void cleanDatabase() {
+        jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS=0");
+        jdbcTemplate.execute("TRUNCATE TABLE dining_table");
+        jdbcTemplate.execute("TRUNCATE TABLE user");
+        jdbcTemplate.execute("TRUNCATE TABLE reservation");
+        jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS=1");
     }
 }

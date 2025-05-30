@@ -1,13 +1,15 @@
 package com.proinwest.booking_table_app.diningTable;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.proinwest.booking_table_app.reservation.Reservation;
 import com.proinwest.booking_table_app.security.config.AuthEntryPointJwt;
 import com.proinwest.booking_table_app.security.config.SecurityConfig;
-import com.proinwest.booking_table_app.security.userDetails.CustomUserDetailsService;
 import com.proinwest.booking_table_app.security.jwt.JwtUtils;
-import com.proinwest.booking_table_app.reservation.Reservation;
+import com.proinwest.booking_table_app.security.userDetails.CustomUserDetailsService;
 import com.proinwest.booking_table_app.user.UserRepository;
 import org.instancio.Instancio;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -16,10 +18,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.net.URI;
@@ -32,9 +31,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(DiningTableController.class)
-//@ExtendWith(MockitoExtension.class)
+@ExtendWith(MockitoExtension.class)
 @Import(SecurityConfig.class)
-@ActiveProfiles("test")
 class DiningTableControllerWebLayerTest {
     @MockBean
     private DiningTableService tableService;
@@ -42,37 +40,41 @@ class DiningTableControllerWebLayerTest {
     private JwtUtils jwtUtils;
     @MockBean
     private UserRepository userRepository;
-//    @MockBean
-//    private UserDetailsService userDetailsService;
     @MockBean
     private CustomUserDetailsService customUserDetailsService;
     @MockBean
     private AuthEntryPointJwt authEntryPointJwt;
-//    @MockBean
-//    private SecurityFilterChain securityFilterChain;
     @Autowired
     private MockMvc mockMvc;
     @Autowired
     private ObjectMapper mapper;
+    private DiningTable table;
+
+    @BeforeEach
+    void setUp() {
+        table = new DiningTable();
+        table.setId(1);
+        table.setNumber(2);
+        table.setSeats(4);
+    }
 
     @Test
     @WithMockUser(roles = "ADMIN")
     void getAllTables_whenUserIsAdmin_shouldReturnOk() throws Exception {
         // given
-        final DiningTable table1 = Instancio.create(DiningTable.class);
         final DiningTable table2 = Instancio.create(DiningTable.class);
         table2.setActive(false);
 
-        when(tableService.getAllTables()).thenReturn(List.of(table1, table2));
+        when(tableService.getAllTables()).thenReturn(List.of(table, table2));
 
         // when & then
         mockMvc.perform(get("/tables")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")     .value(2))
-                .andExpect(jsonPath("$[0].id")      .value(table1.getId()))
-                .andExpect(jsonPath("$[0].number")  .value(table1.getNumber()))
-                .andExpect(jsonPath("$[0].seats")   .value(table1.getSeats()))
+                .andExpect(jsonPath("$[0].id")      .value(table.getId()))
+                .andExpect(jsonPath("$[0].number")  .value(table.getNumber()))
+                .andExpect(jsonPath("$[0].seats")   .value(table.getSeats()))
                 .andExpect(jsonPath("$[1].id")      .value(table2.getId()))
                 .andExpect(jsonPath("$[1].number")  .value(table2.getNumber()))
                 .andExpect(jsonPath("$[1].seats")   .value(table2.getSeats()));
@@ -84,6 +86,8 @@ class DiningTableControllerWebLayerTest {
         // when & then
         mockMvc.perform(get("/tables"))
                 .andExpect(status().isForbidden());
+
+        verify(tableService, never()).getAllTables();
     }
 
     @Test
@@ -114,7 +118,6 @@ class DiningTableControllerWebLayerTest {
     @WithMockUser
     void getTable_whenUserIsAuthenticated_shouldReturnOk() throws Exception {
         // given
-        final DiningTable table = Instancio.create(DiningTable.class);
         Integer tableId = table.getId();
 
         when(tableService.getTable(tableId)).thenReturn(table);
@@ -123,9 +126,11 @@ class DiningTableControllerWebLayerTest {
         mockMvc.perform(get("/tables/{tableId}", tableId)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id")     .value(table.getId()))
+                .andExpect(jsonPath("$.id")     .value(tableId))
                 .andExpect(jsonPath("$.number") .value(table.getNumber()))
                 .andExpect(jsonPath("$.seats")  .value(table.getSeats()));
+
+        verify(tableService, times(1)).getTable(tableId);
     }
 
     @Test
@@ -133,8 +138,6 @@ class DiningTableControllerWebLayerTest {
     void createTable_whenUserIsAdmin_shouldReturnCreated() throws Exception {
         // given
         final Integer tableId =  1;
-
-        final DiningTable table = Instancio.create(DiningTable.class);
         table.setId(null);
 
         final DiningTable savedTable = new DiningTable();
@@ -162,19 +165,21 @@ class DiningTableControllerWebLayerTest {
     @Test
     @WithMockUser(roles = "USER")
     void createTable_whenIsNotAdmin_shouldReturnForbidden() throws Exception {
-        // given
-        DiningTable table = Instancio.create(DiningTable.class);
-
         // when & then
         mockMvc.perform(post("/tables")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(table)))
                 .andExpect(status().isForbidden());
+
+        verify(tableService, never()).createTable(any(DiningTable.class));
     }
 
     @Test
     @WithMockUser(roles = "ADMIN")
     void deactivateTable_whenUserIsAdmin_shouldReturnNoContent() throws Exception {
+        // given
+        doNothing().when(tableService).deactivateTable(anyInt());
+
         // when & then
         mockMvc.perform(post("/tables/deactivate/{tableId}", 1))
                 .andExpect(status().isNoContent());
@@ -186,11 +191,16 @@ class DiningTableControllerWebLayerTest {
         // when & then
         mockMvc.perform(post("/tables/deactivate/{tableId}", 1))
                 .andExpect(status().isForbidden());
+
+        verify(tableService, never()).deactivateTable(anyInt());
     }
 
     @Test
     @WithMockUser(roles = "ADMIN")
     void activateTable_whenUserIsAdmin_shouldReturnNoContent() throws Exception {
+        // given
+        doNothing().when(tableService).activateTable(anyInt());
+
         // when & then
         mockMvc.perform(post("/tables/activate/{tableId}", 1))
                 .andExpect(status().isNoContent());
@@ -202,16 +212,15 @@ class DiningTableControllerWebLayerTest {
         // when & then
         mockMvc.perform(post("/tables/activate/{tableId}", 1))
                 .andExpect(status().isForbidden());
+
+        verify(tableService, never()).activateTable(anyInt());
     }
 
     @Test
     @WithMockUser(roles = "ADMIN")
     void updateTable_whenUserIsAdmin_shouldReturnOk() throws Exception {
         // given
-        final Integer tableId = 1;
-
-        final DiningTable tableToUpdate = Instancio.create(DiningTable.class);
-        tableToUpdate.setId(tableId);
+        final Integer tableId = table.getId();
 
         final DiningTable newTable = new DiningTable();
         newTable.setId(tableId);
@@ -220,14 +229,14 @@ class DiningTableControllerWebLayerTest {
         final DiningTable updatedTable = new DiningTable();
         updatedTable.setId(tableId);
         updatedTable.setNumber(newTable.getNumber());
-        updatedTable.setSeats(tableToUpdate.getSeats());
+        updatedTable.setSeats(table.getSeats());
 
         when(tableService.updateTable(eq(tableId), any(DiningTable.class))).thenReturn(updatedTable);
 
         // when & then
         mockMvc.perform(patch("/tables/{tableId}", tableId)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(tableToUpdate)))
+                        .content(mapper.writeValueAsString(table)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id")     .value(updatedTable.getId()))
                 .andExpect(jsonPath("$.number") .value(updatedTable.getNumber()))
@@ -239,20 +248,21 @@ class DiningTableControllerWebLayerTest {
     @Test
     @WithMockUser(roles = "USER")
     void updateTable_whenUserIsNotAdmin_shouldReturnForbidden() throws Exception {
-        // given
-        DiningTable table = Instancio.create(DiningTable.class);
-        table.setId(1);
-
         // when & then
         mockMvc.perform(patch("/tables/{tableId}", table.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(table)))
                 .andExpect(status().isForbidden());
+
+        verify(tableService, never()).updateTable(anyInt(), any(DiningTable.class));
     }
 
     @Test
     @WithMockUser(roles = "ADMIN")
     void deleteTable_whenUserIsAdmin_shouldReturnNoContent() throws Exception {
+        // given
+        doNothing().when(tableService).deleteTable(anyInt());
+
         // when & then
         mockMvc.perform(delete("/tables/{tableId}", 1))
                 .andExpect(status().isNoContent());
@@ -264,13 +274,15 @@ class DiningTableControllerWebLayerTest {
         // when & then
         mockMvc.perform(delete("/tables/{tableId}", 1))
                 .andExpect(status().isForbidden());
+
+        verify(tableService, never()).deleteTable(anyInt());
     }
 
     @Test
     @WithMockUser
-    void availableTimes_whenUserIsAuthenticated_shouldReturnOk() throws Exception {
+    void availableHours_whenUserIsAuthenticated_shouldReturnOk() throws Exception {
         // given
-        Integer tableId = 1;
+        Integer tableId = table.getId();
         LocalDate date = LocalDate.now().plusDays(1);
         List<String> availableTimes = List.of("11:00 - 15:00", "17:30 - 23:00");
 
@@ -291,11 +303,8 @@ class DiningTableControllerWebLayerTest {
     void availableTables_whenUserIsAuthenticated_shouldReturnListOfFreeTables() throws Exception {
         // given
         final Reservation reservation = Instancio.create(Reservation.class);
-
-        final DiningTable table1 = Instancio.create(DiningTable.class);
         final DiningTable table2 = Instancio.create(DiningTable.class);
-
-        final List<DiningTable> freeTables = List.of(table1, table2);
+        final List<DiningTable> freeTables = List.of(table, table2);
 
         when(tableService.getAvailableTables(any(Reservation.class))).thenReturn(freeTables);
 
@@ -304,9 +313,9 @@ class DiningTableControllerWebLayerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(reservation)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id")      .value(table1.getId()))
-                .andExpect(jsonPath("$[0].number")  .value(table1.getNumber()))
-                .andExpect(jsonPath("$[0].seats")   .value(table1.getSeats()))
+                .andExpect(jsonPath("$[0].id")      .value(table.getId()))
+                .andExpect(jsonPath("$[0].number")  .value(table.getNumber()))
+                .andExpect(jsonPath("$[0].seats")   .value(table.getSeats()))
                 .andExpect(jsonPath("$[1].id")      .value(table2.getId()))
                 .andExpect(jsonPath("$[1].number")  .value(table2.getNumber()))
                 .andExpect(jsonPath("$[1].seats")   .value(table2.getSeats()));

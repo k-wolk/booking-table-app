@@ -73,7 +73,6 @@ public class UserService {
     }
 
     UserDTO getUser(Long userId) {
-        System.out.println("DEBUG: getUser() called with userId: " + userId);
         securityUtils.isAdminOrOwner(userId);
         UserDTO userDTO = userRepository.findById(userId)
                 .map(userDTOMapper)
@@ -173,12 +172,12 @@ public class UserService {
         return userRepository.existsByEmail(email);
     }
 
-    private void validateUserToUpdate(User userToUpdate, Long userId) {
+    void validateUserToUpdate(User userToUpdate, Long userId) {
         Map<String, String> validationMessages = userValidator.validateUserToUpdate(userToUpdate, userId);
         if (!validationMessages.isEmpty()) throw new ValidationException(validationMessages);
     }
 
-    private void validateNewUser(User userToUpdate) {
+    void validateNewUser(User userToUpdate) {
         Map<String, String> validationMessages = userValidator.validateNewUser(userToUpdate);
         if (!validationMessages.isEmpty()) throw new ValidationException(validationMessages);
     }

@@ -21,7 +21,7 @@ class DiningTableValidatorTest {
     DiningTableValidator tableValidator;
 
     @Test
-    void shouldNotReturnError_whenNumberAndSeatsAreValid() {
+    void validateTable_whenNumberAndSeatsAreValid_shouldReturnEmptyErrorMap() {
         // given
         final Integer number = MIN_NUMBER + 1;
         final Integer seats = MIN_SEATS + 1;
@@ -40,7 +40,7 @@ class DiningTableValidatorTest {
     }
 
     @Test
-    void shouldReturnError_whenNumberIsNull() {
+    void validateTable_whenNumberIsNull_shouldReturnError() {
         // given
         final Integer number = null;
         final Integer id = 1;
@@ -62,7 +62,7 @@ class DiningTableValidatorTest {
     }
 
     @Test
-    void shouldReturnError_whenNumberAlreadyExists() {
+    void validateTable_whenNumberAlreadyExists_shouldReturnError() {
         // given
         final Integer number = 1;
         final Integer id = 1;
@@ -87,7 +87,7 @@ class DiningTableValidatorTest {
     }
 
     @Test
-    void shouldReturnError_whenNumberIsLowerThanMin() {
+    void validateTable_whenNumberIsLowerThanMin_shouldReturnError() {
         // given
         final Integer number = MIN_NUMBER - 1;
         final Integer id = 1;
@@ -109,7 +109,7 @@ class DiningTableValidatorTest {
     }
 
     @Test
-    void shouldReturnError_whenNumberIsHigherThanMax() {
+    void validateTable_whenNumberIsHigherThanMax_shouldReturnError() {
         // given
         final Integer number = MAX_NUMBER + 1;
         final Integer id = 1;
@@ -131,7 +131,7 @@ class DiningTableValidatorTest {
     }
 
     @Test
-    void shouldReturnError_whenSeatsIsNull() {
+    void validateTable_whenSeatsIsNull_shouldReturnError() {
         // given
         final Integer seats = null;
         final Integer id = 1;
@@ -153,7 +153,7 @@ class DiningTableValidatorTest {
     }
 
     @Test
-    void shouldReturnError_whenSeatsIsLowerThanMin() {
+    void validateTable_whenSeatsIsLowerThanMin_shouldReturnError() {
         // given
         final Integer seats = MIN_SEATS - 1;
         final Integer id = 1;
@@ -175,7 +175,7 @@ class DiningTableValidatorTest {
     }
 
     @Test
-    void shouldReturnError_whenSeatsIsHigherThanMax() {
+    void validateTable_whenSeatsIsHigherThanMax_shouldReturnError() {
         // given
         final Integer seats = MAX_SEATS + 1;
         final Integer id = 1;

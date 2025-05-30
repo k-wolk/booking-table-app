@@ -80,7 +80,7 @@ public class ReservationValidator {
         } else if (!tableService.existsById(tableId)) {
             errors.put("diningTable", "Dining table with id " + tableId + " was not found.");
         } else if (!tableService.isActive(tableId)) {
-            errors.put("diningTable", "Dining table with id " + tableId + " is not active.#111");
+            errors.put("diningTable", "Dining table with id " + tableId + " is not active.");
         }
     }
 

@@ -3,11 +3,12 @@ package com.proinwest.booking_table_app.reservation;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.proinwest.booking_table_app.diningTable.DiningTable;
 import com.proinwest.booking_table_app.security.config.AuthEntryPointJwt;
-import com.proinwest.booking_table_app.security.userDetails.CustomUserDetailsService;
-import com.proinwest.booking_table_app.security.jwt.JwtUtils;
 import com.proinwest.booking_table_app.security.config.SecurityConfig;
+import com.proinwest.booking_table_app.security.jwt.JwtUtils;
+import com.proinwest.booking_table_app.security.userDetails.CustomUserDetailsService;
 import com.proinwest.booking_table_app.user.User;
 import com.proinwest.booking_table_app.user.UserDTO;
+import com.proinwest.booking_table_app.user.UserRepository;
 import org.instancio.Instancio;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,7 +21,6 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 import java.net.URI;
 import java.time.LocalDate;
@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(ReservationController.class)
@@ -39,6 +40,8 @@ class ReservationControllerWebLayerTest {
     private ReservationService reservationService;
     @MockBean
     private JwtUtils jwtUtils;
+    @MockBean
+    private UserRepository userRepository;
     @MockBean
     private CustomUserDetailsService customUserDetailsService;
     @MockBean
@@ -97,7 +100,7 @@ class ReservationControllerWebLayerTest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    void shouldGetAllReservations() throws Exception {
+    void getAllReservations_whenUserIsAdmin_shouldFetchAllReservations() throws Exception {
         // given
         final List<ReservationDTO> allReservations = new ArrayList<>();
         allReservations.add(reservationDTO);
@@ -105,8 +108,7 @@ class ReservationControllerWebLayerTest {
         when(reservationService.getAllReservations()).thenReturn(allReservations);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations"))
+        mockMvc.perform(get("/reservations"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")                 .value(1))
                 .andExpect(jsonPath("$[0].id")                  .value(reservationDTO.id()))
@@ -128,15 +130,24 @@ class ReservationControllerWebLayerTest {
 
     @Test
     @WithMockUser
-    void shouldGetReservationById() throws Exception {
+    void getAllReservations_whenUserIsNotAdmin_shouldReturnForbidden() throws Exception {
+        // when & then
+        mockMvc.perform(get("/reservations"))
+                .andExpect(status().isForbidden());
+
+        verify(reservationService, never()).getAllReservations();
+    }
+
+    @Test
+    @WithMockUser
+    void getReservation_whenUserIsAuthenticated_shouldFetchReservationById() throws Exception {
         // given
         final Long id = reservation.getId();
 
         when(reservationService.getReservation(id)).thenReturn(reservationDTO);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/{id}", id))
+        mockMvc.perform(get("/reservations/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id")                 .value(id))
                 .andExpect(jsonPath("$.reservationDate")    .value(reservationDTO.reservationDate().toString()))
@@ -157,18 +168,16 @@ class ReservationControllerWebLayerTest {
 
     @Test
     @WithMockUser
-    void shouldCreateReservation() throws Exception {
+    void createReservation_whenUserIsAuthenticated_shouldCreateReservation() throws Exception {
         // given
         final Long id = reservation.getId();
-
         reservation.setId(null);
 
         when(reservationService.createReservation(any(Reservation.class))).thenReturn(reservationDTO);
         when(reservationService.location(any(Reservation.class))).thenReturn(URI.create("/reservations/" + id));
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .post("/reservations")
+        mockMvc.perform(post("/reservations")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(reservation)))
                 .andExpect(status().isCreated())
@@ -193,15 +202,14 @@ class ReservationControllerWebLayerTest {
 
     @Test
     @WithMockUser
-    void shouldUpdateReservation() throws Exception {
+    void updateReservation_whenUserIsAuthenticated_shouldUpdateReservation() throws Exception {
         // given
         final Long id = reservation.getId();
 
         when(reservationService.updateReservation(eq(id), any(Reservation.class))).thenReturn(reservationDTO);
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .patch("/reservations/{id}", id)
+        mockMvc.perform(patch("/reservations/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(reservation)))
                 .andExpect(status().isOk())
@@ -224,59 +232,27 @@ class ReservationControllerWebLayerTest {
 
     @Test
     @WithMockUser
-    void shouldDeleteReservation() throws Exception {
+    void cancelReservation_whenUserIsAuthenticated_shouldDeleteReservation() throws Exception {
         // given
         final Long id = reservation.getId();
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .delete("/reservations/{id}", id))
+        mockMvc.perform(delete("/reservations/{id}", id))
                 .andExpect(status().isNoContent());
 
         verify(reservationService, times(1)).cancelReservation(id);
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
-    void shouldFindAllReservationsByDate() throws Exception {
-        // given
-        final LocalDate date = reservation.getReservationDate();
-
-        when(reservationService.findAllByDate(date)).thenReturn(List.of(reservationDTO));
-
-        // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/reservationDate/{reservationDate}", date))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.size()")                 .value(1))
-                .andExpect(jsonPath("$[0].id")                  .value(reservationDTO.id()))
-                .andExpect(jsonPath("$[0].reservationDate")     .value(reservationDTO.reservationDate().toString()))
-                .andExpect(jsonPath("$[0].reservationTime")     .value(reservationDTO.reservationTime().toString()))
-                .andExpect(jsonPath("$[0].duration")            .value(reservationDTO.duration()))
-                .andExpect(jsonPath("$[0].user.id")             .value(user.getId()))
-                .andExpect(jsonPath("$[0].user.login")          .value(user.getLogin()))
-                .andExpect(jsonPath("$[0].user.firstName")      .value(user.getFirstName()))
-                .andExpect(jsonPath("$[0].user.lastName")       .value(user.getLastName()))
-                .andExpect(jsonPath("$[0].user.email")          .value(user.getEmail()))
-                .andExpect(jsonPath("$[0].user.phoneNumber")    .value(user.getPhoneNumber()))
-                .andExpect(jsonPath("$[0].diningTable.id")      .value(table.getId()))
-                .andExpect(jsonPath("$[0].diningTable.number")  .value(table.getNumber()))
-                .andExpect(jsonPath("$[0].diningTable.seats")   .value(table.getSeats()));
-
-        verify(reservationService, times(1)).findAllByDate(date);
-    }
-
-    @Test
     @WithMockUser
-    void shouldFindAllReservationsByUserId() throws Exception {
+    void getUserReservations_whenUserIsAuthenticated_shouldFetchAllReservationsByUserId() throws Exception {
         // given
         final Long userId = reservation.getUser().getId();
 
         when(reservationService.getUserReservations(userId)).thenReturn(List.of(reservationDTO));
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/user/{userId}", userId))
+        mockMvc.perform(get("/reservations/user/{userId}", userId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")                 .value(1))
                 .andExpect(jsonPath("$[0].id")                  .value(reservationDTO.id()))
@@ -298,7 +274,7 @@ class ReservationControllerWebLayerTest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    void shouldFindAllReservationsByDateAndTableId() throws Exception {
+    void findAllByDateAndTableId_whenUserIsAdmin_shouldFindAllReservationsByDateAndTableId() throws Exception {
         // given
         final LocalDate date = reservation.getReservationDate();
         final Integer tableId = reservation.getDiningTable().getId();
@@ -306,8 +282,7 @@ class ReservationControllerWebLayerTest {
         when(reservationService.getAllByDateAndTableId(date, tableId)).thenReturn(List.of(reservationDTO));
 
         // when & then
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/reservations/reservationDate/{reservationDate}/table/{tableId}", date, tableId))
+        mockMvc.perform(get("/reservations/date/{date}/table/{tableId}", date, tableId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()")                 .value(1))
                 .andExpect(jsonPath("$[0].id")                  .value(reservationDTO.id()))
@@ -325,5 +300,124 @@ class ReservationControllerWebLayerTest {
                 .andExpect(jsonPath("$[0].diningTable.seats")   .value(table.getSeats()));
 
         verify(reservationService, times(1)).getAllByDateAndTableId(date, tableId);
+    }
+
+    @Test
+    @WithMockUser
+    void findAllByDateAndTableId_whenUserIsNotAdmin_shouldReturnForbidden() throws Exception {
+        // given
+        final LocalDate date = reservation.getReservationDate();
+        final Integer tableId = reservation.getDiningTable().getId();
+
+        // when & then
+        mockMvc.perform(get("/reservations/date/{date}/table/{tableId}", date, tableId))
+                .andExpect(status().isForbidden());
+
+        verify(reservationService, never()).getAllByDateAndTableId(date, tableId);
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void findAllByDateAndTableId_whenNoReservationsFound_shouldReturnNotFound() throws Exception {
+        // given
+        final LocalDate date = reservation.getReservationDate();
+        final Integer tableId = reservation.getDiningTable().getId();
+
+        when(reservationService.getAllByDateAndTableId(date, tableId)).thenReturn(List.of());
+
+        // when & then
+        mockMvc.perform(get("/reservations/date/{date}/table/{tableId}", date, tableId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("There is no reservation on " + date +
+                        " for the table with ID " + tableId + "."));
+
+        verify(reservationService, times(1)).getAllByDateAndTableId(date, tableId);
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void findAllByDate_whenUserIsAdmin_shouldFindAllReservationsByDate() throws Exception {
+        // given
+        final LocalDate date = reservation.getReservationDate();
+
+        when(reservationService.findAllByDate(date)).thenReturn(List.of(reservationDTO));
+
+        // when & then
+        mockMvc.perform(get("/reservations/date/{date}", date))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size()")                 .value(1))
+                .andExpect(jsonPath("$[0].id")                  .value(reservationDTO.id()))
+                .andExpect(jsonPath("$[0].reservationDate")     .value(reservationDTO.reservationDate().toString()))
+                .andExpect(jsonPath("$[0].reservationTime")     .value(reservationDTO.reservationTime().toString()))
+                .andExpect(jsonPath("$[0].duration")            .value(reservationDTO.duration()))
+                .andExpect(jsonPath("$[0].user.id")             .value(user.getId()))
+                .andExpect(jsonPath("$[0].user.login")          .value(user.getLogin()))
+                .andExpect(jsonPath("$[0].user.firstName")      .value(user.getFirstName()))
+                .andExpect(jsonPath("$[0].user.lastName")       .value(user.getLastName()))
+                .andExpect(jsonPath("$[0].user.email")          .value(user.getEmail()))
+                .andExpect(jsonPath("$[0].user.phoneNumber")    .value(user.getPhoneNumber()))
+                .andExpect(jsonPath("$[0].diningTable.id")      .value(table.getId()))
+                .andExpect(jsonPath("$[0].diningTable.number")  .value(table.getNumber()))
+                .andExpect(jsonPath("$[0].diningTable.seats")   .value(table.getSeats()));
+
+        verify(reservationService, times(1)).findAllByDate(date);
+    }
+
+    @Test
+    @WithMockUser
+    void findAllByDate_whenUserIsNotAdmin_shouldReturnForbidden() throws Exception {
+        // given
+        final LocalDate date = reservation.getReservationDate();
+
+        // when & then
+        mockMvc.perform(get("/reservations/date/{date}", date))
+                .andExpect(status().isForbidden());
+
+        verify(reservationService, never()).findAllByDate(date);
+    }
+    
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void searchReservation_whenUserIsAdmin_shouldFindReservations() throws Exception {
+        // given
+        final String query = "Doe";
+        final List<ReservationDTO> searchResults = List.of(reservationDTO);
+
+        when(reservationService.searchReservations(query)).thenReturn(searchResults);
+
+        // when & then
+        mockMvc.perform(get("/reservations/search")
+                        .param("query", query))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size()")                 .value(1))
+                .andExpect(jsonPath("$[0].id")                  .value(reservationDTO.id()))
+                .andExpect(jsonPath("$[0].reservationDate")     .value(reservationDTO.reservationDate().toString()))
+                .andExpect(jsonPath("$[0].reservationTime")     .value(reservationDTO.reservationTime().toString()))
+                .andExpect(jsonPath("$[0].duration")            .value(reservationDTO.duration()))
+                .andExpect(jsonPath("$[0].user.id")             .value(user.getId()))
+                .andExpect(jsonPath("$[0].user.login")          .value(user.getLogin()))
+                .andExpect(jsonPath("$[0].user.firstName")      .value(user.getFirstName()))
+                .andExpect(jsonPath("$[0].user.lastName")       .value(user.getLastName()))
+                .andExpect(jsonPath("$[0].user.email")          .value(user.getEmail()))
+                .andExpect(jsonPath("$[0].user.phoneNumber")    .value(user.getPhoneNumber()))
+                .andExpect(jsonPath("$[0].diningTable.id")      .value(table.getId()))
+                .andExpect(jsonPath("$[0].diningTable.number")  .value(table.getNumber()))
+                .andExpect(jsonPath("$[0].diningTable.seats")   .value(table.getSeats()));
+
+        verify(reservationService, times(1)).searchReservations(query);
+    }
+
+    @Test
+    @WithMockUser
+    void searchReservation_whenUserIsNotAdmin_shouldReturnForbidden() throws Exception {
+        // given
+        final String query = "Doe";
+
+        // when & then
+        mockMvc.perform(get("/reservations/search")
+                        .param("query", query))
+                .andExpect(status().isForbidden());
+
+        verify(reservationService, never()).searchReservations(query);
     }
 }

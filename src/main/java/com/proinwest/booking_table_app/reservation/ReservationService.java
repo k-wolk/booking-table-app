@@ -113,6 +113,8 @@ public class ReservationService {
     public List<ReservationDTO> getUserReservations(Long userId) {
         securityUtils.isAdminOrOwner(userId);
 
+        if (!userService.existsById(userId)) throw new NotFoundException("User not found for ID: " + userId + ".");
+
         List<ReservationDTO> allByUserId = reservationRepository.findAllByUserId(userId)
                 .stream()
                 .sorted(Comparator.comparing(Reservation::getReservationDate))
