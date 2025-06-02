@@ -1,11 +1,10 @@
 package com.proinwest.booking_table_app.reservation;
 
 import com.proinwest.booking_table_app.diningTable.DiningTable;
-import com.proinwest.booking_table_app.diningTable.DiningTableService;
 import com.proinwest.booking_table_app.diningTable.DiningTableValidator;
 import com.proinwest.booking_table_app.exceptions.types.TableNotAvailableException;
 import com.proinwest.booking_table_app.user.User;
-import com.proinwest.booking_table_app.user.UserService;
+import com.proinwest.booking_table_app.user.UserValidator;
 import org.instancio.Instancio;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,9 +17,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.*;
 
-import static com.proinwest.booking_table_app.diningTable.DiningTableService.TABLE_ID_IS_REQUIRED;
 import static com.proinwest.booking_table_app.reservation.ReservationService.*;
-import static com.proinwest.booking_table_app.user.UserService.USER_ID_IS_REQUIRED;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -29,9 +26,7 @@ class ReservationValidatorTest {
     @Mock
     private ReservationRepository reservationRepository;
     @Mock
-    private UserService userService;
-    @Mock
-    private DiningTableService tableService;
+    private UserValidator userValidator;
     @Mock
     private DiningTableValidator tableValidator;
     @InjectMocks
@@ -39,13 +34,17 @@ class ReservationValidatorTest {
     private User user;
     private DiningTable table;
     private Reservation reservation;
+    private Long userId;
+    private Integer tableId;
 
     @BeforeEach
     void setup() {
         user = new User();
         user.setId(1L);
+        userId = user.getId();
 
         table = Instancio.create(DiningTable.class);
+        tableId = table.getId();
 
         reservation = new Reservation();
         reservation.setReservationDate(LocalDate.now().plusDays(1));
@@ -58,120 +57,16 @@ class ReservationValidatorTest {
     @Test
     void validateReservation_whenReservationParamsAreValid_shouldReturnEmptyErrorsMap() {
         // given
-        when(userService.existsById(user.getId())).thenReturn(true);
-        when(tableService.existsById(table.getId())).thenReturn(true);
-        when(tableService.isActive(table.getId())).thenReturn(true);
+        when(userValidator.validateUserId(eq(userId), anyMap())).thenReturn(Collections.emptyMap());
+        when(tableValidator.validateTableId(eq(tableId), anyMap())).thenReturn(Collections.emptyMap());
 
         // when
         final Map<String, String> result = reservationValidator.validateReservation(reservation);
 
         // then
         assertTrue(result.isEmpty());
-        verify(userService, times(1)).existsById(user.getId());
-        verify(tableService, times(1)).existsById(table.getId());
-        verify(tableService, times(1)).isActive(table.getId());
-    }
-
-    @Test
-    void validateReservation_whenUserIdIsNull_shouldReturnError() {
-        // given
-        user.setId(null);
-
-        final Map<String, String> expected = new HashMap<>();
-        expected.put("user", USER_ID_IS_REQUIRED);
-
-        when(tableService.existsById(table.getId())).thenReturn(true);
-        when(tableService.isActive(table.getId())).thenReturn(true);
-
-        // when
-        final Map<String, String> result = reservationValidator.validateReservation(reservation);
-
-        // then
-        assertNotNull(result);
-        assertEquals(expected, result);
-        verify(tableService, times(1)).existsById(table.getId());
-    }
-
-    @Test
-    void validateReservation_whenUserNotExists_shouldReturnError() {
-        // given
-        final Long userId = user.getId();
-
-        final Map<String, String> expected = new HashMap<>();
-        expected.put("user", "User with id " + userId + " was not found.");
-
-        when(userService.existsById(userId)).thenReturn(false);
-        when(tableService.existsById(table.getId())).thenReturn(true);
-        when(tableService.isActive(table.getId())).thenReturn(true);
-
-        // when
-        final Map<String, String> result = reservationValidator.validateReservation(reservation);
-
-        // then
-        assertNotNull(result);
-        assertEquals(expected, result);
-        verify(userService, times(1)).existsById(userId);
-        verify(tableService, times(1)).existsById(table.getId());
-    }
-
-    @Test
-    void validateReservation_whenTableIdIsNull_shouldReturnError() {
-        // given
-        table.setId(null);
-
-        final Map<String, String> expected = new HashMap<>();
-        expected.put("diningTable", TABLE_ID_IS_REQUIRED);
-
-        when(userService.existsById(user.getId())).thenReturn(true);
-
-        // when
-        final Map<String, String> result = reservationValidator.validateReservation(reservation);
-
-        // then
-        assertNotNull(result);
-        assertEquals(expected, result);
-        verify(userService, times(1)).existsById(user.getId());
-    }
-
-    @Test
-    void validateReservation_whenTableNotExists_shouldReturnError() {
-        // given
-        final Integer tableId = table.getId();
-
-        final Map<String, String> expected = new HashMap<>();
-        expected.put("diningTable", "Dining table with id " + tableId + " was not found.");
-
-        when(userService.existsById(user.getId())).thenReturn(true);
-
-        // when
-        final Map<String, String> result = reservationValidator.validateReservation(reservation);
-
-        // then
-        assertNotNull(result);
-        assertEquals(expected, result);
-        verify(userService, times(1)).existsById(user.getId());
-    }
-
-    @Test
-    void validateReservation_whenTableIsNotActive_shouldReturnError() {
-        // given
-        final Integer tableId = table.getId();
-
-        final Map<String, String> expected = new HashMap<>();
-        expected.put("diningTable", "Dining table with id " + tableId + " is not active.");
-
-        when(userService.existsById(user.getId())).thenReturn(true);
-        when(tableService.existsById(tableId)).thenReturn(true);
-        when(tableService.isActive(tableId)).thenReturn(false);
-
-        // when
-        final Map<String, String> result = reservationValidator.validateReservation(reservation);
-
-        // then
-        assertNotNull(result);
-        assertEquals(expected, result);
-        verify(userService, times(1)).existsById(user.getId());
-        verify(tableService, times(1)).existsById(tableId);
+        verify(userValidator, times(1)).validateUserId(eq(userId), anyMap());
+        verify(tableValidator, times(1)).validateTableId(eq(tableId), anyMap());
     }
 
     @Test
@@ -183,9 +78,8 @@ class ReservationValidatorTest {
         expected.put("reservationDate", FIELD_REQUIRED + DATE_MESSAGE);
         expected.put("reservationTime", "Make sure reservation date and duration are not null.");
 
-        when(userService.existsById(user.getId())).thenReturn(true);
-        when(tableService.existsById(table.getId())).thenReturn(true);
-        when(tableService.isActive(table.getId())).thenReturn(true);
+        when(userValidator.validateUserId(eq(userId), anyMap())).thenReturn(Collections.emptyMap());
+        when(tableValidator.validateTableId(eq(tableId), anyMap())).thenReturn(Collections.emptyMap());
 
         // when
         final Map<String, String> result = reservationValidator.validateReservation(reservation);
@@ -193,8 +87,8 @@ class ReservationValidatorTest {
         // then
         assertNotNull(result);
         assertEquals(expected, result);
-        verify(userService, times(1)).existsById(user.getId());
-        verify(tableService, times(1)).existsById(table.getId());
+        verify(userValidator, times(1)).validateUserId(eq(userId), anyMap());
+        verify(tableValidator, times(1)).validateTableId(eq(tableId), anyMap());
     }
 
     @Test
@@ -205,9 +99,8 @@ class ReservationValidatorTest {
         final Map<String, String> expected = new HashMap<>();
         expected.put("reservationDate", DATE_MESSAGE);
 
-        when(userService.existsById(user.getId())).thenReturn(true);
-        when(tableService.existsById(table.getId())).thenReturn(true);
-        when(tableService.isActive(table.getId())).thenReturn(true);
+        when(userValidator.validateUserId(eq(userId), anyMap())).thenReturn(Collections.emptyMap());
+        when(tableValidator.validateTableId(eq(tableId), anyMap())).thenReturn(Collections.emptyMap());
 
         // when
         final Map<String, String> result = reservationValidator.validateReservation(reservation);
@@ -215,8 +108,8 @@ class ReservationValidatorTest {
         // then
         assertNotNull(result);
         assertEquals(expected, result);
-        verify(userService, times(1)).existsById(user.getId());
-        verify(tableService, times(1)).existsById(table.getId());
+        verify(userValidator, times(1)).validateUserId(eq(userId), anyMap());
+        verify(tableValidator, times(1)).validateTableId(eq(tableId), anyMap());
     }
 
     @Test
@@ -227,9 +120,8 @@ class ReservationValidatorTest {
         final Map<String, String> expected = new HashMap<>();
         expected.put("reservationTime", FIELD_REQUIRED + TIME_MESSAGE);
 
-        when(userService.existsById(user.getId())).thenReturn(true);
-        when(tableService.existsById(table.getId())).thenReturn(true);
-        when(tableService.isActive(table.getId())).thenReturn(true);
+        when(userValidator.validateUserId(eq(userId), anyMap())).thenReturn(Collections.emptyMap());
+        when(tableValidator.validateTableId(eq(tableId), anyMap())).thenReturn(Collections.emptyMap());
 
         // when
         final Map<String, String> result = reservationValidator.validateReservation(reservation);
@@ -237,8 +129,8 @@ class ReservationValidatorTest {
         // then
         assertNotNull(result);
         assertEquals(expected, result);
-        verify(userService, times(1)).existsById(user.getId());
-        verify(tableService, times(1)).existsById(table.getId());
+        verify(userValidator, times(1)).validateUserId(eq(userId), anyMap());
+        verify(tableValidator, times(1)).validateTableId(eq(tableId), anyMap());
     }
 
     @Test
@@ -250,9 +142,8 @@ class ReservationValidatorTest {
         final Map<String, String> expected = new HashMap<>();
         expected.put("reservationTime", TIME_MESSAGE + OPENING_HOURS_MESSAGE);
 
-        when(userService.existsById(user.getId())).thenReturn(true);
-        when(tableService.existsById(table.getId())).thenReturn(true);
-        when(tableService.isActive(table.getId())).thenReturn(true);
+        when(userValidator.validateUserId(eq(userId), anyMap())).thenReturn(Collections.emptyMap());
+        when(tableValidator.validateTableId(eq(tableId), anyMap())).thenReturn(Collections.emptyMap());
 
         // when
         final Map<String, String> result = reservationValidator.validateReservation(reservation);
@@ -260,8 +151,8 @@ class ReservationValidatorTest {
         // then
         assertNotNull(result);
         assertEquals(expected, result);
-        verify(userService, times(1)).existsById(user.getId());
-        verify(tableService, times(1)).existsById(table.getId());
+        verify(userValidator, times(1)).validateUserId(eq(userId), anyMap());
+        verify(tableValidator, times(1)).validateTableId(eq(tableId), anyMap());
     }
 
     @Test
@@ -273,9 +164,8 @@ class ReservationValidatorTest {
         final Map<String, String> expected = new HashMap<>();
         expected.put("reservationTime", OPENING_HOURS_MESSAGE + " Try change reservation time and/or duration.");
 
-        when(userService.existsById(user.getId())).thenReturn(true);
-        when(tableService.existsById(table.getId())).thenReturn(true);
-        when(tableService.isActive(table.getId())).thenReturn(true);
+        when(userValidator.validateUserId(eq(userId), anyMap())).thenReturn(Collections.emptyMap());
+        when(tableValidator.validateTableId(eq(tableId), anyMap())).thenReturn(Collections.emptyMap());
 
         // when
         final Map<String, String> result = reservationValidator.validateReservation(reservation);
@@ -283,8 +173,8 @@ class ReservationValidatorTest {
         // then
         assertNotNull(result);
         assertEquals(expected, result);
-        verify(userService, times(1)).existsById(user.getId());
-        verify(tableService, times(1)).existsById(table.getId());
+        verify(userValidator, times(1)).validateUserId(eq(userId), anyMap());
+        verify(tableValidator, times(1)).validateTableId(eq(tableId), anyMap());
     }
 
     @Test
@@ -297,9 +187,8 @@ class ReservationValidatorTest {
         final Map<String, String> expected = new HashMap<>();
         expected.put("reservationTime", OPENING_HOURS_MESSAGE + " Try change reservation time and/or duration.");
 
-        when(userService.existsById(user.getId())).thenReturn(true);
-        when(tableService.existsById(table.getId())).thenReturn(true);
-        when(tableService.isActive(table.getId())).thenReturn(true);
+        when(userValidator.validateUserId(eq(userId), anyMap())).thenReturn(Collections.emptyMap());
+        when(tableValidator.validateTableId(eq(tableId), anyMap())).thenReturn(Collections.emptyMap());
 
         // when
         final Map<String, String> result = reservationValidator.validateReservation(reservation);
@@ -307,8 +196,8 @@ class ReservationValidatorTest {
         // then
         assertNotNull(result);
         assertEquals(expected, result);
-        verify(userService, times(1)).existsById(user.getId());
-        verify(tableService, times(1)).existsById(table.getId());
+        verify(userValidator, times(1)).validateUserId(eq(userId), anyMap());
+        verify(tableValidator, times(1)).validateTableId(eq(tableId), anyMap());
     }
 
     @Test
@@ -320,9 +209,8 @@ class ReservationValidatorTest {
         expected.put("reservationTime", "Make sure reservation date and duration are not null.");
         expected.put("duration", FIELD_REQUIRED + DURATION_MESSAGE);
 
-        when(userService.existsById(user.getId())).thenReturn(true);
-        when(tableService.existsById(table.getId())).thenReturn(true);
-        when(tableService.isActive(table.getId())).thenReturn(true);
+        when(userValidator.validateUserId(eq(userId), anyMap())).thenReturn(Collections.emptyMap());
+        when(tableValidator.validateTableId(eq(tableId), anyMap())).thenReturn(Collections.emptyMap());
 
         // when
         final Map<String, String> result = reservationValidator.validateReservation(reservation);
@@ -330,8 +218,8 @@ class ReservationValidatorTest {
         // then
         assertNotNull(result);
         assertEquals(expected, result);
-        verify(userService, times(1)).existsById(user.getId());
-        verify(tableService, times(1)).existsById(table.getId());
+        verify(userValidator, times(1)).validateUserId(eq(userId), anyMap());
+        verify(tableValidator, times(1)).validateTableId(eq(tableId), anyMap());
     }
 
     @Test
@@ -342,9 +230,8 @@ class ReservationValidatorTest {
         final Map<String, String> expected = new HashMap<>();
         expected.put("duration", DURATION_MESSAGE);
 
-        when(userService.existsById(user.getId())).thenReturn(true);
-        when(tableService.existsById(table.getId())).thenReturn(true);
-        when(tableService.isActive(table.getId())).thenReturn(true);
+        when(userValidator.validateUserId(eq(userId), anyMap())).thenReturn(Collections.emptyMap());
+        when(tableValidator.validateTableId(eq(tableId), anyMap())).thenReturn(Collections.emptyMap());
 
         // when
         final Map<String, String> result = reservationValidator.validateReservation(reservation);
@@ -352,8 +239,8 @@ class ReservationValidatorTest {
         // then
         assertNotNull(result);
         assertEquals(expected, result);
-        verify(userService, times(1)).existsById(user.getId());
-        verify(tableService, times(1)).existsById(table.getId());
+        verify(userValidator, times(1)).validateUserId(eq(userId), anyMap());
+        verify(tableValidator, times(1)).validateTableId(eq(tableId), anyMap());
     }
 
     @Test
@@ -364,9 +251,8 @@ class ReservationValidatorTest {
         final Map<String, String> expected = new HashMap<>();
         expected.put("duration", DURATION_MESSAGE);
 
-        when(userService.existsById(user.getId())).thenReturn(true);
-        when(tableService.existsById(table.getId())).thenReturn(true);
-        when(tableService.isActive(table.getId())).thenReturn(true);
+        when(userValidator.validateUserId(eq(userId), anyMap())).thenReturn(Collections.emptyMap());
+        when(tableValidator.validateTableId(eq(tableId), anyMap())).thenReturn(Collections.emptyMap());
 
         // when
         final Map<String, String> result = reservationValidator.validateReservation(reservation);
@@ -374,8 +260,56 @@ class ReservationValidatorTest {
         // then
         assertNotNull(result);
         assertEquals(expected, result);
-        verify(userService, times(1)).existsById(user.getId());
-        verify(tableService, times(1)).existsById(table.getId());
+        verify(userValidator, times(1)).validateUserId(eq(userId), anyMap());
+        verify(tableValidator, times(1)).validateTableId(eq(tableId), anyMap());
+    }
+
+    @Test
+    void validateReservation_whenUserIdIsNotValid_shouldReturnError() {
+        // given
+        final Map<String, String> expected = new HashMap<>();
+        expected.put("user", "User with id " + userId + " was not found.");
+
+        doAnswer(invocation -> {
+            Map<String, String> errors = invocation.getArgument(1);
+            errors.put("user", "User with id " + userId + " was not found.");
+            return null;
+        }).when(userValidator).validateUserId(eq(userId), anyMap());
+
+        when(tableValidator.validateTableId(eq(tableId), anyMap())).thenReturn(Collections.emptyMap());
+
+        // when
+        final Map<String, String> result = reservationValidator.validateReservation(reservation);
+
+        // then
+        assertNotNull(result);
+        assertEquals(expected, result);
+        verify(userValidator, times(1)).validateUserId(eq(userId), anyMap());
+        verify(tableValidator, times(1)).validateTableId(eq(tableId), anyMap());
+    }
+
+    @Test
+    void validateReservation_whenTableIdIsNotValid_shouldReturnError() {
+        // given
+        final Map<String, String> expected = new HashMap<>();
+        expected.put("diningTable", "Dining table with id " + tableId + " is not active.");
+
+        when(userValidator.validateUserId(eq(userId), anyMap())).thenReturn(Collections.emptyMap());
+
+        doAnswer(invocation -> {
+            Map<String, String> errors = invocation.getArgument(1);
+            errors.put("diningTable", "Dining table with id " + tableId + " is not active.");
+            return null;
+        }).when(tableValidator).validateTableId(eq(tableId), anyMap());
+
+        // when
+        final Map<String, String> result = reservationValidator.validateReservation(reservation);
+
+        // then
+        assertNotNull(result);
+        assertEquals(expected, result);
+        verify(userValidator, times(1)).validateUserId(eq(userId), anyMap());
+        verify(tableValidator, times(1)).validateTableId(eq(tableId), anyMap());
     }
 
     @Test
@@ -390,7 +324,7 @@ class ReservationValidatorTest {
     @Test
     void isTableAvailable_whenReservationIsNotColliding_shouldNotThrowException() {
         // given
-        when(reservationRepository.findAllByDateAndTableId(reservation.getReservationDate(), reservation.getDiningTable().getId()))
+        when(reservationRepository.findAllByDateAndTableId(reservation.getReservationDate(), tableId))
                 .thenReturn(Collections.emptyList());
 
         // when & then
@@ -400,21 +334,18 @@ class ReservationValidatorTest {
     @Test
     void isTableAvailable_whenReservationsCollide_shouldThrowException() {
         // given
-        final int tableId = 123;
-        table.setId(tableId);
-
-        final LocalDate tomorrow = LocalDate.now().plusDays(1);
+        final LocalDate date = LocalDate.now().plusDays(1);
         final LocalTime time = LocalTime.of(17, 0);
 
         final Reservation requestedReservation = new Reservation();
-        requestedReservation.setReservationDate(tomorrow);
+        requestedReservation.setReservationDate(date);
         requestedReservation.setReservationTime(time.plusHours(1));
         requestedReservation.setDiningTable(table);
         requestedReservation.setDuration(3);
         requestedReservation.setUser(user);
 
         final Reservation existingReservation = new Reservation();
-        existingReservation.setReservationDate(tomorrow);
+        existingReservation.setReservationDate(date);
         existingReservation.setReservationTime(time);
         existingReservation.setDiningTable(table);
         existingReservation.setDuration(2);
@@ -423,10 +354,10 @@ class ReservationValidatorTest {
         final List<Reservation> reservations = new ArrayList<>();
         reservations.add(existingReservation);
 
-        when(reservationRepository.findAllByDateAndTableId(tomorrow, tableId)).thenReturn(reservations);
+        when(reservationRepository.findAllByDateAndTableId(date, tableId)).thenReturn(reservations);
 
         // when & then
         assertThrows(TableNotAvailableException.class, () -> reservationValidator.isTableAvailable(requestedReservation));
-        verify(reservationRepository, times(1)).findAllByDateAndTableId(tomorrow, tableId);
+        verify(reservationRepository, times(1)).findAllByDateAndTableId(date, tableId);
     }
 }

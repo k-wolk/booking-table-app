@@ -533,4 +533,41 @@ class UserValidatorTest {
         verify(userService, times(1)).findLoginByUserId(userId);
         verify(userService, times(1)).findEmailByUserId(userId);
     }
+
+    @Test
+    void validateUserId_whenUserIdIsNull_shouldReturnError() {
+        // given
+        userId = null;
+
+        final Map<String, String> errors = new HashMap<>();
+        final Map<String, String> expected = new HashMap<>();
+        expected.put("user", USER_ID_IS_REQUIRED);
+
+        // when
+        final Map<String, String> result = userValidator.validateUserId(userId, errors);
+
+        // then
+        assertNotNull(result);
+        assertEquals(expected, result);
+    }
+
+    @Test
+    void validateUserId_whenUserNotExists_shouldReturnError() {
+        // given
+        userId = 111L;
+
+        final Map<String, String> errors = new HashMap<>();
+        final Map<String, String> expected = new HashMap<>();
+        expected.put("user", "User with id " + userId + " was not found.");
+
+        when(userService.existsById(userId)).thenReturn(false);
+
+        // when
+        final Map<String, String> result = userValidator.validateUserId(userId, errors);
+
+        // then
+        assertNotNull(result);
+        assertEquals(expected, result);
+        verify(userService, times(1)).existsById(userId);
+    }
 }

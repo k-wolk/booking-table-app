@@ -1,7 +1,6 @@
 package com.proinwest.booking_table_app.reservation;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
-import com.proinwest.booking_table_app.exceptions.types.NotFoundException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -22,7 +21,7 @@ public class ReservationController {
     @GetMapping()
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<ReservationDTO>> getAllReservations() {
-        List<ReservationDTO> allReservations = reservationService.getAllReservations();
+        final List<ReservationDTO> allReservations = reservationService.getAllReservations();
         return ResponseEntity.ok(allReservations);
     }
 
@@ -34,7 +33,7 @@ public class ReservationController {
     @PostMapping()
     @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public ResponseEntity<ReservationDTO> createReservation(@RequestBody Reservation reservation) {
-        ReservationDTO savedReservation = reservationService.createReservation(reservation);
+        final ReservationDTO savedReservation = reservationService.createReservation(reservation);
         return ResponseEntity.created(reservationService.location(reservation))
                 .body(savedReservation);
     }
@@ -42,7 +41,7 @@ public class ReservationController {
     @PatchMapping("{id}")
     public ResponseEntity<ReservationDTO> updateReservation(@PathVariable Long id,
                                                             @RequestBody Reservation reservation) {
-        ReservationDTO updateReservation = reservationService.updateReservation(id, reservation);
+        final ReservationDTO updateReservation = reservationService.updateReservation(id, reservation);
         return ResponseEntity.ok(updateReservation);
     }
 
@@ -54,7 +53,7 @@ public class ReservationController {
 
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<ReservationDTO>> getUserReservations(@PathVariable Long userId) {
-        List<ReservationDTO> userReservations = reservationService.getUserReservations(userId);
+        final List<ReservationDTO> userReservations = reservationService.getUserReservations(userId);
         return ResponseEntity.ok(userReservations);
     }
 
@@ -62,23 +61,21 @@ public class ReservationController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<ReservationDTO>> findAllByDateAndTableId(@PathVariable LocalDate date,
                                                                         @PathVariable Integer tableId) {
-        List<ReservationDTO> allByDateAndTableId = reservationService.getAllByDateAndTableId(date, tableId);
-        if (allByDateAndTableId.isEmpty()) throw new NotFoundException("There is no reservation on " + date +
-                " for the table with ID " + tableId + ".");
+        final List<ReservationDTO> allByDateAndTableId = reservationService.requireAllByDateAndTableId(date, tableId);
         return ResponseEntity.ok(allByDateAndTableId);
     }
 
     @GetMapping("/date/{date}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<ReservationDTO>> findAllByDate(@PathVariable LocalDate date) {
-        List<ReservationDTO> allByDate = reservationService.findAllByDate(date);
+        final List<ReservationDTO> allByDate = reservationService.findAllByDate(date);
         return ResponseEntity.ok(allByDate);
     }
 
     @GetMapping("/search")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<ReservationDTO>> searchReservations(@RequestParam String query) {
-        List<ReservationDTO> reservations = reservationService.searchReservations(query);
+        final List<ReservationDTO> reservations = reservationService.searchReservations(query);
         return ResponseEntity.ok(reservations);
     }
 }

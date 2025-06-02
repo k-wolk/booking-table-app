@@ -19,34 +19,33 @@ public class UserController {
     @GetMapping()
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserDTO>> getAllUsers() {
-        List<UserDTO> allUsers = userService.getAllUsers();
+        final List<UserDTO> allUsers = userService.getAllUsers();
         return ResponseEntity.ok(allUsers);
     }
 
     @GetMapping("{userId}")
     public ResponseEntity<UserDTO> getUser(@PathVariable Long userId) {
-        System.out.println("DEBUG: UserController getUser() called with userId: " + userId);
-        UserDTO user = userService.getUser(userId);
+        final UserDTO user = userService.getUser(userId);
         return ResponseEntity.ok(user);
     }
 
     @PostMapping()
     public ResponseEntity<UserDTO> registerUser(@RequestBody User user) {
-        UserDTO savedUser = userService.registerUser(user);
+        final UserDTO savedUser = userService.registerUser(user);
         return ResponseEntity.created(userService.location(user))
                 .body(savedUser);
     }
 
     @PatchMapping("{userId}")
     public ResponseEntity<UserDTO> updateUser(@PathVariable Long userId, @RequestBody User user) {
-        UserDTO updatedUser = userService.updateUser(userId, user);
+        final UserDTO updatedUser = userService.updateUser(userId, user);
         return ResponseEntity.ok().body(updatedUser);
     }
 
     @PatchMapping("/role/{userId}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserDTO> updateUserRole(@PathVariable Long userId, @RequestBody Map<String, String> role) {
-        UserDTO updatedUser = userService.updateUserRole(userId, role);
+        final UserDTO updatedUser = userService.updateUserRole(userId, role);
         return ResponseEntity.ok().body(updatedUser);
     }
 
@@ -59,7 +58,7 @@ public class UserController {
     @GetMapping("/search")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserDTO>> searchUsers(@RequestParam String query) {
-        List<UserDTO> foundUsers = userService.searchUsers(query);
+        final List<UserDTO> foundUsers = userService.searchUsers(query);
         return ResponseEntity.ok(foundUsers);
     }
 }

@@ -8,13 +8,10 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class SecurityUtils {
-
     public static final String ACCESS_DENIED_AN_ADMIN_OR_THE_OWNER = "Access denied: You must be an admin or the owner.";
 
     public boolean isAdmin() {
-        boolean isAdmin = hasRole("ROLE_ADMIN");
-        System.out.println("isAdmin: " + isAdmin);
-        return isAdmin;
+        return hasRole("ROLE_ADMIN");
     }
 
     public boolean isUser() {
@@ -27,16 +24,11 @@ public class SecurityUtils {
     }
 
     public boolean isOwner(Long userId) {
-        Long currentUserId = getCurrentUserId();
-        boolean isOwner = userId.equals(currentUserId);
-        System.out.println("current user ID: " + currentUserId);
-        System.out.println("isOwner: " + isOwner);
-        return isOwner;
-//        return userId.isOwner(getCurrentUserId());
+        return userId.equals(getCurrentUserId());
     }
 
     private boolean hasRole(String role) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getAuthorities() == null) {
             return false;
         }
@@ -46,20 +38,12 @@ public class SecurityUtils {
 
     private Long getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
-        System.out.println("DEBUG1: Authentication: " + authentication);
-        System.out.println("DEBUG2: Principal: " + authentication.getPrincipal());
-        System.out.println("DEBUG3: Principal class: " + authentication.getPrincipal().getClass().getName());
-
         if (authentication == null || authentication.getPrincipal() == null)
             throw new CustomSecurityException("No authenticated user found.");
 
-        Object principal = authentication.getPrincipal();
-
+        final Object principal = authentication.getPrincipal();
         if (principal instanceof CustomUserDetails userDetails) return userDetails.getId();
 
         throw new CustomSecurityException("Expected CustomUserDetails, but got: " + principal.getClass().getName());
     }
-
-
 }

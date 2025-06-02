@@ -1,10 +1,13 @@
 package com.proinwest.booking_table_app.diningTable;
 
-import com.proinwest.booking_table_app.exceptions.types.*;
-import com.proinwest.booking_table_app.security.jwt.SecurityUtils;
+import com.proinwest.booking_table_app.exceptions.types.CustomSecurityException;
+import com.proinwest.booking_table_app.exceptions.types.DisableException;
+import com.proinwest.booking_table_app.exceptions.types.NotFoundException;
+import com.proinwest.booking_table_app.exceptions.types.ValidationException;
 import com.proinwest.booking_table_app.reservation.Reservation;
 import com.proinwest.booking_table_app.reservation.ReservationDTO;
 import com.proinwest.booking_table_app.reservation.ReservationService;
+import com.proinwest.booking_table_app.security.jwt.SecurityUtils;
 import com.proinwest.booking_table_app.user.UserService;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
@@ -31,7 +34,6 @@ public class DiningTableService {
     public static final String ACCESS_DENIED_TABLE_INACTIVE = "Access denied: table is inactive";
     private final DiningTableRepository tableRepository;
     private final ReservationService reservationService;
-    private final UserService userService;
     private final DiningTableValidator tableValidator;
     private final SecurityUtils securityUtils;
 
@@ -43,27 +45,26 @@ public class DiningTableService {
     ) {
         this.tableRepository = tableRepository;
         this.reservationService = reservationService;
-        this.userService = userService;
         this.tableValidator = tableValidator;
         this.securityUtils = securityUtils;
     }
 
-    public List<DiningTable> getAllTables() {
-        List<DiningTable> allTables = tableRepository.allTablesOrderByActive();
+    List<DiningTable> getAllTables() {
+        final List<DiningTable> allTables = tableRepository.allTablesOrderByActive();
         if (allTables.isEmpty()) throw new NotFoundException(NO_TABLES_FOUND);
 
         return allTables;
     }
 
-    public List<DiningTable> getAllActiveTables() {
-        List<DiningTable> allActiveTables = tableRepository.allActiveTables();
+    List<DiningTable> getAllActiveTables() {
+        final List<DiningTable> allActiveTables = tableRepository.allActiveTables();
         if (allActiveTables.isEmpty()) throw new NotFoundException(NO_TABLES_FOUND);
 
         return allActiveTables;
     }
 
     DiningTable getTable(Integer tableId) {
-        DiningTable table = tableRepository.findById(tableId)
+        final DiningTable table = tableRepository.findById(tableId)
                 .orElseThrow(() -> new NotFoundException("Table not found for ID: " + tableId + "."));
 
         if (!securityUtils.isAdmin() && !table.isActive())
@@ -85,16 +86,16 @@ public class DiningTableService {
                 .toUri();
     }
 
-    public void deactivateTable(Integer tableId) {
-        DiningTable table = tableRepository.findById(tableId)
+    void deactivateTable(Integer tableId) {
+        final DiningTable table = tableRepository.findById(tableId)
                 .orElseThrow(() -> new NotFoundException("Table not found for ID: " + tableId + "."));
 
         table.setActive(false);
         tableRepository.save(table);
     }
 
-    public void activateTable(Integer tableId) {
-        DiningTable table = tableRepository.findById(tableId)
+    void activateTable(Integer tableId) {
+        final DiningTable table = tableRepository.findById(tableId)
                 .orElseThrow(() -> new NotFoundException("Table not found for ID: " + tableId + "."));
 
         table.setActive(true);
@@ -158,9 +159,9 @@ public class DiningTableService {
     }
 
     public List<String> whenTableIsAvailable(Integer tableId, LocalDate date) {
-        List<ReservationDTO> allByTableAndDate = reservationService.getAllByDateAndTableId(date, tableId);
+        final List<ReservationDTO> allByTableAndDate = reservationService.getAllByDateAndTableId(date, tableId);
 
-        Map<LocalTime, Integer> timeAndDuration = allByTableAndDate
+        final Map<LocalTime, Integer> timeAndDuration = allByTableAndDate
                 .stream()
                 .sorted(Comparator.comparing(ReservationDTO::reservationTime))
                 .collect(Collectors.toMap(
@@ -174,12 +175,12 @@ public class DiningTableService {
     }
 
     private static List<String> getWhenTableIsFree(Map<LocalTime, Integer> timeAndDuration) {
-        List<String> whenTableIsFree = new ArrayList<>();
+        final List<String> whenTableIsFree = new ArrayList<>();
         LocalTime previousEndTime = ReservationService.OPENING_TIME;
 
         for (Map.Entry<LocalTime, Integer> entry : timeAndDuration.entrySet()) {
-            LocalTime reservationStart = entry.getKey();
-            LocalTime reservationEnd = reservationStart.plusHours(entry.getValue());
+            final LocalTime reservationStart = entry.getKey();
+            final LocalTime reservationEnd = reservationStart.plusHours(entry.getValue());
 
             if (previousEndTime.plusHours(ReservationService.MIN_DURATION)
                     .minusSeconds(1)

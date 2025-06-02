@@ -1,9 +1,8 @@
 package com.proinwest.booking_table_app.reservation;
 
-import com.proinwest.booking_table_app.diningTable.DiningTableService;
 import com.proinwest.booking_table_app.diningTable.DiningTableValidator;
 import com.proinwest.booking_table_app.exceptions.types.TableNotAvailableException;
-import com.proinwest.booking_table_app.user.UserService;
+import com.proinwest.booking_table_app.user.UserValidator;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -13,25 +12,20 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.proinwest.booking_table_app.diningTable.DiningTableService.TABLE_ID_IS_REQUIRED;
 import static com.proinwest.booking_table_app.reservation.ReservationService.*;
-import static com.proinwest.booking_table_app.reservation.ReservationService.FIELD_REQUIRED;
-import static com.proinwest.booking_table_app.user.UserService.*;
 
 @Component
 public class ReservationValidator {
-    private final UserService userService;
-    private final DiningTableService tableService;
+    private final UserValidator userValidator;
     private final DiningTableValidator tableValidator;
     private final ReservationRepository reservationRepository;
 
-    public ReservationValidator(UserService userService,
-                                DiningTableService tableService,
-                                DiningTableValidator tableValidator,
-                                ReservationRepository reservationRepository)
+    public ReservationValidator(
+            UserValidator userValidator,
+            DiningTableValidator tableValidator,
+            ReservationRepository reservationRepository)
     {
-        this.userService = userService;
-        this.tableService = tableService;
+        this.userValidator = userValidator;
         this.tableValidator = tableValidator;
         this.reservationRepository = reservationRepository;
     }
@@ -39,8 +33,6 @@ public class ReservationValidator {
     Map<String, String> validateReservation(Reservation reservation) {
         final Map<String, String> errors = new HashMap<>();
 
-        validateUserId(reservation.getUser().getId(), errors);
-        validateTableId(reservation.getDiningTable().getId(), errors);
         validateDate(reservation.getReservationDate(), errors);
         validateTime(reservation.getReservationTime(),
                 reservation.getReservationDate(),
@@ -48,6 +40,8 @@ public class ReservationValidator {
                 errors);
         validateDuration(reservation.getDuration(), errors);
         isTableAvailable(reservation);
+        userValidator.validateUserId(reservation.getUser().getId(), errors);
+        tableValidator.validateTableId(reservation.getDiningTable().getId(), errors);
 
         return errors;
     }
@@ -64,24 +58,6 @@ public class ReservationValidator {
         tableValidator.validateSeats(reservation.getDiningTable().getSeats(), errors);
 
         return errors;
-    }
-
-    private void validateUserId(Long userId, Map<String, String> errors) {
-        if (userId == null) {
-            errors.put("user", USER_ID_IS_REQUIRED);
-        } else if (!userService.existsById(userId)) {
-            errors.put("user", "User with id " + userId + " was not found.");
-        }
-    }
-
-    private void validateTableId(Integer tableId, Map<String, String> errors) {
-        if (tableId == null) {
-            errors.put("diningTable", TABLE_ID_IS_REQUIRED);
-        } else if (!tableService.existsById(tableId)) {
-            errors.put("diningTable", "Dining table with id " + tableId + " was not found.");
-        } else if (!tableService.isActive(tableId)) {
-            errors.put("diningTable", "Dining table with id " + tableId + " is not active.");
-        }
     }
 
     private void validateDate(LocalDate date, Map<String, String> errors) {
@@ -114,7 +90,7 @@ public class ReservationValidator {
     }
 
     void isTableAvailable(Reservation reservation) {
-        Integer tableId = reservation.getDiningTable().getId();
+        final Integer tableId = reservation.getDiningTable().getId();
         final List<Reservation> allByDateAndTableId = reservationRepository
                 .findAllByDateAndTableId(reservation.getReservationDate(), tableId);
 

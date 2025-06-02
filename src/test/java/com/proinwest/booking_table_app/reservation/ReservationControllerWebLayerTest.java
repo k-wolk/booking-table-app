@@ -279,7 +279,7 @@ class ReservationControllerWebLayerTest {
         final LocalDate date = reservation.getReservationDate();
         final Integer tableId = reservation.getDiningTable().getId();
 
-        when(reservationService.getAllByDateAndTableId(date, tableId)).thenReturn(List.of(reservationDTO));
+        when(reservationService.requireAllByDateAndTableId(date, tableId)).thenReturn(List.of(reservationDTO));
 
         // when & then
         mockMvc.perform(get("/reservations/date/{date}/table/{tableId}", date, tableId))
@@ -299,7 +299,7 @@ class ReservationControllerWebLayerTest {
                 .andExpect(jsonPath("$[0].diningTable.number")  .value(table.getNumber()))
                 .andExpect(jsonPath("$[0].diningTable.seats")   .value(table.getSeats()));
 
-        verify(reservationService, times(1)).getAllByDateAndTableId(date, tableId);
+        verify(reservationService, times(1)).requireAllByDateAndTableId(date, tableId);
     }
 
     @Test
@@ -314,24 +314,6 @@ class ReservationControllerWebLayerTest {
                 .andExpect(status().isForbidden());
 
         verify(reservationService, never()).getAllByDateAndTableId(date, tableId);
-    }
-
-    @Test
-    @WithMockUser(roles = "ADMIN")
-    void findAllByDateAndTableId_whenNoReservationsFound_shouldReturnNotFound() throws Exception {
-        // given
-        final LocalDate date = reservation.getReservationDate();
-        final Integer tableId = reservation.getDiningTable().getId();
-
-        when(reservationService.getAllByDateAndTableId(date, tableId)).thenReturn(List.of());
-
-        // when & then
-        mockMvc.perform(get("/reservations/date/{date}/table/{tableId}", date, tableId))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message").value("There is no reservation on " + date +
-                        " for the table with ID " + tableId + "."));
-
-        verify(reservationService, times(1)).getAllByDateAndTableId(date, tableId);
     }
 
     @Test

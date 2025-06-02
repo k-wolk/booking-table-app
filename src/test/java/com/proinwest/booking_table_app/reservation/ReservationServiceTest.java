@@ -412,6 +412,42 @@ class ReservationServiceTest {
     }
 
     @Test
+    void requireAllByDateAndTableId_whenExists_shouldReturnListOfReservations() {
+        // given
+        final Integer tableId = table.getId();
+        final LocalDate date = reservation.getReservationDate();
+
+        when(diningTableService.existsById(tableId)).thenReturn(true);
+        when(reservationRepository.findAllByDateAndTableId(date, tableId)).thenReturn(List.of(reservation));
+        when(reservationDTOMapper.apply(reservation)).thenReturn(reservationDTO);
+
+        // when
+        final List<ReservationDTO> result = reservationService.requireAllByDateAndTableId(date, tableId);
+
+        // then
+        assertNotNull(result);
+        assertEquals(List.of(reservationDTO), result);
+        verify(diningTableService, times(1)).existsById(tableId);
+        verify(reservationRepository, times(1)).findAllByDateAndTableId(date, tableId);
+        verify(reservationDTOMapper, times(1)).apply(reservation);
+    }
+
+    @Test
+    void requireAllByDateAndTableId_whenNoReservationsFound_shouldThrowException() {
+        // given
+        final Integer tableId = 111;
+        final LocalDate tomorrow = LocalDate.now().plusDays(1);
+
+        when(diningTableService.existsById(tableId)).thenReturn(true);
+        when(reservationRepository.findAllByDateAndTableId(tomorrow, tableId)).thenReturn(Collections.emptyList());
+
+        // when & then
+        assertThrows(NotFoundException.class, () -> reservationService.requireAllByDateAndTableId(tomorrow, tableId));
+        verify(diningTableService, times(1)).existsById(tableId);
+        verify(reservationRepository, times(1)).findAllByDateAndTableId(tomorrow, tableId);
+    }
+
+    @Test
     void findAllByDate_whenExists_shouldFindAllReservationsByDate() {
         // given
         final LocalDate date = reservation.getReservationDate();

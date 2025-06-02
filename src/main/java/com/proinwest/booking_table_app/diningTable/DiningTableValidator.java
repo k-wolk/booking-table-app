@@ -42,4 +42,15 @@ public class DiningTableValidator {
             errors.put("seats", SEATS_MESSAGE);
         }
     }
+
+    public Map<String, String> validateTableId(Integer tableId, Map<String, String> errors) {
+        if (tableId == null) {
+            errors.put("diningTable", TABLE_ID_IS_REQUIRED);
+        } else if (!tableService.existsById(tableId)) {
+            errors.put("diningTable", "Dining table with id " + tableId + " was not found.");
+        } else if (!tableService.isActive(tableId)) {
+            errors.put("diningTable", "Dining table with id " + tableId + " is not active.");
+        }
+        return errors;
+    }
 }

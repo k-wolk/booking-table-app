@@ -65,7 +65,7 @@ public class ReservationService {
     }
 
     ReservationDTO getReservation(Long id) {
-        ReservationDTO reservationDTO = reservationRepository.findById(id)
+        final ReservationDTO reservationDTO = reservationRepository.findById(id)
                 .map(reservationDTOMapper)
                 .orElseThrow(() -> new NotFoundException("Reservation with id " + id + " was not found."));
 
@@ -94,7 +94,7 @@ public class ReservationService {
 
         securityUtils.isAdminOrOwner(existingReservation.getUser().getId());
 
-        Reservation updatedReservation = updateReservation(reservation, existingReservation);
+        final Reservation updatedReservation = updateReservation(reservation, existingReservation);
         validateReservation(updatedReservation);
 
         final Reservation savedReservation = reservationRepository.save(updatedReservation);
@@ -102,7 +102,7 @@ public class ReservationService {
     }
 
     void cancelReservation(Long id) {
-        Reservation reservation = reservationRepository.findById(id)
+        final Reservation reservation = reservationRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Reservation with id " + id + " was not found."));
 
         securityUtils.isAdminOrOwner(reservation.getUser().getId());
@@ -110,12 +110,12 @@ public class ReservationService {
         reservationRepository.deleteById(id);
     }
 
-    public List<ReservationDTO> getUserReservations(Long userId) {
+    List<ReservationDTO> getUserReservations(Long userId) {
         securityUtils.isAdminOrOwner(userId);
 
         if (!userService.existsById(userId)) throw new NotFoundException("User not found for ID: " + userId + ".");
 
-        List<ReservationDTO> allByUserId = reservationRepository.findAllByUserId(userId)
+        final List<ReservationDTO> allByUserId = reservationRepository.findAllByUserId(userId)
                 .stream()
                 .sorted(Comparator.comparing(Reservation::getReservationDate))
                 .map(reservationDTOMapper)
@@ -137,6 +137,14 @@ public class ReservationService {
                 .map(reservationDTOMapper)
                 .toList();
 
+        return allByDateAndTableId;
+    }
+
+    List<ReservationDTO> requireAllByDateAndTableId(LocalDate date, Integer tableId) {
+        final List<ReservationDTO> allByDateAndTableId = getAllByDateAndTableId(date, tableId);
+        if (allByDateAndTableId.isEmpty())
+            throw new NotFoundException("There is no reservation on " + date + " for the table with ID " +
+                    tableId + ".");
         return allByDateAndTableId;
     }
 
@@ -165,14 +173,14 @@ public class ReservationService {
         return allByTableId;
     }
 
-    public List<ReservationDTO> searchReservations(String query) {
+    List<ReservationDTO> searchReservations(String query) {
         if (query.isBlank()) throw new InvalidInputException(INPUT_IS_MISSING);
 
-        String[] terms = query.split("\\s+");
-        Set<ReservationDTO> resultSet = new HashSet<>();
+        final String[] terms = query.split("\\s+");
+        final Set<ReservationDTO> resultSet = new HashSet<>();
 
         for (String term : terms) {
-            List<ReservationDTO> reservations = reservationRepository.searchReservations(term)
+            final List<ReservationDTO> reservations = reservationRepository.searchReservations(term)
                     .stream()
                     .map(reservationDTOMapper)
                     .toList();
@@ -186,12 +194,12 @@ public class ReservationService {
     }
 
     void validateReservation(Reservation reservation) {
-        Map<String, String> validationMessages = reservationValidator.validateReservation(reservation);
+        final Map<String, String> validationMessages = reservationValidator.validateReservation(reservation);
         if (!validationMessages.isEmpty()) throw new ValidationException(validationMessages);
     }
 
     public void validateDateTimeDurationAndSeats(Reservation reservation) {
-        Map<String, String> validationMessages = reservationValidator.validateDateTimeDurationAndSeats(reservation);
+        final Map<String, String> validationMessages = reservationValidator.validateDateTimeDurationAndSeats(reservation);
         if (!validationMessages.isEmpty()) throw new ValidationException(validationMessages);
     }
 

@@ -9,7 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -30,11 +29,9 @@ import java.time.LocalDateTime;
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
-
-    private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
     private final AuthEntryPointJwt unauthorizedHandler;
     private final UserRepository userRepository;
-    private CustomUserDetailsService customUserDetailsService;
+    private final CustomUserDetailsService customUserDetailsService;
 
     public SecurityConfig(AuthEntryPointJwt unauthorizedHandler, UserRepository userRepository, CustomUserDetailsService customUserDetailsService) {
         this.unauthorizedHandler = unauthorizedHandler;
@@ -43,9 +40,7 @@ public class SecurityConfig {
     }
 
     @Bean
-//    @Profile("!test")
     public AuthTokenFilter authenticationJwtTokenFilter() {
-        logger.debug("Initializing JWT Authentication Filter");
         return new AuthTokenFilter();
     }
 
@@ -75,7 +70,7 @@ public class SecurityConfig {
                             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                             response.setContentType("application/json");
 
-                            ExceptionResponse errorResponse = new ExceptionResponse(
+                            final ExceptionResponse errorResponse = new ExceptionResponse(
                                     HttpStatus.FORBIDDEN.value(),
                                     "Access denied.",
                                     LocalDateTime.now().toString()
@@ -103,11 +98,8 @@ public class SecurityConfig {
 
     @Bean
     public AuthenticationManager authenticationManager() {
-        logger.info("Creating AuthenticationManager bean");
         return new ProviderManager(authenticationProvider());
     }
-
-
 }
 
 

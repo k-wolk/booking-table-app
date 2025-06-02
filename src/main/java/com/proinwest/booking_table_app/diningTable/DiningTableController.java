@@ -20,26 +20,26 @@ public class DiningTableController {
     @GetMapping()
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<DiningTable>> getAllTables() {
-        List<DiningTable> allTables = tableService.getAllTables();
+        final List<DiningTable> allTables = tableService.getAllTables();
         return ResponseEntity.ok(allTables);
     }
 
     @GetMapping("/getactive")
     public ResponseEntity<List<DiningTable>> getAllActiveTables() {
-        List<DiningTable> allTables = tableService.getAllActiveTables();
+        final List<DiningTable> allTables = tableService.getAllActiveTables();
         return ResponseEntity.ok(allTables);
     }
 
     @GetMapping("/{tableId}")
     public ResponseEntity<DiningTable> getTable(@PathVariable Integer tableId) {
-        DiningTable table = tableService.getTable(tableId);
+        final DiningTable table = tableService.getTable(tableId);
         return ResponseEntity.ok(table);
     }
 
     @PostMapping()
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<DiningTable> createTable(@RequestBody DiningTable table) {
-        DiningTable savedTable = tableService.createTable(table);
+        final DiningTable savedTable = tableService.createTable(table);
         return ResponseEntity.created(tableService.location(savedTable))
                 .body(savedTable);
     }
@@ -61,7 +61,7 @@ public class DiningTableController {
     @PatchMapping("/{tableId}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<DiningTable> updateTable(@PathVariable Integer tableId, @RequestBody DiningTable table) {
-        DiningTable updatedTable = tableService.updateTable(tableId, table);
+        final DiningTable updatedTable = tableService.updateTable(tableId, table);
         return ResponseEntity.ok(updatedTable);
     }
 
@@ -75,13 +75,13 @@ public class DiningTableController {
     @GetMapping("/{tableId}/date/{date}")
     public ResponseEntity<List<String>> availableHours(@PathVariable Integer tableId,
                                                        @PathVariable LocalDate date) {
-        List<String> availableTimes = tableService.whenTableIsAvailable(tableId, date);
+        final List<String> availableTimes = tableService.whenTableIsAvailable(tableId, date);
         return ResponseEntity.ok(availableTimes);
     }
 
     @GetMapping("/available")
     public ResponseEntity<List<DiningTable>> availableTables(@RequestBody Reservation reservation) {
-        List<DiningTable> availableTables =  tableService.getAvailableTables(reservation);
+        final List<DiningTable> availableTables =  tableService.getAvailableTables(reservation);
         return ResponseEntity.ok(availableTables);
     }
 }

@@ -11,7 +11,6 @@ import static com.proinwest.booking_table_app.user.UserService.*;
 
 @Component
 public class UserValidator {
-
     private final UserService userService;
 
     public UserValidator(@Lazy UserService userService) {
@@ -112,5 +111,14 @@ public class UserValidator {
         } else if (!Pattern.matches(PHONE_NUMBER_REGEX, phoneNumber)) {
             errors.put("phoneNumber", PHONE_MESSAGE + VALID_PHONE_NUMBER);
         }
+    }
+
+    public Map<String, String> validateUserId(Long userId, Map<String, String> errors) {
+        if (userId == null) {
+            errors.put("user", USER_ID_IS_REQUIRED);
+        } else if (!userService.existsById(userId)) {
+            errors.put("user", "User with id " + userId + " was not found.");
+        }
+        return errors;
     }
 }

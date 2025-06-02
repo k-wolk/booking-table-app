@@ -42,16 +42,16 @@ public class LoginController {
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        final UserDetails userDetails = (UserDetails) authentication.getPrincipal();
 
-        String jwtToken = jwtUtils.generateTokenFromUsername((CustomUserDetails) userDetails);
+        final String jwtToken = jwtUtils.generateTokenFromUsername((CustomUserDetails) userDetails);
 
-        List<String> roles = userDetails.getAuthorities()
+        final List<String> roles = userDetails.getAuthorities()
                 .stream()
                 .map(item -> item.getAuthority())
                 .collect(Collectors.toList());
 
-        LoginResponse response = new LoginResponse(userDetails.getUsername(), roles, jwtToken);
+        final LoginResponse response = new LoginResponse(userDetails.getUsername(), roles, jwtToken);
 
         return ResponseEntity.ok(response);
     }

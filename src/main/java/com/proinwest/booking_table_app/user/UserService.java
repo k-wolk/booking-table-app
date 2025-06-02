@@ -41,7 +41,6 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final UserDTOMapper userDTOMapper;
-    private final ReservationService reservationService;
     private final UserValidator userValidator;
     private final PasswordEncoder passwordEncoder;
     private final SecurityUtils securityUtils;
@@ -55,7 +54,6 @@ public class UserService {
     ) {
         this.userRepository = userRepository;
         this.userDTOMapper = userDTOMapper;
-        this.reservationService = reservationService;
         this.userValidator = userValidator;
         this.passwordEncoder = passwordEncoder;
         this.securityUtils = securityUtils;
@@ -63,18 +61,18 @@ public class UserService {
 
     List<UserDTO> getAllUsers() {
         final Iterable<User> allUsers = userRepository.findAll();
+        if (allUsers.spliterator().getExactSizeIfKnown() == 0) throw new NotFoundException(NO_USERS_IN_DATABASE);
+
         final List<UserDTO> allUsersDTOList = StreamSupport.stream(allUsers.spliterator(), false)
                 .map(userDTOMapper)
                 .toList();
-
-        if (allUsersDTOList.isEmpty()) throw new NotFoundException(NO_USERS_IN_DATABASE);
 
         return allUsersDTOList;
     }
 
     UserDTO getUser(Long userId) {
         securityUtils.isAdminOrOwner(userId);
-        UserDTO userDTO = userRepository.findById(userId)
+        final UserDTO userDTO = userRepository.findById(userId)
                 .map(userDTOMapper)
                 .orElseThrow(() -> new NotFoundException("User with id " + userId + " was not found."));
 
@@ -113,7 +111,7 @@ public class UserService {
         final User userToUpdate = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User with id " + userId + " was not found."));
 
-        String newRole = role.get("role");
+        final String newRole = role.get("role");
         if (newRole == null || newRole.isBlank())   throw new InvalidInputException(ROLE_IS_REQUIRED);
         if (!isValidRole(newRole))                  throw new InvalidInputException(INVALID_ROLE);
 
@@ -135,11 +133,11 @@ public class UserService {
     List<UserDTO> searchUsers(String query) {
         if (query.isBlank()) throw new InvalidInputException(INPUT_IS_MISSING);
 
-        String[] terms = query.split("\\s+");
-        Set<UserDTO> resultSet = new HashSet<>();
+        final String[] terms = query.split("\\s+");
+        final Set<UserDTO> resultSet = new HashSet<>();
 
         for (String term : terms) {
-            List<UserDTO> users = userRepository.searchUsers(term)
+            final List<UserDTO> users = userRepository.searchUsers(term)
                     .stream()
                     .map(userDTOMapper)
                     .toList();
@@ -173,12 +171,12 @@ public class UserService {
     }
 
     void validateUserToUpdate(User userToUpdate, Long userId) {
-        Map<String, String> validationMessages = userValidator.validateUserToUpdate(userToUpdate, userId);
+        final Map<String, String> validationMessages = userValidator.validateUserToUpdate(userToUpdate, userId);
         if (!validationMessages.isEmpty()) throw new ValidationException(validationMessages);
     }
 
     void validateNewUser(User userToUpdate) {
-        Map<String, String> validationMessages = userValidator.validateNewUser(userToUpdate);
+        final Map<String, String> validationMessages = userValidator.validateNewUser(userToUpdate);
         if (!validationMessages.isEmpty()) throw new ValidationException(validationMessages);
     }
 
